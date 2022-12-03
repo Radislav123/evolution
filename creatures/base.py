@@ -1,4 +1,5 @@
 import pygame
+from logging import Logger
 
 
 class BaseCreature(pygame.sprite.Sprite):
@@ -14,14 +15,17 @@ class BaseCreature(pygame.sprite.Sprite):
         self.rectangle.y = position[1]
 
         self.world = world
-        self.screen = world.screen
+        self.screen: pygame.Surface = world.screen
+        self.logger: Logger = world.logger
 
-        BaseCreature.counter += 1
         # должен быть уникальным для всех существ в мире
-        self.id = f"{self.__class__}.{BaseCreature.counter}"
+        self.id = f"{self.__class__.__name__}{BaseCreature.counter}"
+        BaseCreature.counter += 1
         self.genes = None
         self.stats = None
         self.position = position
+
+        self.logger.info(f"creature {self.id} was spawned")
 
     def draw(self):
         """Отрисовывает существо на экране."""
@@ -29,7 +33,7 @@ class BaseCreature(pygame.sprite.Sprite):
 
     def tick(self):
         """Симулирует жизнедеятельность за один тик."""
-        pass
 
+    # todo: remove this method
     def print_position(self):
         print(self.rectangle)

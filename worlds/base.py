@@ -1,5 +1,7 @@
-from creatures.base import BaseCreature
 import pygame
+
+from creatures.base import BaseCreature
+from loggers.base import BaseLogger
 
 
 class BaseWorld:
@@ -7,13 +9,16 @@ class BaseWorld:
         self.screen = pygame.display.set_mode((width, height))
         self.age = age
         self.creatures: dict[str, BaseCreature] = {}
+        self.logger = BaseLogger()
 
-    def get_creatures_positions(self, creatures_number: int) -> list[tuple[int, int]]:
-        return [(self.screen.get_width()//2 - creatures_number//2 + pos_0, self.screen.get_height()//2)
-                for pos_0 in range(creatures_number)]
+        self.logger.info("the world was generated")
 
-    def create_creatures(self, creatures_number: int) -> dict[BaseCreature]:
-        new_creatures_list = [BaseCreature(position, self) for position in self.get_creatures_positions(creatures_number)]
+    def spawn_start_creations(self, creatures_number: int) -> dict[BaseCreature]:
+        creatures_positions = [
+            (self.screen.get_width()//2 - creatures_number//2 + pos_0*100, self.screen.get_height()//2)
+            for pos_0 in range(creatures_number)
+        ]
+        new_creatures_list = [BaseCreature(position, self) for position in creatures_positions]
         new_creatures = {creature.id: creature for creature in new_creatures_list}
         self.creatures.update(new_creatures)
         return new_creatures
