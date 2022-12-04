@@ -2,7 +2,7 @@ import datetime
 import logging
 from pathlib import Path
 
-from constants import LOGS_PATH
+from evolution.settings import LOGS_PATH
 
 
 OBJECT_ID = "objectId"

@@ -1,8 +1,8 @@
 import logging
 from dataclasses import dataclass
 
-from loggers.base import OBJECT_ID
-from worlds.resources import BaseResource
+from simulator.loggers.base import OBJECT_ID
+from simulator.worlds.resources import BaseResource
 
 
 @dataclass

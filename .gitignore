@@ -1,16 +1,19 @@
-# Byte-compiled / optimized / DLL files
+# byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Unit test / coverage reports
+# unit test / coverage reports
 .pytest_cache/
 
-# Environment
+# environment
 venv/
 
 # Logs
 logs/
 
-# Other
+# migrations
+migrations/
+
+# other
 CHANGELOG.md

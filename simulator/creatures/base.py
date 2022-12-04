@@ -4,17 +4,17 @@ from typing import TYPE_CHECKING
 
 import pygame
 
-from constants import IMAGES_PATH
-from creatures.genome.base import BaseGenome
-from creatures.resources import BaseResourcesStorage
-from loggers.base import OBJECT_ID
-from worlds.position import Position
-from worlds.resources import CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
+from evolution.settings import IMAGES_PATH
+from simulator.creatures.genome.base import BaseGenome
+from simulator.creatures.resources import BaseResourcesStorage
+from simulator.loggers.base import OBJECT_ID
+from simulator.worlds.position import Position
+from simulator.worlds.resources import CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from worlds.base import BaseWorld
+    from simulator.worlds.base import BaseWorld
 
 
 class CollisionException(BaseException):
