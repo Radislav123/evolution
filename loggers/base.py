@@ -8,7 +8,7 @@ class BaseLogger:
 
     # история мира - уровень info
     LOGS_PATH = "logs"
-    CONSOLE_LOGS_LEVEL = logging.INFO
+    CONSOLE_LOGS_LEVEL = logging.DEBUG
     FILE_LOGS_LEVEL = logging.DEBUG
     LOG_FORMAT = "[%(asctime)s] - [%(levelname)s] - %(name)s - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
     LOG_FORMATTER = logging.Formatter(LOG_FORMAT)
