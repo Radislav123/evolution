@@ -37,7 +37,6 @@ if __name__ == "__main__":
                         creature.rectangle.move_ip(-10, 0)
                     if event.key == locals.K_RIGHT:
                         creature.rectangle.move_ip(10, 0)
-                    creature.print_position()
 
         world.tick()
         world.draw()

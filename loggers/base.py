@@ -3,6 +3,9 @@ import logging
 from pathlib import Path
 
 
+OBJECT_ID = "objectId"
+
+
 class BaseLogger:
     """Обертка для logging <https://docs.python.org/3/library/logging.html>."""
 
@@ -10,7 +13,8 @@ class BaseLogger:
     LOGS_PATH = "logs"
     CONSOLE_LOGS_LEVEL = logging.DEBUG
     FILE_LOGS_LEVEL = logging.DEBUG
-    LOG_FORMAT = "[%(asctime)s] - [%(levelname)s] - %(name)s - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
+    LOG_FORMAT = f"[%(asctime)s] - [%(levelname)s] - %(name)s - %({OBJECT_ID})s" \
+                 f" - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
     LOG_FORMATTER = logging.Formatter(LOG_FORMAT)
 
     @staticmethod
@@ -31,14 +35,12 @@ class BaseLogger:
             replacing_characters = [" ", "-", ":", "."]
             for character in replacing_characters:
                 filename = filename.replace(character, "_")
-            handler = logging.FileHandler(
-                cls.get_log_filepath(filename)
-            )
+            handler = logging.FileHandler(cls.get_log_filepath(filename))
         handler.setLevel(log_level)
         handler.setFormatter(cls.LOG_FORMATTER)
         return handler
 
-    def __new__(cls, logger_name = "world_logger"):
+    def __new__(cls, logger_name):
         # создает папку для логов, если ее нет
         Path(cls.LOGS_PATH).mkdir(parents = True, exist_ok = True)
         logger = logging.getLogger(logger_name)
@@ -54,7 +56,7 @@ class BaseLogger:
 
 # для проверки логгера
 if __name__ == "__main__":
-    test_logger = BaseLogger()
+    test_logger = BaseLogger("test_logger")
     print(f"logger name: {test_logger.name}")
     print(f"help: {test_logger.__doc__}")
 

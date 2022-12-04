@@ -1,9 +1,10 @@
-from logging import Logger
+import logging
 from typing import TYPE_CHECKING
 
 import pygame
 
 from creatures.genome.base import BaseGenome
+from loggers.base import OBJECT_ID
 from worlds.position import Position
 from worlds.resources import c6h12o6, co2, h2o, light, o2
 
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
 # todo: убрать наследование от Sprite, если оно не нужно
 class BaseCreature(pygame.sprite.Sprite):
     # ((in, out), (in, out), ...)
-    eat_reactions = (({h2o: 6, co2: 6, light: 1}, {c6h12o6: 1, o2: 6}), )
+    eat_reactions = (({h2o: 6, co2: 6, light: 1}, {c6h12o6: 1, o2: 6}),)
     counter = 0
 
     # position - центр существа
@@ -25,8 +26,8 @@ class BaseCreature(pygame.sprite.Sprite):
         super().__init__(*args)
 
         # должен быть уникальным для всех существ в мире
-        self.id = f"{self.__class__.__name__}{BaseCreature.counter}"
-        BaseCreature.counter += 1
+        self.id = f"{self.__class__.__name__}{self.counter}"
+        self.counter += 1
         self.genome = BaseGenome()
         self.position = position
 
@@ -37,18 +38,16 @@ class BaseCreature(pygame.sprite.Sprite):
         self.rectangle.y = self.position.y - self.rectangle[3]//2
 
         self.world = world
-        self.screen: pygame.Surface = world.screen
-        self.logger: Logger = world.logger
+        self.screen = world.screen
+        self.logger = world.logger.logger.getChild(self.__class__.__name__)
+        self.logger = logging.LoggerAdapter(self.logger, {OBJECT_ID: self.id})
 
         # насыщение с точки зрения питания
         self.max_saturation = 100
         self.min_saturation = 0
         self.min_saturation = self.max_saturation//2
 
-        self.log_info(f"spawns at {self.position}")
-
-    def log_info(self, message):
-        self.logger.info(f"{self.id} - {message}")
+        self.logger.info(f"spawns at {self.position}")
 
     def draw(self):
         """Отрисовывает существо на экране."""
@@ -66,10 +65,9 @@ class BaseCreature(pygame.sprite.Sprite):
         return can_eat
 
     def eat(self):
-        for resource, number in self.eat_reactions[0][0].items():
+        eat_reaction = self.eat_reactions[0]
+        for resource, number in eat_reaction[0].items():
             self.world.remove_resource(self.position, resource, number)
-            self.log_info(f"eat {self.eat_reactions[0]}")
-
-    # todo: remove this method
-    def print_position(self):
-        print(self.rectangle)
+        for resource, number in eat_reaction[1].items():
+            self.world.add_resource(self.position, resource, number)
+        self.logger.info(f"{eat_reaction[0]} -> {self.eat_reactions[0][1]}")
