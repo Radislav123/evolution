@@ -1,8 +1,10 @@
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pygame
 
+from constants import IMAGES_PATH
 from creatures.genome.base import BaseGenome
 from creatures.resources import BaseResourcesStorage
 from loggers.base import OBJECT_ID
@@ -47,8 +49,7 @@ class BaseCreature(pygame.sprite.Sprite):
         self.__class__.counter += 1
         self.genome = BaseGenome()
 
-        self.surface = pygame.Surface((5, 5))
-        self.surface.fill((0, 0, 0))
+        self.surface = pygame.image.load(Path(f"{IMAGES_PATH}/{self.__class__.__name__}.bmp")).convert()
         self.rect = self.surface.get_rect()
         self.rect.x = position.x
         self.rect.y = position.y

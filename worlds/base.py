@@ -1,5 +1,6 @@
 import copy
 import logging
+from enum import Enum
 
 import pygame
 
@@ -8,13 +9,25 @@ from loggers.base import BaseLogger, OBJECT_ID
 from worlds.position import Position
 
 
+class Mode(Enum):
+    # interactive - симуляция идет и сразу отрисовывается
+    # record - симуляция записывается в БД
+    # play - воспроизведение записанной симуляции
+    INTERACTIVE = "interactive"
+    RECORD = "record"
+    PLAY = "play"
+
+
 class BaseWorld:
     counter = 0
 
     # width - минимальное значение ширины экрана - 120
-    def __init__(self, width = 1000, height = 1000):
+    def __init__(self, mode: Mode, width = 1000, height = 1000, age = 0):
         self.id = f"{self.__class__.__name__}{self.counter}"
         self.__class__.counter += 1
+
+        self.mode = mode
+        self.age = age
 
         self.screen = pygame.display.set_mode((width, height))
         # {creature.id: creature}
@@ -63,11 +76,12 @@ class BaseWorld:
                 collided_creatures.remove(creature)
                 for other_creature in collided_creatures:
                     creature.collision_interact(other_creature)
+        self.age += 1
 
     def draw(self):
         # залить фон белым
         self.screen.fill((255, 255, 255))
-        for _, creature in self.creatures.items():
+        for creature in self.creatures.values():
             creature.draw()
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal

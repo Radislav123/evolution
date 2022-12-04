@@ -2,6 +2,8 @@ import datetime
 import logging
 from pathlib import Path
 
+from constants import LOGS_PATH
+
 
 OBJECT_ID = "objectId"
 
@@ -10,7 +12,6 @@ class BaseLogger:
     """Обертка для logging <https://docs.python.org/3/library/logging.html>."""
 
     # история мира - уровень info
-    LOGS_PATH = "logs"
     CONSOLE_LOGS_LEVEL = logging.DEBUG
     FILE_LOGS_LEVEL = logging.DEBUG
     LOG_FORMAT = f"[%(asctime)s] - [%(levelname)s] - %(name)s - %({OBJECT_ID})s" \
@@ -23,7 +24,7 @@ class BaseLogger:
 
     @classmethod
     def get_log_filepath(cls, filename):
-        return Path(f"{cls.LOGS_PATH}/{filename}.log")
+        return Path(f"{LOGS_PATH}/{filename}.log")
 
     @classmethod
     def construct_handler(cls, log_level = logging.INFO, to_console = False):
@@ -31,7 +32,7 @@ class BaseLogger:
             handler = logging.StreamHandler()
         else:
             # в файл
-            filename = str(f"world_{datetime.datetime.now()}")
+            filename = str(datetime.datetime.now())
             replacing_characters = [" ", "-", ":", "."]
             for character in replacing_characters:
                 filename = filename.replace(character, "_")
@@ -42,7 +43,7 @@ class BaseLogger:
 
     def __new__(cls, logger_name):
         # создает папку для логов, если ее нет
-        Path(cls.LOGS_PATH).mkdir(parents = True, exist_ok = True)
+        Path(LOGS_PATH).mkdir(parents = True, exist_ok = True)
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.DEBUG)
         # в файл
