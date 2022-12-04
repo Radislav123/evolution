@@ -30,13 +30,13 @@ if __name__ == "__main__":
             elif event.type == locals.KEYDOWN:
                 for _, creature in world.creatures.items():
                     if event.key == locals.K_UP:
-                        creature.rectangle.move_ip(0, -10)
+                        creature.rect.move_ip(0, -10)
                     if event.key == locals.K_DOWN:
-                        creature.rectangle.move_ip(0, 10)
+                        creature.rect.move_ip(0, 10)
                     if event.key == locals.K_LEFT:
-                        creature.rectangle.move_ip(-10, 0)
+                        creature.rect.move_ip(-10, 0)
                     if event.key == locals.K_RIGHT:
-                        creature.rectangle.move_ip(10, 0)
+                        creature.rect.move_ip(10, 0)
 
         world.tick()
         world.draw()

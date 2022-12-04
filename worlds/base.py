@@ -26,12 +26,14 @@ class BaseWorld:
         self.logger.info("the world generates")
         self.logger.debug(f"world size - {self.screen.get_rect()[2]}:{self.screen.get_rect()[3]}")
 
+        self.creatures_group = pygame.sprite.Group()
+
     def __repr__(self):
         return self.id
 
     def spawn_start_creatures(self, creatures_number: int):
         creatures_positions = [
-            Position(self.screen.get_width()//2 - creatures_number//2 + pos_0*100, self.screen.get_height()//2)
+            Position(self.screen.get_width()//2 - creatures_number//2 + pos_0, self.screen.get_height()//2)
             for pos_0 in range(creatures_number)
         ]
         new_creatures_list = [BaseCreature(position, self) for position in creatures_positions]
@@ -41,15 +43,27 @@ class BaseWorld:
             creature.spawn()
 
     def add_creature(self, creature: BaseCreature):
+        """Добавляет существо в мир."""
+
         self.creatures[creature.id] = creature
+        creature.add(self.creatures_group)
 
     def remove_creature(self, creature: BaseCreature):
+        """Убирает существо из мира."""
+
         del self.creatures[creature.id]
+        creature.kill()
 
     def tick(self):
         existing_creatures = copy.copy(self.creatures)
         for creature in existing_creatures.values():
+            creature: BaseCreature
             creature.tick()
+            if collided_creatures := pygame.sprite.spritecollide(creature, self.creatures_group, False):
+                # всегда пересекается с собой
+                collided_creatures.remove(creature)
+                for other_creature in collided_creatures:
+                    creature.collision_interact(other_creature)
 
     def draw(self):
         # залить фон белым
