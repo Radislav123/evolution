@@ -12,12 +12,11 @@ class BaseWorld:
     counter = 0
 
     # width - минимальное значение ширины экрана - 120
-    def __init__(self, width = 1000, height = 1000, age = 0):
+    def __init__(self, width = 1000, height = 1000):
         self.id = f"{self.__class__.__name__}{self.counter}"
         self.__class__.counter += 1
 
         self.screen = pygame.display.set_mode((width, height))
-        self.age = age
         # {creature.id: creature}
         self.creatures: dict[str, BaseCreature] = {}
         self.logger = BaseLogger(self.__class__.__name__)

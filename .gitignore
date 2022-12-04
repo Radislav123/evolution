@@ -11,3 +11,6 @@ venv/
 
 # Logs
 logs/
+
+# Other
+CHANGELOG.md
