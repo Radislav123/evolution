@@ -20,7 +20,7 @@ if __name__ == "__main__":
     pygame.init()
     args = ArgumentParser(description = ArgumentParser.__doc__).parse_args()
     world = BaseWorld(args.width, args.height)
-    world.spawn_start_creations(args.creatures_number)
+    world.spawn_start_creatures(args.creatures_number)
 
     running = True
     while running:
