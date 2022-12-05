@@ -22,11 +22,9 @@ class BaseWorld:
     counter = 0
 
     # width - минимальное значение ширины экрана - 120
-    def __init__(self, mode: Mode, width = 1000, height = 1000, age = 0):
+    def __init__(self, width = 1000, height = 1000, age = 0):
         self.id = f"{self.__class__.__name__}{self.counter}"
         self.__class__.counter += 1
-
-        self.mode = mode
         self.age = age
 
         self.screen = pygame.display.set_mode((width, height))
@@ -42,6 +40,14 @@ class BaseWorld:
 
     def __repr__(self):
         return self.id
+
+    def start(self, creatures_number: int):
+        """Выполняет подготовительные действия при начале симуляции."""
+
+        self.spawn_start_creatures(creatures_number)
+
+    def stop(self):
+        """Выполняет завершающие действия при окончании симуляции."""
 
     def spawn_start_creatures(self, creatures_number: int):
         creatures_positions = [

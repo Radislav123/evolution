@@ -18,6 +18,10 @@ class BaseResource:
 class EnergyResource(BaseResource):
     formula: str = None
 
+    def __init__(self, name):
+        super().__init__(name, self.formula)
+        self.formula = self.name.lower()
+
 
 LIGHT = EnergyResource("Light")
 ENERGY = EnergyResource("Energy")

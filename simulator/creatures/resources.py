@@ -32,7 +32,7 @@ class BaseStoredResource:
         return self.current + number <= self.capacity
 
 
-class BaseResourcesStorage:
+class BaseCreatureStorage:
     counter = 0
     logger: logging.LoggerAdapter
 

@@ -6,7 +6,7 @@ import pygame
 
 from evolution.settings import IMAGES_PATH
 from simulator.creatures.genome.base import BaseGenome
-from simulator.creatures.resources import BaseResourcesStorage
+from simulator.creatures.resources import BaseCreatureStorage
 from simulator.loggers.base import OBJECT_ID
 from simulator.worlds.position import Position
 from simulator.worlds.resources import CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
@@ -24,13 +24,6 @@ class CollisionException(BaseException):
 # https://ru.wikipedia.org/wiki/%D0%A4%D0%BE%D1%82%D0%BE%D1%81%D0%B8%D0%BD%D1%82%D0%B5%D0%B7
 class BaseCreature(pygame.sprite.Sprite):
     # ((consume, _storage, throw), (consume, _storage, throw), ...)
-    consumption_processes = (
-        (
-            {OXYGEN: 2, CARBON: 2, HYDROGEN: 2, LIGHT: 2},
-            {OXYGEN: 1, CARBON: 1, HYDROGEN: 1, ENERGY: 1},
-            {OXYGEN: 1, CARBON: 1, HYDROGEN: 1}
-        ),
-    )
     counter = 0
 
     # position - левый верхний угол существа/спрайта
@@ -39,7 +32,7 @@ class BaseCreature(pygame.sprite.Sprite):
             position: Position,
             world: "BaseWorld",
             parents: list["BaseCreature"] = None,
-            storage: BaseResourcesStorage = None,
+            storage: BaseCreatureStorage = None,
             *args
     ):
         super().__init__(*args)
@@ -47,6 +40,12 @@ class BaseCreature(pygame.sprite.Sprite):
         # должен быть уникальным для всех существ в мире
         self.id = f"{self.__class__.__name__}{self.counter}"
         self.__class__.counter += 1
+
+        self.consumption_process = (
+            {OXYGEN: 2, CARBON: 2, HYDROGEN: 2, LIGHT: 2},
+            {OXYGEN: 1, CARBON: 1, HYDROGEN: 1, ENERGY: 1},
+            {OXYGEN: 1, CARBON: 1, HYDROGEN: 1}
+        )
         self.genome = BaseGenome()
 
         self.surface = pygame.image.load(Path(f"{IMAGES_PATH}/{self.__class__.__name__}.bmp")).convert()
@@ -69,7 +68,7 @@ class BaseCreature(pygame.sprite.Sprite):
                 (HYDROGEN, 100, 50),
                 (ENERGY, 100, 50),
             ]
-            storage = BaseResourcesStorage(self, start_resources)
+            storage = BaseCreatureStorage(self, start_resources)
         self.storage = storage
 
     def __repr__(self):
@@ -100,7 +99,7 @@ class BaseCreature(pygame.sprite.Sprite):
     def move(self, x, y):
         self.rect.move_ip(x, y)
 
-    def share_storage_with_children(self, children_number: int) -> list[BaseResourcesStorage]:
+    def share_storage_with_children(self, children_number: int) -> list[BaseCreatureStorage]:
         new_storages = []
         for i in range(children_number):
             resources = []
@@ -140,28 +139,28 @@ class BaseCreature(pygame.sprite.Sprite):
 
     def can_consume(self) -> bool:
         can_consume = True
-        consumption_process = self.consumption_processes[0]
-        for resource, number in consumption_process[0].items():
+        for resource, number in self.consumption_process[0].items():
             can_consume = can_consume and self.world.check_resource(self.position, resource, number)
-        for resource, number in consumption_process[1].items():
+        for resource, number in self.consumption_process[1].items():
             can_consume = can_consume and self.storage.can_store(resource, number)
         return can_consume
 
     def consume(self):
         """Симулирует потребление веществ существом."""
 
-        consumption_process = self.consumption_processes[0]
         # забирает из мира ресурсы
-        for resource, number in consumption_process[0].items():
+        for resource, number in self.consumption_process[0].items():
             self.world.remove_resource(self.position, resource, number)
         # добавляет в свое хранилище
-        for resource, number in consumption_process[1].items():
+        for resource, number in self.consumption_process[1].items():
             self.storage.add_to_storage(resource, number)
         # отдает ресурсы в мир
-        for resource, number in consumption_process[2].items():
+        for resource, number in self.consumption_process[2].items():
             self.world.add_resource(self.position, resource, number)
         self.logger.info(
-            f"consume: {consumption_process[0]} | store: {consumption_process[1]} | throw {consumption_process[2]}"
+            f"consume: {self.consumption_process[0]}"
+            f" | store: {self.consumption_process[1]}"
+            f" | throw {self.consumption_process[2]}"
         )
 
     def collision_interact(self, other: "BaseCreature"):

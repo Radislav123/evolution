@@ -24,13 +24,13 @@ class SimulationView(View):
             # todo: вынести в отдельный файл настройку количества и типов существ
             # todo: добавить возможность загружать мир с существами для продолжения симуляции
             creatures_number: int = 1,  # количество начальных существ
-            mode: str = Mode.RECORD.value
+            mode: str = Mode.INTERACTIVE.value
             # режим работы
     ):
         pygame.init()
         mode = Mode(mode)
-        world = BaseWorld(mode, width, height)
-        world.spawn_start_creatures(creatures_number)
+        world = BaseWorld(width, height)
+        world.start(creatures_number)
 
         for tick in range(ticks):
             world.tick()
@@ -38,5 +38,6 @@ class SimulationView(View):
                 world.draw()
                 pygame.display.flip()
 
+        world.stop()
         pygame.quit()
         return HttpResponse("The simulation is over.")
