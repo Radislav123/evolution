@@ -5,16 +5,16 @@ from typing import TYPE_CHECKING
 import pygame
 
 from evolution.settings import IMAGES_PATH
-from simulator.creatures.genome.base import BaseGenome
-from simulator.creatures.resources import BaseCreatureStorage
-from simulator.loggers.base import OBJECT_ID
-from simulator.worlds.position import Position
-from simulator.worlds.resources import CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
+from simulator.creature.genome.base import BaseGenome
+from simulator.creature.resource import BaseCreatureStorage
+from simulator.logger.base import OBJECT_ID
+from simulator.world.position import Position
+from simulator.world.resource import CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.worlds.base import BaseWorld
+    from simulator.world.base import BaseWorld
 
 
 class CollisionException(BaseException):

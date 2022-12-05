@@ -4,9 +4,9 @@ from enum import Enum
 
 import pygame
 
-from simulator.creatures.base import BaseCreature
-from simulator.loggers.base import BaseLogger, OBJECT_ID
-from simulator.worlds.position import Position
+from simulator.creature.base import BaseCreature
+from simulator.logger.base import BaseLogger, OBJECT_ID
+from simulator.world.position import Position
 
 
 class Mode(Enum):
