@@ -27,12 +27,12 @@ class BaseLogger:
         return Path(f"{LOGS_PATH}/{filename}.log")
 
     @classmethod
-    def construct_handler(cls, log_level = logging.INFO, to_console = False):
+    def construct_handler(cls, logger: logging.Logger, log_level = logging.DEBUG, to_console = False):
         if to_console:
             handler = logging.StreamHandler()
         else:
             # в файл
-            filename = str(datetime.datetime.now())
+            filename = str(f"{logger.name}_{datetime.datetime.now()}")
             replacing_characters = [" ", "-", ":", "."]
             for character in replacing_characters:
                 filename = filename.replace(character, "_")
@@ -48,10 +48,10 @@ class BaseLogger:
         logger.setLevel(logging.DEBUG)
         # в файл
         # noinspection PyTypeChecker
-        logger.addHandler(cls.construct_handler(cls.FILE_LOGS_LEVEL))
+        logger.addHandler(cls.construct_handler(logger, cls.FILE_LOGS_LEVEL))
         # в консоль
         # noinspection PyTypeChecker
-        logger.addHandler(cls.construct_handler(cls.CONSOLE_LOGS_LEVEL, True))
+        logger.addHandler(cls.construct_handler(logger, cls.CONSOLE_LOGS_LEVEL, True))
         return logger
 
 

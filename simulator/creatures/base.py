@@ -156,7 +156,7 @@ class BaseCreature(pygame.sprite.Sprite):
             self.world.remove_resource(self.position, resource, number)
         # добавляет в свое хранилище
         for resource, number in consumption_process[1].items():
-            self.storage.add_to_store(resource, number)
+            self.storage.add_to_storage(resource, number)
         # отдает ресурсы в мир
         for resource, number in consumption_process[2].items():
             self.world.add_resource(self.position, resource, number)

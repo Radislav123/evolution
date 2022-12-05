@@ -75,16 +75,16 @@ class BaseResourcesStorage:
 
         return self._storage[resource].can_store(number)
 
-    def add_to_store(self, resource, number):
+    def add_to_storage(self, resource, number):
         """Добавляет ресурс в хранилище."""
 
         old = self._storage[resource].current
         self._storage[resource].add(number)
-        self.logger.info(f"{self.creature} {resource} store {old} -> {self._storage[resource].current}")
+        self.logger.info(f"{self.creature} store {resource} {old} -> {self._storage[resource].current}")
 
-    def remove_from_store(self, resource, number):
+    def remove_from_storage(self, resource, number):
         """Убирает ресурс из хранилища."""
 
         old = self._storage[resource].current
         self._storage[resource].remove(number)
-        self.logger.info(f"{self.creature} {resource} store {old} -> {self._storage[resource].current}")
+        self.logger.info(f"{self.creature} store {resource} {old} -> {self._storage[resource].current}")

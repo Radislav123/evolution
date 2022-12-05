@@ -32,11 +32,11 @@ class BaseWorld:
         self.screen = pygame.display.set_mode((width, height))
         # {creature.id: creature}
         self.creatures: dict[str, BaseCreature] = {}
-        self.logger = BaseLogger(self.__class__.__name__)
+        self.logger = BaseLogger(self.id)
         self.logger = logging.LoggerAdapter(self.logger, {OBJECT_ID: self.id})
 
         self.logger.info("the world generates")
-        self.logger.debug(f"world size - {self.screen.get_rect()[2]}:{self.screen.get_rect()[3]}")
+        self.logger.info(f"world size - {self.screen.get_rect()[2]}:{self.screen.get_rect()[3]}")
 
         self.creatures_group = pygame.sprite.Group()
 
@@ -100,11 +100,11 @@ class BaseWorld:
         """Добавляет количество ресурса в точку."""
 
         old = self.get_resource(position, resource)
-        self.logger.info(f"{self} {resource} store {old} -> {old + number}")
+        self.logger.info(f"{self} store {resource} {old} -> {old + number}")
 
     # todo: write it
     def remove_resource(self, position: Position, resource, number):
         """Убирает количество ресурса из точки."""
 
         old = self.get_resource(position, resource)
-        self.logger.info(f"{self} {resource} store {old} -> {old - number}")
+        self.logger.info(f"{self} store {resource} {old} -> {old - number}")
