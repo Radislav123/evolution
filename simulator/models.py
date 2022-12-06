@@ -24,8 +24,9 @@ class Creature(ObjectModel):
     # <формула_количество.формула_количество...>|<формула_количество.формула_количество...>|<формула_количество.формула_количество...>
     # noinspection GrazieInspection
     # O_2.C_2.H_2.light_2|O_1.C_1.H_1.energy_1|O_1.C_1.H_1
-    consumption_process = models.CharField(max_length = 100)
-    surface = models.ImageField()
+    consumption_formula = models.CharField(max_length = 100)
+    # изображение сохраняется последовательностью байтов (pygame.image.tobytes)
+    surface = models.TextField()
     world = models.ForeignKey(World, models.PROTECT)
 
 
@@ -45,3 +46,11 @@ class StoredResource(EvolutionModel):
     capacity = models.PositiveIntegerField()
     current = models.PositiveIntegerField()
     creature_storage = models.ForeignKey(CreatureStorage, models.PROTECT)
+
+
+# характеризует сдвиг существа каждый тик
+class CreatureMovement(EvolutionModel):
+    age = models.IntegerField()
+    creature = models.ForeignKey(Creature, models.PROTECT)
+    x = models.IntegerField()
+    y = models.IntegerField()

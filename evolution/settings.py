@@ -23,6 +23,8 @@ SIMULATOR_PATH = Path(f"{BASE_DIR}/simulator")
 RESOURCES_PATH = Path(f"{SIMULATOR_PATH}/resources")
 IMAGES_PATH = Path(f"{RESOURCES_PATH}/images")
 
+IMAGES_STORE_FORMAT = "RGBA"
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 

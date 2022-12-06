@@ -1,4 +1,3 @@
-import datetime
 import logging
 from pathlib import Path
 
@@ -6,6 +5,15 @@ from evolution.settings import LOGS_PATH
 
 
 OBJECT_ID = "objectId"
+
+
+class RemoveLevelFilter(logging.Filter):
+    def __init__(self, level):
+        super().__init__()
+        self.level = level
+
+    def filter(self, record):
+        return record.levelno != self.level
 
 
 class BaseLogger:
@@ -32,7 +40,8 @@ class BaseLogger:
             handler = logging.StreamHandler()
         else:
             # в файл
-            filename = str(f"{logger.name}_{datetime.datetime.now()}")
+            world_name = logger.name.split(".")[0]
+            filename = world_name
             replacing_characters = [" ", "-", ":", "."]
             for character in replacing_characters:
                 filename = filename.replace(character, "_")
@@ -45,13 +54,16 @@ class BaseLogger:
         # создает папку для логов, если ее нет
         Path(LOGS_PATH).mkdir(parents = True, exist_ok = True)
         logger = logging.getLogger(logger_name)
+        logger.propagate = False
         logger.setLevel(logging.DEBUG)
         # в файл
         # noinspection PyTypeChecker
         logger.addHandler(cls.construct_handler(logger, cls.FILE_LOGS_LEVEL))
         # в консоль
         # noinspection PyTypeChecker
-        logger.addHandler(cls.construct_handler(logger, cls.CONSOLE_LOGS_LEVEL, True))
+        console_handler = cls.construct_handler(logger, cls.CONSOLE_LOGS_LEVEL, True)
+        console_handler.addFilter(RemoveLevelFilter(logging.INFO))
+        logger.addHandler(console_handler)
         return logger
 
 

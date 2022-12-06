@@ -4,7 +4,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from simulator.world.base import BaseWorld, Mode
+from simulator.object.world.base import BaseWorld, Mode
 
 
 @method_decorator(csrf_exempt, name = "dispatch")
@@ -15,29 +15,31 @@ class SimulationView(View):
         super().__init__(*args, **kwargs)
         self.http_method_names.append("start")
 
+    # todo: добавить возможность загружать мир с существами для продолжения симуляции
     def start(
             self,
             request,
             ticks: int = 100,  # количество тиков симуляции
             width: int = 1000,  # размер нулевого измерения (вширь)
             height: int = 1000,  # размер первого измерения (в высоту)
-            # todo: вынести в отдельный файл настройку количества и типов существ
-            # todo: добавить возможность загружать мир с существами для продолжения симуляции
-            creatures_number: int = 1,  # количество начальных существ
             mode: str = Mode.INTERACTIVE.value
             # режим работы
     ):
         pygame.init()
         mode = Mode(mode)
         world = BaseWorld(width, height)
-        world.start(creatures_number)
+        world.start()
 
-        for tick in range(ticks):
-            world.tick()
-            if mode is not Mode.RECORD:
-                world.draw()
-                pygame.display.flip()
+        try:
+            for tick in range(ticks):
+                world.tick()
+                if mode is not Mode.RECORD:
+                    world.draw()
+                    pygame.display.flip()
+        except Exception as error:
+            raise error
+        finally:
+            world.stop()
+            pygame.quit()
 
-        world.stop()
-        pygame.quit()
         return HttpResponse("The simulation is over.")

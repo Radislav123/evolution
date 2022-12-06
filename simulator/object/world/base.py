@@ -1,12 +1,13 @@
 import copy
-import logging
 from enum import Enum
 
 import pygame
 
-from simulator.creature.base import BaseCreature
-from simulator.logger.base import BaseLogger, OBJECT_ID
-from simulator.world.position import Position
+from simulator import models
+from simulator.logger.base import BaseLogger
+from simulator.object.base import Object
+from simulator.object.creature.base import BaseCreature
+from simulator.object.position import Position
 
 
 class Mode(Enum):
@@ -18,58 +19,58 @@ class Mode(Enum):
     PLAY = "play"
 
 
-class BaseWorld:
-    counter = 0
+class BaseWorld(Object):
+    db_model = models.World
+    creatures_group: pygame.sprite.Group
+    screen: pygame.Surface
 
     # width - минимальное значение ширины экрана - 120
-    def __init__(self, width = 1000, height = 1000, age = 0):
-        self.id = f"{self.__class__.__name__}{self.counter}"
-        self.__class__.counter += 1
+    def __init__(self, width = 1000, height = 1000, age = 0, db_instance: db_model = None):
         self.age = age
-
-        self.screen = pygame.display.set_mode((width, height))
-        # {creature.id: creature}
+        self.width = width
+        self.height = height
+        # {creature.object_id: creature}
         self.creatures: dict[str, BaseCreature] = {}
-        self.logger = BaseLogger(self.id)
-        self.logger = logging.LoggerAdapter(self.logger, {OBJECT_ID: self.id})
-
-        self.logger.info("the world generates")
-        self.logger.info(f"world size - {self.screen.get_rect()[2]}:{self.screen.get_rect()[3]}")
+        self.logger = BaseLogger(self.object_id)
 
         self.creatures_group = pygame.sprite.Group()
+        self.screen = pygame.display.set_mode((self.width, self.height))
 
-    def __repr__(self):
-        return self.id
+        self.post_init()
 
-    def start(self, creatures_number: int):
+    def save_to_db(self):
+        self.db_instance = self.db_model(id = self.id, age = self.age, width = self.width, height = self.height)
+        self.db_instance.save()
+
+    def start(self):
         """Выполняет подготовительные действия при начале симуляции."""
 
-        self.spawn_start_creatures(creatures_number)
+        self.spawn_start_creature()
 
     def stop(self):
         """Выполняет завершающие действия при окончании симуляции."""
 
-    def spawn_start_creatures(self, creatures_number: int):
-        creatures_positions = [
-            Position(self.screen.get_width()//2 - creatures_number//2 + pos_0, self.screen.get_height()//2)
-            for pos_0 in range(creatures_number)
-        ]
-        new_creatures_list = [BaseCreature(position, self) for position in creatures_positions]
-        new_creatures = {creature.id: creature for creature in new_creatures_list}
+        self.release_logs()
 
-        for creature in new_creatures.values():
-            creature.spawn()
+    def release_logs(self):
+        super().release_logs()
+        for creature in self.creatures.values():
+            creature.release_logs()
+
+    def spawn_start_creature(self):
+        creature = BaseCreature(Position(self.width//2, self.height//2), self)
+        creature.spawn()
 
     def add_creature(self, creature: BaseCreature):
         """Добавляет существо в мир."""
 
-        self.creatures[creature.id] = creature
+        self.creatures[creature.object_id] = creature
         creature.add(self.creatures_group)
 
     def remove_creature(self, creature: BaseCreature):
         """Убирает существо из мира."""
 
-        del self.creatures[creature.id]
+        del self.creatures[creature.object_id]
         creature.kill()
 
     def tick(self):
@@ -105,12 +106,6 @@ class BaseWorld:
     def add_resource(self, position: Position, resource, number):
         """Добавляет количество ресурса в точку."""
 
-        old = self.get_resource(position, resource)
-        self.logger.info(f"{self} store {resource} {old} -> {old + number}")
-
     # todo: write it
     def remove_resource(self, position: Position, resource, number):
         """Убирает количество ресурса из точки."""
-
-        old = self.get_resource(position, resource)
-        self.logger.info(f"{self} store {resource} {old} -> {old - number}")

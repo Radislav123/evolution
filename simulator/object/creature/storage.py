@@ -1,8 +1,15 @@
-import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from simulator.logger.base import OBJECT_ID
-from simulator.world.resource import BaseResource
+from simulator import models
+from simulator.logger.base import BaseLogger
+from simulator.object.base import Object
+from simulator.world_resource.base import BaseResource
+
+
+# https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
+if TYPE_CHECKING:
+    from simulator.object.creature.base import BaseCreature
 
 
 @dataclass
@@ -32,25 +39,28 @@ class BaseStoredResource:
         return self.current + number <= self.capacity
 
 
-class BaseCreatureStorage:
-    counter = 0
-    logger: logging.LoggerAdapter
+class BaseCreatureStorage(Object):
+    db_model = models.CreatureStorage
 
-    def __init__(self, creature, resources: list[tuple[BaseResource, int, int]]):
-        self.id = f"{self.__class__.__name__}{self.counter}"
-        self.__class__.counter += 1
-
+    def __init__(self, creature: "BaseCreature", resources: list[tuple[BaseResource, int, int]]):
         self.creature = creature
+        self.logger = BaseLogger(f"{self.creature.world.object_id}.{self.creature.object_id}.{self.object_id}")
 
         self._storage: dict[BaseResource, BaseStoredResource] = {}
         for resource in resources:
             self.add_stored_resource(*resource)
+
+        self.post_init()
 
     def __getitem__(self, item):
         return self._storage[item]
 
     def __iter__(self):
         return iter(self._storage)
+
+    def save_to_db(self):
+        self.db_instance = self.db_model(creature = self.creature.db_instance)
+        self.db_instance.save()
 
     def items(self):
         return self._storage.items()
@@ -60,10 +70,6 @@ class BaseCreatureStorage:
 
     def values(self):
         return self._storage.values()
-
-    def spawn(self):
-        self.logger = self.creature.logger.logger.getChild(self.__class__.__name__)
-        self.logger = logging.LoggerAdapter(self.logger, {OBJECT_ID: self.id})
 
     def add_stored_resource(self, resource, capacity, current):
         """Добавляет тип ресурса в хранилище."""
@@ -75,16 +81,12 @@ class BaseCreatureStorage:
 
         return self._storage[resource].can_store(number)
 
-    def add_to_storage(self, resource, number):
+    def add(self, resource, number):
         """Добавляет ресурс в хранилище."""
 
-        old = self._storage[resource].current
         self._storage[resource].add(number)
-        self.logger.info(f"{self.creature} store {resource} {old} -> {self._storage[resource].current}")
 
-    def remove_from_storage(self, resource, number):
+    def remove(self, resource, number):
         """Убирает ресурс из хранилища."""
 
-        old = self._storage[resource].current
         self._storage[resource].remove(number)
-        self.logger.info(f"{self.creature} store {resource} {old} -> {self._storage[resource].current}")

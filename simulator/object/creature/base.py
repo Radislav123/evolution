@@ -1,20 +1,21 @@
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pygame
 
-from evolution.settings import IMAGES_PATH
-from simulator.creature.genome.base import BaseGenome
-from simulator.creature.resource import BaseCreatureStorage
-from simulator.logger.base import OBJECT_ID
-from simulator.world.position import Position
-from simulator.world.resource import CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
+from evolution import settings
+from simulator import models
+from simulator.logger.base import BaseLogger
+from simulator.object.base import Object
+from simulator.object.creature.genome.base import BaseGenome
+from simulator.object.creature.storage import BaseCreatureStorage
+from simulator.object.position import Position
+from simulator.world_resource.base import BaseResource, CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.world.base import BaseWorld
+    from simulator.object.world.base import BaseWorld
 
 
 class CollisionException(BaseException):
@@ -22,9 +23,8 @@ class CollisionException(BaseException):
 
 
 # https://ru.wikipedia.org/wiki/%D0%A4%D0%BE%D1%82%D0%BE%D1%81%D0%B8%D0%BD%D1%82%D0%B5%D0%B7
-class BaseCreature(pygame.sprite.Sprite):
-    # ((consume, _storage, throw), (consume, _storage, throw), ...)
-    counter = 0
+class BaseCreature(pygame.sprite.Sprite, Object):
+    db_model = models.Creature
 
     # position - левый верхний угол существа/спрайта
     def __init__(
@@ -37,31 +37,28 @@ class BaseCreature(pygame.sprite.Sprite):
     ):
         super().__init__(*args)
 
-        # должен быть уникальным для всех существ в мире
-        self.id = f"{self.__class__.__name__}{self.counter}"
-        self.__class__.counter += 1
-
-        self.consumption_process = (
+        # ((consume, _storage, throw), (consume, _storage, throw), ...)
+        self.consumption_formula = (
             {OXYGEN: 2, CARBON: 2, HYDROGEN: 2, LIGHT: 2},
             {OXYGEN: 1, CARBON: 1, HYDROGEN: 1, ENERGY: 1},
             {OXYGEN: 1, CARBON: 1, HYDROGEN: 1}
         )
         self.genome = BaseGenome()
 
-        self.surface = pygame.image.load(Path(f"{IMAGES_PATH}/{self.__class__.__name__}.bmp")).convert()
+        self.surface = pygame.image.load(Path(f"{settings.IMAGES_PATH}/{self.__class__.__name__}.bmp")).convert()
         self.rect = self.surface.get_rect()
         self.rect.x = position.x
         self.rect.y = position.y
 
         self.world = world
-        self.screen = world.screen
-        self.logger = world.logger.logger.getChild(self.__class__.__name__)
-        self.logger = logging.LoggerAdapter(self.logger, {OBJECT_ID: self.id})
-
+        self.screen = self.world.screen
+        self.logger = BaseLogger(f"{self.world.object_id}.{self.object_id}")
         self.parents = parents
 
+        self.post_init()
+
         # такая ситуация подразумевается только при генерации мира
-        if storage is None:
+        if storage is None and len(self.world.creatures) == 0:
             start_resources = [
                 (CARBON, 100, 50),
                 (OXYGEN, 100, 50),
@@ -72,7 +69,40 @@ class BaseCreature(pygame.sprite.Sprite):
         self.storage = storage
 
     def __repr__(self):
-        return self.id
+        return self.object_id
+
+    # потребление|запасание|выбрасывание
+    # <формула_количество.формула_количество...>|<формула_количество.формула_количество...>|<формула_количество.формула_количество...>
+    # noinspection GrazieInspection
+    # O_2.C_2.H_2.light_2|O_1.C_1.H_1.energy_1|O_1.C_1.H_1
+    def pack_consumption_formula(self) -> str:
+        # сжатая формула
+        formula = ""
+        for resources in self.consumption_formula:
+            formula_part = ""
+            for resource, number in resources.items():
+                formula_part += f"{resource.formula}_{number}."
+            formula_part = formula_part[:-1]
+            formula += f"{formula_part}|"
+        formula = formula[:-1]
+        return formula
+
+    # todo: write it
+    def unpack_consumption_formula(self) -> tuple[dict, dict, dict]:
+        pass
+
+    def save_to_db(self):
+        self.db_instance = self.db_model(
+            id = self.id,
+            consumption_formula = self.pack_consumption_formula(),
+            surface = pygame.image.tobytes(self.surface, settings.IMAGES_STORE_FORMAT),
+            world = self.world.db_instance
+        )
+        self.db_instance.save()
+
+    def release_logs(self):
+        super().release_logs()
+        self.storage.release_logs()
 
     @property
     def position(self):
@@ -80,7 +110,6 @@ class BaseCreature(pygame.sprite.Sprite):
 
     def spawn(self):
         self.world.add_creature(self)
-        self.storage.spawn()
         self.logger.info(f"spawns at {self.position}")
 
     def draw(self):
@@ -97,19 +126,22 @@ class BaseCreature(pygame.sprite.Sprite):
             self.reproduce()
 
     def move(self, x, y):
-        self.rect.move_ip(x, y)
+        """Симулирует передвижение существа."""
 
-    def share_storage_with_children(self, children_number: int) -> list[BaseCreatureStorage]:
-        new_storages = []
+        self.rect.move_ip(x, y)
+        models.CreatureMovement(age = self.world.age, creature = self.db_instance, x = x, y = y).save()
+
+    def get_children_resources(self, children_number: int) -> list[list[tuple[BaseResource, int, int]]]:
+        children_resources = []
         for i in range(children_number):
-            resources = []
+            child_resources = []
             for world_resource, stored_resource in self.storage.items():
                 child_resource_number = stored_resource.current//(children_number + 1)
-                self.storage[world_resource].remove(child_resource_number)
-                resources.append((world_resource, stored_resource.capacity, child_resource_number))
-            new_storages.append(self.storage.__class__(None, resources))
+                self.storage.remove(world_resource, child_resource_number)
+                child_resources.append((world_resource, stored_resource.capacity, child_resource_number))
+            children_resources.append(child_resources)
 
-        return new_storages
+        return children_resources
 
     def can_reproduce(self) -> bool:
         if self.storage[CARBON].is_full:
@@ -119,19 +151,22 @@ class BaseCreature(pygame.sprite.Sprite):
     def reproduce(self) -> list["BaseCreature"]:
         """Симулирует размножение существа."""
 
-        newborns_number = 1
+        children_number = 1
         children = [
             self.__class__(
-                Position(self.position.x + 1 + count_storage[0], self.position.y),
-                self.world, [self],
-                count_storage[1]
+                Position(self.position.x + 1 + number, self.position.y),
+                self.world,
+                [self],
+                None
             )
-            for count_storage in enumerate(self.share_storage_with_children(newborns_number))
+            for number in range(children_number)
         ]
 
         self.move(-1, 0)
 
-        for count, child in enumerate(children):
+        children_resources = self.get_children_resources(children_number)
+        for child, child_resources in zip(children, children_resources):
+            child.storage = self.storage.__class__(child, child_resources)
             child.storage.creature = child
             child.spawn()
 
@@ -139,9 +174,9 @@ class BaseCreature(pygame.sprite.Sprite):
 
     def can_consume(self) -> bool:
         can_consume = True
-        for resource, number in self.consumption_process[0].items():
+        for resource, number in self.consumption_formula[0].items():
             can_consume = can_consume and self.world.check_resource(self.position, resource, number)
-        for resource, number in self.consumption_process[1].items():
+        for resource, number in self.consumption_formula[1].items():
             can_consume = can_consume and self.storage.can_store(resource, number)
         return can_consume
 
@@ -149,19 +184,14 @@ class BaseCreature(pygame.sprite.Sprite):
         """Симулирует потребление веществ существом."""
 
         # забирает из мира ресурсы
-        for resource, number in self.consumption_process[0].items():
+        for resource, number in self.consumption_formula[0].items():
             self.world.remove_resource(self.position, resource, number)
         # добавляет в свое хранилище
-        for resource, number in self.consumption_process[1].items():
-            self.storage.add_to_storage(resource, number)
+        for resource, number in self.consumption_formula[1].items():
+            self.storage.add(resource, number)
         # отдает ресурсы в мир
-        for resource, number in self.consumption_process[2].items():
+        for resource, number in self.consumption_formula[2].items():
             self.world.add_resource(self.position, resource, number)
-        self.logger.info(
-            f"consume: {self.consumption_process[0]}"
-            f" | store: {self.consumption_process[1]}"
-            f" | throw {self.consumption_process[2]}"
-        )
 
     def collision_interact(self, other: "BaseCreature"):
         if self.position == other.position:
