@@ -1,15 +1,15 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from simulator import models
-from simulator.logger.base import BaseLogger
-from simulator.object.base import Object
+from core import models
+from logger import BaseLogger
+from simulator.object.base import BaseSimulationObject
 from simulator.world_resource.base import BaseResource
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.object.creature.base import BaseCreature
+    from simulator.object.creature.base import BaseSimulationCreature
 
 
 @dataclass
@@ -39,18 +39,18 @@ class BaseStoredResource:
         return self.current + number <= self.capacity
 
 
-class BaseCreatureStorage(Object):
+class BaseSimulationStorage(BaseSimulationObject):
     db_model = models.CreatureStorage
 
-    def __init__(self, creature: "BaseCreature", resources: list[tuple[BaseResource, int, int]]):
+    def __init__(self, creature: "BaseSimulationCreature", resources: list[tuple[BaseResource, int, int]]):
         self.creature = creature
-        self.logger = BaseLogger(f"{self.creature.world.object_id}.{self.creature.object_id}.{self.object_id}")
+        self.logger = BaseLogger(
+            f"{self.creature.world.object_id}.{self.creature.object_id}.{self.object_id}_{self.logger_postfix}"
+        )
 
         self._storage: dict[BaseResource, BaseStoredResource] = {}
         for resource in resources:
             self.add_stored_resource(*resource)
-
-        self.post_init()
 
     def __getitem__(self, item):
         return self._storage[item]

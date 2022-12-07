@@ -6,49 +6,27 @@ import pygame
 from core import models
 from evolution import settings
 from logger import BaseLogger
-from simulator.object.base import BaseSimulationObject
-from simulator.object.creature.storage.base import BaseSimulationStorage
-from simulator.object.position import Position
-from simulator.world_resource.base import BaseResource, CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
-
+from player.object.base import BasePlaybackObject
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.object.world.base import BaseSimulationWorld
+    from player.object.world.base import BasePlaybackObject
 
 
-class CollisionException(BaseException):
-    pass
-
-
-class BaseSimulationCreature(pygame.sprite.Sprite, BaseSimulationObject):
+class BasePlaybackCreature(pygame.sprite.Sprite, BasePlaybackObject):
     db_model = models.Creature
+    db_instance: models.Creature
 
     # position - левый верхний угол существа/спрайта
     def __init__(
             self,
-            position: Position,
-            world: "BaseSimulationWorld",
-            parents: list["BaseSimulationCreature"] = None,
-            storage: BaseSimulationStorage = None,
+            world: "BasePlaybackObject",
+            parents: list["BasePlaybackCreature"] = None,
             *args
     ):
         super().__init__(*args)
 
-        # ((consume, _storage, throw), (consume, _storage, throw), ...)
-        self.consumption_formula = (
-            {OXYGEN: 2, CARBON: 2, HYDROGEN: 2, LIGHT: 2},
-            {OXYGEN: 1, CARBON: 1, HYDROGEN: 1, ENERGY: 1},
-            {OXYGEN: 1, CARBON: 1, HYDROGEN: 1}
-        )
-
-        # для сохранения
-        self.ORIGINAL_SURFACE = pygame.image.load(
-            Path(f"{settings.SIMULATION_IMAGES_PATH}/{self.__class__.__name__}.bmp"))
-        # для вращения
-        self.ORIGINAL_SURFACE_CONVERTED = self.ORIGINAL_SURFACE.convert()
-        # для отрисовки
-        self.surface = self.ORIGINAL_SURFACE_CONVERTED.copy()
+        self.surface = pygame.image.frombytes(self.db_instance.image)
         self.rect = self.surface.get_rect()
         self.rect.x = position.x
         self.rect.y = position.y
@@ -58,6 +36,9 @@ class BaseSimulationCreature(pygame.sprite.Sprite, BaseSimulationObject):
         self.logger = BaseLogger(f"{self.world.object_id}.{self.object_id}_{self.logger_postfix}")
         self.parents = parents
 
+        if last_child:
+            self.save_to_db()
+
         # такая ситуация подразумевается только при генерации мира
         if storage is None and len(self.world.creatures) == 0:
             start_resources = [
@@ -66,19 +47,11 @@ class BaseSimulationCreature(pygame.sprite.Sprite, BaseSimulationObject):
                 (HYDROGEN, 100, 50),
                 (ENERGY, 100, 50),
             ]
-            storage = BaseSimulationStorage(self, start_resources)
+            storage = BaseCreatureStorage(self, start_resources)
         self.storage = storage
 
     def __repr__(self):
         return self.object_id
-
-    def start(self):
-        super().start()
-        self.storage.start()
-
-    def stop(self):
-        super().stop()
-        self.storage.stop()
 
     # потребление|запасание|выбрасывание
     # <формула_количество.формула_количество...>|<формула_количество.формула_количество...>|<формула_количество.формула_количество...>
@@ -96,10 +69,15 @@ class BaseSimulationCreature(pygame.sprite.Sprite, BaseSimulationObject):
         formula = formula[:-1]
         return formula
 
+    # todo: write it
+    def unpack_consumption_formula(self) -> tuple[dict, dict, dict]:
+        pass
+
     def save_to_db(self):
         self.db_instance = self.db_model(
             id = self.id,
             consumption_formula = self.pack_consumption_formula(),
+            surface = pygame.image.tobytes(self.surface, settings.IMAGES_STORE_FORMAT),
             world = self.world.db_instance
         )
         self.db_instance.save()
@@ -172,7 +150,6 @@ class BaseSimulationCreature(pygame.sprite.Sprite, BaseSimulationObject):
             child.storage = self.storage.__class__(child, child_resources)
             child.storage.creature = child
             child.spawn()
-            child.start()
 
         return children
 

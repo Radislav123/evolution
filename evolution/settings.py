@@ -19,9 +19,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 LOGS_PATH = Path(f"{BASE_DIR}/logs")
 
 # изображения, звуки...
-SIMULATOR_PATH = Path(f"{BASE_DIR}/simulator")
-RESOURCES_PATH = Path(f"{SIMULATOR_PATH}/resources")
-IMAGES_PATH = Path(f"{RESOURCES_PATH}/images")
+RESOURCES_PATH = Path(f"{BASE_DIR}/resources")
+SIMULATION_RESOURCES_PATH = Path(f"{RESOURCES_PATH}/simulation")
+SIMULATION_IMAGES_PATH = Path(f"{SIMULATION_RESOURCES_PATH}/images")
 
 IMAGES_STORE_FORMAT = "RGBA"
 
@@ -46,7 +46,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
-    "simulator"
+    "core",
+    "simulator",
+    "player",
 ]
 
 MIDDLEWARE = [

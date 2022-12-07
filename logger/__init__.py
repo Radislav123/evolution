@@ -4,9 +4,6 @@ from pathlib import Path
 from evolution.settings import LOGS_PATH
 
 
-OBJECT_ID = "objectId"
-
-
 class RemoveLevelFilter(logging.Filter):
     def __init__(self, level):
         super().__init__()
@@ -22,8 +19,7 @@ class BaseLogger:
     # история мира - уровень info
     CONSOLE_LOGS_LEVEL = logging.DEBUG
     FILE_LOGS_LEVEL = logging.DEBUG
-    LOG_FORMAT = f"[%(asctime)s] - [%(levelname)s] - %(name)s - %({OBJECT_ID})s" \
-                 f" - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
+    LOG_FORMAT = f"[%(asctime)s] - [%(levelname)s] - %(name)s - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
     LOG_FORMATTER = logging.Formatter(LOG_FORMAT)
 
     @staticmethod
