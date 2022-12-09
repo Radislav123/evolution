@@ -3,31 +3,33 @@ import copy
 import pygame
 
 from core import models
+from core.position import Position
 from logger import BaseLogger
+from player.object.world.base import BasePlaybackWorld
 from simulator.object.base import BaseSimulationObject
 from simulator.object.creature.base import BaseSimulationCreature
-from simulator.object.position import Position
 
 
 class BaseSimulationWorld(BaseSimulationObject):
     db_model = models.World
     creatures_group: pygame.sprite.Group
     screen: pygame.Surface
+    draw = BasePlaybackWorld.draw
 
     # width - минимальное значение ширины экрана - 120
-    def __init__(self, width: int, height: int, age: int):
-        self.age = age
+    def __init__(self, width: int, height: int):
+        self.age = 0
         self.width = width
         self.height = height
         # {creature.object_id: creature}
         self.creatures: dict[str, BaseSimulationCreature] = {}
-        self.logger = BaseLogger(f"{self.object_id}_{self.logger_postfix}")
+        self.logger = BaseLogger(self.object_id)
 
         self.creatures_group = pygame.sprite.Group()
         self.screen = pygame.display.set_mode((self.width, self.height))
 
     def save_to_db(self):
-        self.db_instance = self.db_model(id = self.id, age = self.age, width = self.width, height = self.height)
+        self.db_instance = self.db_model(id = self.id, stop_tick = self.age, width = self.width, height = self.height)
         self.db_instance.save()
 
     def start(self):
@@ -74,12 +76,6 @@ class BaseSimulationWorld(BaseSimulationObject):
                 for other_creature in collided_creatures:
                     creature.collision_interact(other_creature)
         self.age += 1
-
-    def draw(self):
-        # залить фон белым
-        self.screen.fill((255, 255, 255))
-        for creature in self.creatures.values():
-            creature.draw()
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def get_resource(self, position: Position, resource):

@@ -7,7 +7,6 @@ class BaseSimulationObject:
     db_model: models.ObjectModel
     db_instance: models.ObjectModel
     logger: logging.Logger
-    logger_postfix = "simulation"
     _id: int = None
 
     def __repr__(self):

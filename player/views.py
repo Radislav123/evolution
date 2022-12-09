@@ -7,33 +7,41 @@ from django.views.decorators.csrf import csrf_exempt
 from player.object.world.base import BasePlaybackWorld
 
 
+
+
+
 @method_decorator(csrf_exempt, name = "dispatch")
 class PlaybackView(View):
     url = ""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.http_method_names.append("playback")
+        self.http_method_names.append("play")
 
     # noinspection PyTypeChecker
     @staticmethod
     def process_parameters(request: HttpRequest):
         parameters = request.GET
-        world_id = int(parameters["world_id"])
-        return world_id
+        world_db_id = int(parameters["world_db_id"])
+        # ticks per second
+        tps = int(parameters["tps"])
+        return world_db_id, tps
 
-    def playback(self, request: HttpRequest):
-        world_id = self.process_parameters(request)
+    def play(self, request: HttpRequest):
+        world_db_id, tps = self.process_parameters(request)
 
         pygame.init()
-        world = BasePlaybackWorld(world_id)
+        world = BasePlaybackWorld(world_db_id)
         world.start()
+        clock = pygame.time.Clock()
 
         try:
-            for tick in world.age:
+            for tick in range(world.stop_tick):
+                # чтобы окно не зависало (freeze)
+                pygame.event.pump()
                 world.tick()
                 world.draw()
-                pygame.display.flip()
+                clock.tick(tps)
         except Exception as error:
             raise error
         finally:

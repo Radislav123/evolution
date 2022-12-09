@@ -45,7 +45,7 @@ class BaseSimulationStorage(BaseSimulationObject):
     def __init__(self, creature: "BaseSimulationCreature", resources: list[tuple[BaseResource, int, int]]):
         self.creature = creature
         self.logger = BaseLogger(
-            f"{self.creature.world.object_id}.{self.creature.object_id}.{self.object_id}_{self.logger_postfix}"
+            f"{self.creature.world.object_id}.{self.creature.object_id}.{self.object_id}"
         )
 
         self._storage: dict[BaseResource, BaseStoredResource] = {}

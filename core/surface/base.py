@@ -1,27 +1,55 @@
+from pathlib import Path
+
 import pygame
 
 from core import models
 from evolution import settings
 
 
-class Surface(pygame.Surface):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.ORIGIN = self.copy()
+class CreatureSurface(pygame.Surface):
+    db_model = models.CreatureSurface
 
-    def convert(self, surface: pygame.Surface) -> pygame.Surface:
-        new_surface = super().convert()
-        new_surface.ORIGIN = self.ORIGIN
+    @classmethod
+    def from_pygame_surface(cls, surface: pygame.Surface) -> "CreatureSurface":
+        new_surface = CreatureSurface(
+            (surface.get_width(), surface.get_height()),
+            surface.get_flags(),
+            surface.get_bitsize(),
+            surface.get_masks()
+        )
         return new_surface
 
-    def save_to_db(self, object_id: str) -> models.Surface:
-        """Сохраняет или обновляет объект в БД."""
+    @classmethod
+    def save_to_db(cls, surface: "CreatureSurface", creature_db_instance) -> db_model:
+        """Сохраняет или обновляет поверхность в БД."""
 
-        db_instance = models.Surface(
-            object_id = object_id,
-            image = pygame.image.tobytes(self.ORIGIN, settings.IMAGES_STORE_FORMAT),
-            width = self.ORIGIN.get_width(),
-            height = self.ORIGIN.get_height()
+        db_instance = cls.db_model(
+            creature = creature_db_instance,
+            image = pygame.image.tobytes(surface, settings.IMAGES_STORE_FORMAT),
+            width = surface.get_width(),
+            height = surface.get_height()
         )
         db_instance.save()
         return db_instance
+
+    @classmethod
+    def load_from_db(cls, creature_db_instance) -> "CreatureSurface":
+        """Загружает поверхность из БД."""
+
+        db_instance = cls.db_model.objects.get(creature = creature_db_instance)
+        surface = pygame.image.frombytes(
+            db_instance.image.tobytes(),
+            (db_instance.width, db_instance.height),
+            settings.IMAGES_STORE_FORMAT
+        ).convert()
+        surface = cls.from_pygame_surface(surface)
+        return surface
+
+    @classmethod
+    def load_from_file(cls, filepath: str) -> "CreatureSurface":
+        """Загружает поверхность из файла."""
+
+        path = Path(filepath)
+        surface = pygame.image.load(path)
+        surface = cls.from_pygame_surface(surface)
+        return surface
