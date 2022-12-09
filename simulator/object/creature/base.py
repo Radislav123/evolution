@@ -56,7 +56,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.start_x = position.x
         self.start_y = position.y
         self.rect.x = self.start_x
-        self.rect.y = self.start_x
+        self.rect.y = self.start_y
 
         self.world = world
         self.start_tick = self.world.age

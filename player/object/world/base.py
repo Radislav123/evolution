@@ -18,7 +18,7 @@ class BasePlaybackWorld(BasePlaybackObject):
         self.height = self.db_instance.height
 
         self.logger = BaseLogger(self.object_id)
-        self.screen = pygame.display.set_mode((self.width, self.height), pygame.FULLSCREEN)
+        self.screen = pygame.display.set_mode((self.width, self.height))
 
         # {creature.object_id: creature}
         self.creatures: dict[str, BasePlaybackCreature] = {}

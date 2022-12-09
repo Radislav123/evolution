@@ -12,11 +12,11 @@ class CreatureSurface(pygame.Surface):
     @classmethod
     def from_pygame_surface(cls, surface: pygame.Surface) -> "CreatureSurface":
         new_surface = CreatureSurface(
-            (surface.get_width(), surface.get_height()),
+            surface.get_size(),
             surface.get_flags(),
-            surface.get_bitsize(),
-            surface.get_masks()
+            surface
         )
+        new_surface.blit(surface, surface.get_rect())
         return new_surface
 
     @classmethod

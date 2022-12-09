@@ -63,7 +63,8 @@ class BasePlaybackCreature(BasePlaybackObject, pygame.sprite.Sprite):
     def draw(self):
         """Отрисовывает существо на экране."""
 
-        self.screen.blit(self.surface, self.rect)
+        if not isinstance(self, BasePlaybackCreature) or self.is_alive():
+            self.screen.blit(self.surface, self.rect)
 
     def move(self, x, y):
         """Перемещает существо."""

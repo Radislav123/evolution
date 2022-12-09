@@ -7,9 +7,6 @@ from django.views.decorators.csrf import csrf_exempt
 from player.object.world.base import BasePlaybackWorld
 
 
-
-
-
 @method_decorator(csrf_exempt, name = "dispatch")
 class PlaybackView(View):
     url = ""

@@ -1,7 +1,7 @@
 import requests
 
 
-simulation = False
+simulation = True
 
 if simulation:
     method = "simulate"
@@ -11,14 +11,14 @@ if simulation:
         "width": 1000,
         "height": 1000,
         "draw": 1,
-        "tps": 3
+        "tps": 15
     }
 else:
     method = "play"
     path = "player"
     params = {
         "world_db_id": 4,
-        "tps": 1
+        "tps": 15
     }
 
 response = requests.request(method, f"http://127.0.0.1:8000/{path}/", params = params)
