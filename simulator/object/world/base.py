@@ -30,7 +30,7 @@ class BaseSimulationWorld(BaseSimulationObject):
         self.creatures_group = pygame.sprite.Group()
         self.screen = pygame.display.set_mode((self.width, self.height))
 
-        self.characteristics = BaseWorldCharacteristics(2)
+        self.characteristics = BaseWorldCharacteristics(1)
 
     def save_to_db(self):
         self.db_instance = self.db_model(id = self.id, stop_tick = self.age, width = self.width, height = self.height)

@@ -84,5 +84,5 @@ class BaseCreatureCharacteristics:
             self.force.x * ticks / self.mass,
             self.force.y * ticks / self.mass
         )
-        self.speed.divide_ip(self.world_characteristics.viscosity)
+        self.speed.divide_ip(1 + self.world_characteristics.viscosity * self.volume / 100)
         self.force.reset()
