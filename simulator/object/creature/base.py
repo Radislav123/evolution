@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 import pygame
 
 from core import models
-from core.position import MovementVector, Position
+from core.physic.base import BaseCreatureCharacteristics
+from core.position import Position
 from core.surface.base import CreatureSurface
 from evolution import settings
 from logger import BaseLogger
@@ -25,6 +26,8 @@ class CollisionException(BaseException):
 class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     db_model = models.Creature
     draw = BasePlaybackCreature.draw
+    # физические характеристики существа
+    characteristics: BaseCreatureCharacteristics
 
     # position - левый верхний угол существа/спрайта
     def __init__(
@@ -78,14 +81,17 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             storage = BaseSimulationStorage(self, start_resources)
         self.storage = storage
 
-        # характеризует суммарное смещение существа в текущий тик
-        self.movement = MovementVector()
-
     def __repr__(self):
         return self.object_id
 
     def start(self):
         self.start_tick = self.world.age
+
+        # физические характеристики существа
+        volume = self.rect.width * self.rect.height
+        mass = volume
+        self.characteristics = BaseCreatureCharacteristics(mass, volume, 10, self.world.characteristics, self.storage)
+
         super().start()
         self.storage.start()
 
@@ -129,7 +135,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
     @property
     def position(self):
-        return Position(self.rect.x, self.rect.y)
+        """Центр существа."""
+
+        return Position(self.rect.x + self.rect.width // 2, self.rect.y + self.rect.height // 2)
 
     def spawn(self):
         self.world.add_creature(self)
@@ -141,30 +149,34 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             self.consume()
         if self.can_reproduce():
             self.reproduce()
+
+        self.characteristics.tick()
         if self.can_move():
             self.move()
 
     def can_move(self):
-        return not self.movement.is_empty()
+        return not self.characteristics.speed.less_then(1)
 
     def move(self):
         """Перемещает существо."""
 
-        self.rect.move_ip(self.movement.x, self.movement.y)
+        ticks = 1
+        movement_x = int(self.characteristics.speed.x * ticks)
+        movement_y = int(self.characteristics.speed.y * ticks)
+        self.rect.move_ip(movement_x, movement_y)
         models.CreatureMovement(
             age = self.world.age,
             creature = self.db_instance,
-            x = self.movement.x,
-            y = self.movement.y
+            x = movement_x,
+            y = movement_y
         ).save()
-        self.movement.reset()
 
     def get_children_resources(self, children_number: int) -> list[list[tuple[BaseResource, int, int]]]:
         children_resources = []
         for i in range(children_number):
             child_resources = []
             for world_resource, stored_resource in self.storage.items():
-                child_resource_number = stored_resource.current//(children_number + 1)
+                child_resource_number = stored_resource.current // (children_number + 1)
                 self.storage.remove(world_resource, child_resource_number)
                 child_resources.append((world_resource, stored_resource.capacity, child_resource_number))
             children_resources.append(child_resources)
@@ -182,15 +194,13 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         children_number = 1
         children = [
             self.__class__(
-                Position(self.position.x + 1 + number, self.position.y),
+                Position(self.position.x + number * self.rect.width * 2, self.position.y),
                 self.world,
                 [self],
                 None
             )
             for number in range(children_number)
         ]
-
-        self.movement.accumulate(-1, 0)
 
         children_resources = self.get_children_resources(children_number)
         for child, child_resources in zip(children, children_resources):
@@ -223,18 +233,18 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             self.world.add_resource(self.position, resource, number)
 
     def collision_interact(self, other: "BaseSimulationCreature"):
-        if self.position == other.position:
-            raise CollisionException(f"{self} and {other} have identical positions")
+        force_coef = self.characteristics.elasticity * other.characteristics.elasticity
+
+        force_x = self.rect.width + other.rect.width
+        force_y = self.rect.height + other.rect.height
+        if self.position.x != other.position.x:
+            force_x = force_x * force_coef / (self.position.x - other.position.x)
         else:
-            if self.position.x != other.position.x:
-                x_move = (self.position.x - other.position.x)//abs(self.position.x - other.position.x)
-            else:
-                x_move = 0
+            force_x = force_x * force_coef * 2
+        if self.position.y != other.position.y:
+            force_y = force_y * force_coef / (self.position.y - other.position.y)
+        else:
+            force_y = force_y * force_coef * 2
 
-            if self.position.y != other.position.y:
-                y_move = (self.position.y - other.position.y)//abs(self.position.y - other.position.y)
-            else:
-                y_move = 0
-
-            self.movement.accumulate(x_move, y_move)
-            other.movement.accumulate(-x_move, -y_move)
+        self.characteristics.force.accumulate(force_x, force_y)
+        other.characteristics.force.accumulate(-force_x, -force_y)

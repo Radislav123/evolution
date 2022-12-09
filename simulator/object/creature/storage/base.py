@@ -90,3 +90,10 @@ class BaseSimulationStorage(BaseSimulationObject):
         """Убирает ресурс из хранилища."""
 
         self._storage[resource].remove(number)
+
+    @property
+    def mass(self):
+        mass = 0
+        for world_resource, resource in self._storage.items():
+            mass += world_resource.mass * resource.current
+        return mass
