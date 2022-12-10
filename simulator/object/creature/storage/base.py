@@ -41,8 +41,12 @@ class BaseStoredResource:
 
 class BaseSimulationStorage(BaseSimulationObject):
     db_model = models.CreatureStorage
+    counter: int = 0
 
     def __init__(self, creature: "BaseSimulationCreature", resources: list[tuple[BaseResource, int, int]]):
+        self.id = int(f"{creature.id}{self.__class__.counter}")
+        self.__class__.counter += 1
+
         self.creature = creature
         self.logger = BaseLogger(
             f"{self.creature.world.object_id}.{self.creature.object_id}.{self.object_id}"

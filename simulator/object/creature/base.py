@@ -1,3 +1,4 @@
+import math
 from typing import TYPE_CHECKING
 
 import pygame
@@ -28,6 +29,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     draw = BasePlaybackCreature.draw
     # физические характеристики существа
     characteristics: BaseCreatureCharacteristics
+    counter: int = 0
 
     # position - левый верхний угол существа/спрайта
     def __init__(
@@ -40,6 +42,8 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             **kwargs
     ):
         super().__init__(*args, **kwargs)
+        self.id = int(f"{world.id}{self.__class__.counter}")
+        self.__class__.counter += 1
 
         # ((consume, _storage, throw), (consume, _storage, throw), ...)
         self.consumption_formula = (
@@ -58,8 +62,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.rect = self.surface.get_rect()
         self.start_x = position.x
         self.start_y = position.y
-        self.rect.x = self.start_x
-        self.rect.y = self.start_y
+        self.rect.x = self.start_x - self.rect.width // 2
+        self.rect.y = self.start_y - self.rect.height // 2
+        self._position: Position | None = None
 
         self.world = world
         self.start_tick = self.world.age
@@ -69,6 +74,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         if parents is None:
             parents = []
         self.parents = parents
+        self.children_number = 1
 
         # такая ситуация подразумевается только при генерации мира
         if storage is None and len(self.world.creatures) == 0:
@@ -84,13 +90,17 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def __repr__(self):
         return self.object_id
 
+    @property
+    def radius(self):
+        return self.characteristics.radius
+
     def start(self):
+        self.world.add_creature(self)
         self.start_tick = self.world.age
 
         # физические характеристики существа
-        volume = self.rect.width * self.rect.height
-        mass = volume
-        self.characteristics = BaseCreatureCharacteristics(mass, volume, 10, self.world.characteristics, self.storage)
+        radius = (self.rect.width + self.rect.height) / 4
+        self.characteristics = BaseCreatureCharacteristics(radius, 5, self.world.characteristics, self.storage)
 
         super().start()
         self.storage.start()
@@ -137,10 +147,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def position(self):
         """Центр существа."""
 
-        return Position(self.rect.x + self.rect.width // 2, self.rect.y + self.rect.height // 2)
-
-    def spawn(self):
-        self.world.add_creature(self)
+        if self._position is None:
+            self._position = Position(self.rect.x + self.rect.width // 2, self.rect.y + self.rect.height // 2)
+        return self._position
 
     def tick(self):
         """Симулирует жизнедеятельность за один тик."""
@@ -150,13 +159,15 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         if self.can_reproduce():
             self.reproduce()
 
-        self.characteristics.tick()
+        self.characteristics.update_speed()
         if self.can_move():
             self.move()
+        self.characteristics.force.reset()
 
     def can_move(self):
         return not self.characteristics.speed.less_then(1)
 
+    # todo: добавить accumulated_movement для накопления движения < 1
     def move(self):
         """Перемещает существо."""
 
@@ -170,18 +181,46 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             x = movement_x,
             y = movement_y
         ).save()
+        self._position = None
 
-    def get_children_resources(self, children_number: int) -> list[list[tuple[BaseResource, int, int]]]:
+    def get_children_resources(self) -> list[list[tuple[BaseResource, int, int]]]:
         children_resources = []
-        for i in range(children_number):
+        for i in range(self.children_number):
             child_resources = []
             for world_resource, stored_resource in self.storage.items():
-                child_resource_number = stored_resource.current // (children_number + 1)
+                child_resource_number = stored_resource.current // (self.children_number + 1)
                 self.storage.remove(world_resource, child_resource_number)
                 child_resources.append((world_resource, stored_resource.capacity, child_resource_number))
             children_resources.append(child_resources)
 
         return children_resources
+
+    def get_children_layers(self) -> list[int]:
+        # максимально плотная упаковка кругов
+        # https://ru.wikipedia.org/wiki/%D0%A3%D0%BF%D0%B0%D0%BA%D0%BE%D0%B2%D0%BA%D0%B0_%D0%BA%D1%80%D1%83%D0%B3%D0%BE%D0%B2
+        children_in_layer = 6
+        layers = []
+        while sum(layers) < self.children_number:
+            layers.append(len(layers) * children_in_layer)
+        layers = layers[1:-1]
+        if sum(layers) != self.children_number:
+            layers.append(self.children_number - sum(layers))
+        return layers
+
+    def get_children_positions(self) -> list[Position]:
+        offset_coef = 1.2
+        children_positions = []
+        children_layers = self.get_children_layers()
+        # располагает потомков равномерно по слоям
+        for layer_number, children_in_layer in enumerate(children_layers):
+            child_sector = math.pi * 2 / children_in_layer
+            for number in range(children_in_layer):
+                offset_x = int(self.radius * 2 * math.cos(child_sector * number) * offset_coef * (layer_number + 1))
+                offset_y = int(self.radius * 2 * math.sin(child_sector * number) * offset_coef * (layer_number + 1))
+                children_positions.append(
+                    Position(self.position.x + offset_x, self.position.y + offset_y)
+                )
+        return children_positions
 
     def can_reproduce(self) -> bool:
         if self.storage[CARBON].is_full:
@@ -191,23 +230,22 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def reproduce(self) -> list["BaseSimulationCreature"]:
         """Симулирует размножение существа."""
 
-        children_number = 1
         children = [
             self.__class__(
-                Position(self.position.x + number * self.rect.width * 2, self.position.y),
+                position,
                 self.world,
                 [self],
                 None
             )
-            for number in range(children_number)
+            for position in self.get_children_positions()
         ]
 
-        children_resources = self.get_children_resources(children_number)
+        children_resources = self.get_children_resources()
         for child, child_resources in zip(children, children_resources):
             child.storage = self.storage.__class__(child, child_resources)
             child.storage.creature = child
-            child.spawn()
             child.start()
+            child.characteristics.speed = self.characteristics.speed.copy()
 
         return children
 
@@ -234,17 +272,16 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
     def collision_interact(self, other: "BaseSimulationCreature"):
         force_coef = self.characteristics.elasticity * other.characteristics.elasticity
-
-        force_x = self.rect.width + other.rect.width
-        force_y = self.rect.height + other.rect.height
-        if self.position.x != other.position.x:
-            force_x = force_x * force_coef / (self.position.x - other.position.x)
-        else:
-            force_x = force_x * force_coef * 2
+        force = (self.radius + other.radius) * 2
+        # x и y не перепутаны
         if self.position.y != other.position.y:
-            force_y = force_y * force_coef / (self.position.y - other.position.y)
+            force_x = force * force_coef / (self.position.y - other.position.y)
         else:
-            force_y = force_y * force_coef * 2
+            force_x = force * force_coef * 2
+        if self.position.x != other.position.x:
+            force_y = force * force_coef / (self.position.x - other.position.x)
+        else:
+            force_y = force * force_coef * 2
 
-        self.characteristics.force.accumulate(force_x, force_y)
-        other.characteristics.force.accumulate(-force_x, -force_y)
+        self.characteristics.force.accumulate(-force_x, -force_y)
+        other.characteristics.force.accumulate(force_x, force_y)

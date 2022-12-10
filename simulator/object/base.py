@@ -7,7 +7,7 @@ class BaseSimulationObject:
     db_model: models.ObjectModel
     db_instance: models.ObjectModel
     logger: logging.Logger
-    _id: int = None
+    id: int
 
     def __repr__(self):
         return self.object_id
@@ -37,9 +37,3 @@ class BaseSimulationObject:
     @property
     def object_id(self):
         return f"{self.__class__.__name__}{self.id}"
-
-    @property
-    def id(self) -> int:
-        if self._id is None:
-            self._id = self.db_model.objects.count()
-        return self._id

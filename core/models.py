@@ -12,7 +12,7 @@ class ObjectModel(EvolutionModel):
 
 
 class World(ObjectModel):
-    stop_tick = models.IntegerField()
+    stop_tick = models.PositiveIntegerField()
     width = models.PositiveIntegerField()
     height = models.PositiveIntegerField()
 

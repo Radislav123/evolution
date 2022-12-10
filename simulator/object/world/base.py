@@ -19,8 +19,8 @@ class BaseSimulationWorld(BaseSimulationObject):
 
     # width - минимальное значение ширины экрана - 120
     def __init__(self, width: int, height: int):
-        # возраст увеличивается перед всеми расчетами в мире (tick())
-        self.age = -1
+        self._id = None
+        self.age = 0
         self.width = width
         self.height = height
         # {creature.object_id: creature}
@@ -31,6 +31,12 @@ class BaseSimulationWorld(BaseSimulationObject):
         self.screen = pygame.display.set_mode((self.width, self.height))
 
         self.characteristics = BaseWorldCharacteristics(1)
+
+    @property
+    def id(self) -> int:
+        if self._id is None:
+            self._id = self.db_model.objects.count()
+        return self._id
 
     def save_to_db(self):
         self.db_instance = self.db_model(id = self.id, stop_tick = self.age, width = self.width, height = self.height)
@@ -55,7 +61,7 @@ class BaseSimulationWorld(BaseSimulationObject):
 
     def spawn_start_creature(self):
         creature = BaseSimulationCreature(Position(self.width // 2, self.height // 2), self)
-        creature.spawn()
+        creature.start()
 
     def add_creature(self, creature: BaseSimulationCreature):
         """Добавляет существо в мир."""
@@ -70,20 +76,20 @@ class BaseSimulationWorld(BaseSimulationObject):
         creature.kill()
 
     def tick(self):
-        self.age += 1
-
         existing_creatures = copy.copy(self.creatures)
         for creature in existing_creatures.values():
             creature: BaseSimulationCreature
             creature.tick()
 
-        existing_creatures = copy.copy(self.creatures)
-        for creature in existing_creatures.values():
-            if collided_creatures := pygame.sprite.spritecollide(creature, self.creatures_group, False):
-                # всегда пересекается с собой
-                collided_creatures.remove(creature)
-                for other_creature in collided_creatures:
-                    creature.collision_interact(other_creature)
+        existing_creatures = list(self.creatures.values())
+        for i in range(len(existing_creatures)):
+            for j in range(i + 1, len(existing_creatures)):
+                creature_0 = existing_creatures[i]
+                creature_1 = existing_creatures[j]
+                if pygame.sprite.collide_circle(creature_0, creature_1):
+                    creature_0.collision_interact(creature_1)
+
+        self.age += 1
 
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
     def get_resource(self, position: Position, resource):

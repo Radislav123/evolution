@@ -1,3 +1,5 @@
+import copy
+import math
 from typing import TYPE_CHECKING
 
 
@@ -41,8 +43,11 @@ class Vector:
         self.y = self.y / divider
         return self
 
-    def less_then(self, number):
+    def less_then(self, number) -> bool:
         return abs(self.x) < number and abs(self.y) < number
+
+    def copy(self) -> "Vector":
+        return copy.deepcopy(self)
 
 
 class BaseWorldCharacteristics:
@@ -54,15 +59,13 @@ class BaseWorldCharacteristics:
 class BaseCreatureCharacteristics:
     def __init__(
             self,
-            mass,
-            volume,
+            radius,
             elasticity,
             world_characteristics: BaseWorldCharacteristics,
             creature_storage: "BaseSimulationStorage"
     ):
-        self._mass = mass
         # объем
-        self.volume = volume
+        self.radius = radius
         self.elasticity = elasticity
         self.world_characteristics = world_characteristics
         self.creature_storage = creature_storage
@@ -72,17 +75,20 @@ class BaseCreatureCharacteristics:
 
     @property
     def mass(self):
-        return self._mass + self.creature_storage.mass
+        return self.volume + self.creature_storage.mass
+
+    @property
+    def volume(self):
+        return math.pi * self.radius**2
 
     def get_movement(self, ticks = 1):
         # ticks - количество тиков, за которое рассчитывается перемещение
         return self.speed.multiply(ticks)
 
-    def tick(self):
+    def update_speed(self):
         ticks = 1
         self.speed.accumulate(
             self.force.x * ticks / self.mass,
             self.force.y * ticks / self.mass
         )
         self.speed.divide_ip(1 + self.world_characteristics.viscosity * self.volume / 100)
-        self.force.reset()
