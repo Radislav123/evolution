@@ -185,13 +185,21 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
     def get_children_resources(self) -> list[list[tuple[BaseResource, int, int]]]:
         children_resources = []
+        given_resources = {}
+
         for i in range(self.children_number):
             child_resources = []
             for world_resource, stored_resource in self.storage.items():
                 child_resource_number = stored_resource.current // (self.children_number + 1)
-                self.storage.remove(world_resource, child_resource_number)
+                if world_resource in given_resources:
+                    given_resources[world_resource] += child_resource_number
+                else:
+                    given_resources[world_resource] = child_resource_number
                 child_resources.append((world_resource, stored_resource.capacity, child_resource_number))
             children_resources.append(child_resources)
+
+        for world_resource, number in given_resources.items():
+            self.storage.remove(world_resource, number)
 
         return children_resources
 

@@ -45,4 +45,4 @@ class PlaybackView(View):
             world.stop()
             pygame.quit()
 
-        return HttpResponse("Воспроизведение окончено.")
+        return HttpResponse(f"Воспроизведение окончено. World id {world.id}.")

@@ -52,4 +52,4 @@ class SimulationView(View):
             world.stop()
             pygame.quit()
 
-        return HttpResponse("Симуляция окончена.")
+        return HttpResponse(f"Симуляция окончена. World id: {world.id}.")

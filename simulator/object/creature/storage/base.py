@@ -19,7 +19,7 @@ class BaseStoredResource:
     current: int
 
     def __repr__(self):
-        return repr(self.world_resource)
+        return f"{repr(self.world_resource)}: {self.current}/{self.capacity}"
 
     def add(self, number):
         self.current += number
