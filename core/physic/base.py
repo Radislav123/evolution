@@ -9,12 +9,21 @@ if TYPE_CHECKING:
 
 
 class Vector:
-    def __init__(self, x = 0, y = 0):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
 
     def __str__(self):
         return str(self.to_tuple())
+
+    def __add__(self, other) -> "Vector":
+        return Vector(self.x + other.x, self.y + other.y)
+
+    def __sub__(self, other) -> "Vector":
+        return Vector(self.x - other.x, self.y - other.y)
+
+    def round(self) -> "Vector":
+        return Vector(int(self.x), int(self.y))
 
     def to_tuple(self):
         return self.x, self.y
@@ -72,6 +81,7 @@ class BaseCreatureCharacteristics:
         # сила (сумма сил), с которой действуют на объект в данный тик
         self.force = Vector(0, 0)
         self.speed = Vector(0, 0)
+        self.accumulated_movement = Vector(0, 0)
 
     @property
     def mass(self):
@@ -81,9 +91,14 @@ class BaseCreatureCharacteristics:
     def volume(self):
         return math.pi * self.radius**2
 
-    def get_movement(self, ticks = 1):
-        # ticks - количество тиков, за которое рассчитывается перемещение
-        return self.speed.multiply(ticks)
+    @property
+    def movement(self) -> Vector:
+        ticks = 1
+        return Vector(self.speed.x * ticks, self.speed.y * ticks) + self.accumulated_movement
+
+    @property
+    def round_movement(self) -> Vector:
+        return self.movement.round()
 
     def update_speed(self):
         ticks = 1
@@ -92,3 +107,9 @@ class BaseCreatureCharacteristics:
             self.force.y * ticks / self.mass
         )
         self.speed.divide_ip(1 + self.world_characteristics.viscosity * self.volume / 100)
+
+    def update_force(self):
+        self.force.reset()
+
+    def update_accumulated_movement(self):
+        self.accumulated_movement = self.movement - self.round_movement

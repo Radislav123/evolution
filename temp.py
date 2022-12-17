@@ -17,7 +17,7 @@ else:
     method = "play"
     path = "player"
     params = {
-        "world_db_id": 4,
+        "world_db_id": 135,
         "tps": 15
     }
 

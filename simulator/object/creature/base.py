@@ -162,24 +162,21 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.characteristics.update_speed()
         if self.can_move():
             self.move()
-        self.characteristics.force.reset()
+        self.characteristics.update_accumulated_movement()
+        self.characteristics.update_force()
 
     def can_move(self):
-        return not self.characteristics.speed.less_then(1)
+        return not self.characteristics.movement.less_then(1)
 
-    # todo: добавить accumulated_movement для накопления движения < 1
     def move(self):
         """Перемещает существо."""
 
-        ticks = 1
-        movement_x = int(self.characteristics.speed.x * ticks)
-        movement_y = int(self.characteristics.speed.y * ticks)
-        self.rect.move_ip(movement_x, movement_y)
+        self.rect.move_ip(self.characteristics.round_movement.x, self.characteristics.round_movement.y)
         models.CreatureMovement(
             age = self.world.age,
             creature = self.db_instance,
-            x = movement_x,
-            y = movement_y
+            x = self.characteristics.round_movement.x,
+            y = self.characteristics.round_movement.y
         ).save()
         self._position = None
 
