@@ -11,30 +11,26 @@ if TYPE_CHECKING:
 
 class BaseGene(abc.ABC):
     # обязательно ли присутствие гена в геноме (может ли он пропасть)
-    required = False
-    # может ли ген повторятся в других хромосомах
-    duplicatable = True
+    required: bool
 
     def __init__(self):
         self._mutate_chance = 0.001
-        self._disappear_chance = 0.1
+        self.disappear_chance = 0.001
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
 
-    @property
-    def disappear_chance(self):
-        if self.required:
-            return 0
-        else:
-            return self._disappear_chance
+    def apply(self, creature):
+        """Применяет эффекты гена на существо."""
+
+        raise NotImplementedError()
 
     @property
     def mutate_chance(self) -> float:
         return self._mutate_chance
 
     # если возвращает True, ген необходимо удалить из хромосомы
-    def mutate(self) -> bool:
+    def mutate(self, genome: "BaseGenome") -> bool:
         raise NotImplementedError()
 
     @classmethod
@@ -42,23 +38,32 @@ class BaseGene(abc.ABC):
         return [gene() for gene in cls.__subclasses__() if gene.required]
 
     @classmethod
-    def get_available_genes(cls, genome: "BaseGenome") -> list["BaseGene"]:
+    def get_available_genes(cls) -> list["BaseGene"]:
         """Возвращает список генов, возможных для добавления в процессе мутации."""
 
-        return [
-            gene() for gene in cls.__subclasses__()
-            if not gene.required and (gene.duplicatable or len(genome.get_genes(gene)) == 0)
-        ]
+        return [gene() for gene in cls.__subclasses__()]
 
 
 class ChildrenNumberGene(BaseGene):
     required = True
-    duplicatable = False
 
     def __init__(self):
         super().__init__()
         self.children_number = 1
 
-    def mutate(self) -> bool:
+    def __repr__(self):
+        return f"{super().__repr__()}: {self.children_number}"
+
+    def apply(self, creature):
+        if hasattr(creature, "children_number"):
+            creature.children_number += self.children_number
+        else:
+            creature.children_number = self.children_number
+
+    def mutate(self, genome) -> bool:
+        if len(genome.get_genes(self.__class__)) > 1:
+            if random.random() < self.disappear_chance:
+                return True
+
         self.children_number += [-1, 1][random.randint(0, 1)]
         return False

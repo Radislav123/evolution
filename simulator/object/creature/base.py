@@ -1,6 +1,6 @@
 import math
 from typing import TYPE_CHECKING
-from simulator.object.creature.genome.chromosome.gene.base import ChildrenNumberGene
+
 import pygame
 
 from core import models
@@ -30,6 +30,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     draw = BasePlaybackCreature.draw
     # физические характеристики существа
     characteristics: BaseCreatureCharacteristics
+    children_number: int
     counter: int = 0
 
     # position - левый верхний угол существа/спрайта
@@ -82,7 +83,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
         # такая ситуация подразумевается только при генерации мира
         if genome is None and world_generation:
-            genome = BaseGenome(self, None, world_generation = True)
+            genome = BaseGenome(None, world_generation = True)
         self.genome = genome
 
         # такая ситуация подразумевается только при генерации мира
@@ -107,13 +108,13 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.world.add_creature(self)
         self.start_tick = self.world.age
 
+        self.genome.apply_genes(self)
+
         # физические характеристики существа
         radius = (self.rect.width + self.rect.height) / 4
         self.characteristics = BaseCreatureCharacteristics(radius, 5, self.world.characteristics, self.storage)
 
         super().start()
-
-        self.genome.apply_genes()
         self.storage.start()
 
     def stop(self):
@@ -191,10 +192,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         ).save()
         self._position = None
 
-    @property
-    def children_number(self):
-        return self.genome.get_genes(ChildrenNumberGene)[0].children_number
-
     def get_children_resources(self) -> list[list[tuple[BaseResource, int, int]]]:
         children_resources = []
         given_resources = {}
@@ -267,7 +264,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         for child, child_resources in zip(children, children_resources):
             child.storage = parent.storage.__class__(child, child_resources)
             child.storage.creature = child
-            child.genome.creature = child
             child.start()
             child.characteristics.speed = parent.characteristics.speed.copy()
 

@@ -14,14 +14,7 @@ GENE_CLASS = TypeVar("GENE_CLASS")
 
 
 class BaseGenome:
-    def __init__(
-            self,
-            creature: "BaseSimulationCreature",
-            chromosomes: list[BaseChromosome] | None,
-            world_generation: bool = False
-    ):
-        self.creature = creature
-
+    def __init__(self, chromosomes: list[BaseChromosome] | None, world_generation: bool = False):
         # такая ситуация подразумевается только при генерации мира
         if world_generation:
             chromosomes = [BaseChromosome(BaseGene.get_required_genes())]
@@ -59,8 +52,11 @@ class BaseGenome:
             if chromosome_disappear:
                 del self.chromosomes[mutate_number]
 
-    def apply_genes(self):
+    def apply_genes(self, creature):
         """Применяет эффекты генов на существо."""
+
+        for chromosome in self.chromosomes:
+            chromosome.apply_genes(creature)
 
     @staticmethod
     def get_child_genome(parents: list["BaseSimulationCreature"]) -> "BaseGenome":

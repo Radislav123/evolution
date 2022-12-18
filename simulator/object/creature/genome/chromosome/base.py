@@ -15,6 +15,12 @@ class BaseChromosome:
     def __len__(self) -> int:
         return len(self.genes)
 
+    def apply_genes(self, creature):
+        """Применяет эффекты генов на существо."""
+
+        for gene in self.genes:
+            gene.apply(creature)
+
     @property
     def disappear_chance(self):
         if len(self) == 0:
@@ -36,10 +42,10 @@ class BaseChromosome:
         if mutate_number == len(self):
             # todo: проверить это, когда будут доступные гены для добавления
             if False:
-                available_genes = BaseGene.get_available_genes(genome)
+                available_genes = BaseGene.get_available_genes()
                 self.genes.append(available_genes[random.randint(0, len(available_genes) - 1)])
         else:
-            gene_disappear = self.genes[mutate_number].mutate()
+            gene_disappear = self.genes[mutate_number].mutate(genome)
             if gene_disappear:
                 del self.genes[mutate_number]
 

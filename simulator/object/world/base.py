@@ -46,10 +46,6 @@ class BaseSimulationWorld(BaseSimulationObject):
         super().start()
         self.spawn_start_creature()
 
-        # тут должно быть только одно существо
-        for creature in self.creatures.values():
-            creature.start()
-
     def stop(self):
         super().stop()
 
