@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class BaseResource:
     name: str
     formula: str
-    mass = 0.1
+    mass = 0.01
 
     def __hash__(self):
         return hash(self.name)

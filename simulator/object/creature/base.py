@@ -11,6 +11,7 @@ from evolution import settings
 from logger import BaseLogger
 from player.object.creature.base import BasePlaybackCreature
 from simulator.object.base import BaseSimulationObject
+from simulator.object.creature.genome.base import BaseGenome
 from simulator.object.creature.storage.base import BaseSimulationStorage
 from simulator.world_resource.base import BaseResource, CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
 
@@ -36,8 +37,10 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             self,
             position: Position,
             world: "BaseSimulationWorld",
-            parents: list["BaseSimulationCreature"] = None,
-            storage: BaseSimulationStorage = None,
+            parents: list["BaseSimulationCreature"] | None,
+            genome: BaseGenome | None,
+            storage: BaseSimulationStorage | None,
+            world_generation: bool = False,
             *args,
             **kwargs
     ):
@@ -47,9 +50,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
         # ((consume, _storage, throw), (consume, _storage, throw), ...)
         self.consumption_formula = (
-            {OXYGEN: 2, CARBON: 2, HYDROGEN: 2, LIGHT: 2},
-            {OXYGEN: 1, CARBON: 1, HYDROGEN: 1, ENERGY: 1},
-            {OXYGEN: 1, CARBON: 1, HYDROGEN: 1}
+            {OXYGEN: 20, CARBON: 20, HYDROGEN: 20, LIGHT: 20},
+            {OXYGEN: 10, CARBON: 10, HYDROGEN: 10, ENERGY: 10},
+            {OXYGEN: 10, CARBON: 10, HYDROGEN: 10}
         )
 
         # origin_surface - хранится как эталон, от него делаются вращения и сохраняются в surface
@@ -71,18 +74,25 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.stop_tick = self.world.age
         self.screen = self.world.screen
         self.logger = BaseLogger(f"{self.world.object_id}.{self.object_id}")
-        if parents is None:
+
+        # такая ситуация подразумевается только при генерации мира
+        if parents is None and world_generation:
             parents = []
         self.parents = parents
         self.children_number = 1
 
         # такая ситуация подразумевается только при генерации мира
-        if storage is None and len(self.world.creatures) == 0:
+        if genome is None and world_generation:
+            genome = BaseGenome(self)
+        self.genome = genome
+
+        # такая ситуация подразумевается только при генерации мира
+        if storage is None and world_generation:
             start_resources = [
-                (CARBON, 100, 50),
-                (OXYGEN, 100, 50),
-                (HYDROGEN, 100, 50),
-                (ENERGY, 100, 50),
+                (CARBON, 1000, 500),
+                (OXYGEN, 1000, 500),
+                (HYDROGEN, 1000, 500),
+                (ENERGY, 1000, 500),
             ]
             storage = BaseSimulationStorage(self, start_resources)
         self.storage = storage
@@ -103,6 +113,8 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.characteristics = BaseCreatureCharacteristics(radius, 5, self.world.characteristics, self.storage)
 
         super().start()
+
+        self.genome.apply_genes()
         self.storage.start()
 
     def stop(self):
@@ -157,7 +169,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         if self.can_consume():
             self.consume()
         if self.can_reproduce():
-            self.reproduce()
+            self.reproduce([self])
 
         self.characteristics.update_speed()
         if self.can_move():
@@ -232,25 +244,29 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             return True
         return False
 
-    def reproduce(self) -> list["BaseSimulationCreature"]:
+    @staticmethod
+    def reproduce(parents: list["BaseSimulationCreature"]) -> list["BaseSimulationCreature"]:
         """Симулирует размножение существа."""
 
+        parent = parents[0]
         children = [
-            self.__class__(
+            parent.__class__(
                 position,
-                self.world,
-                [self],
+                parent.world,
+                [parent],
+                parent.genome.get_child_genome([parent]),
                 None
             )
-            for position in self.get_children_positions()
+            for position in parent.get_children_positions()
         ]
 
-        children_resources = self.get_children_resources()
+        children_resources = parent.get_children_resources()
         for child, child_resources in zip(children, children_resources):
-            child.storage = self.storage.__class__(child, child_resources)
+            child.storage = parent.storage.__class__(child, child_resources)
             child.storage.creature = child
+            child.genome.creature = child
             child.start()
-            child.characteristics.speed = self.characteristics.speed.copy()
+            child.characteristics.speed = parent.characteristics.speed.copy()
 
         return children
 

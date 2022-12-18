@@ -60,7 +60,14 @@ class BaseSimulationWorld(BaseSimulationObject):
         super().release_logs()
 
     def spawn_start_creature(self):
-        creature = BaseSimulationCreature(Position(self.width // 2, self.height // 2), self)
+        creature = BaseSimulationCreature(
+            Position(self.width // 2, self.height // 2),
+            self,
+            None,
+            None,
+            None,
+            world_generation = True
+        )
         creature.start()
 
     def add_creature(self, creature: BaseSimulationCreature):
