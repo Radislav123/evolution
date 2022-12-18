@@ -1,6 +1,6 @@
 import math
 from typing import TYPE_CHECKING
-
+from simulator.object.creature.genome.chromosome.gene.base import ChildrenNumberGene
 import pygame
 
 from core import models
@@ -79,11 +79,10 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         if parents is None and world_generation:
             parents = []
         self.parents = parents
-        self.children_number = 1
 
         # такая ситуация подразумевается только при генерации мира
         if genome is None and world_generation:
-            genome = BaseGenome(self)
+            genome = BaseGenome(self, None, world_generation = True)
         self.genome = genome
 
         # такая ситуация подразумевается только при генерации мира
@@ -191,6 +190,10 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             y = self.characteristics.round_movement.y
         ).save()
         self._position = None
+
+    @property
+    def children_number(self):
+        return self.genome.get_genes(ChildrenNumberGene)[0].children_number
 
     def get_children_resources(self) -> list[list[tuple[BaseResource, int, int]]]:
         children_resources = []
