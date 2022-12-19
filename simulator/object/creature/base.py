@@ -1,4 +1,5 @@
 import math
+import random
 from typing import TYPE_CHECKING
 
 import pygame
@@ -30,7 +31,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     draw = BasePlaybackCreature.draw
     # физические характеристики существа
     characteristics: BaseCreatureCharacteristics
-    children_number: int
     counter: int = 0
 
     # position - левый верхний угол существа/спрайта
@@ -97,9 +97,13 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             storage = BaseSimulationStorage(self, start_resources)
         self.storage = storage
 
+        self.genome.apply_genes()
+        self.children_number = self.genome.effects.children_number
+
     def __repr__(self):
         return self.object_id
 
+    # нужен для работы pygame.sprite.collide_circle
     @property
     def radius(self):
         return self.characteristics.radius
@@ -108,11 +112,11 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.world.add_creature(self)
         self.start_tick = self.world.age
 
-        self.genome.apply_genes(self)
-
         # физические характеристики существа
-        radius = (self.rect.width + self.rect.height) / 4
-        self.characteristics = BaseCreatureCharacteristics(radius, 5, self.world.characteristics, self.storage)
+        # todo: убрать строку и переделать отображение картинки в соответствии с размером существа
+        # radius = (self.rect.width + self.rect.height) / 4
+        radius = self.genome.effects.size // 2
+        self.characteristics = BaseCreatureCharacteristics(radius, 1, self.world.characteristics, self.storage)
 
         super().start()
         self.storage.start()
@@ -291,17 +295,18 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             self.world.add_resource(self.position, resource, number)
 
     def collision_interact(self, other: "BaseSimulationCreature"):
-        force_coef = self.characteristics.elasticity * other.characteristics.elasticity
-        force = (self.radius + other.radius) * 2
-        # x и y не перепутаны
-        if self.position.y != other.position.y:
-            force_x = force * force_coef / (self.position.y - other.position.y)
-        else:
-            force_x = force * force_coef * 2
-        if self.position.x != other.position.x:
-            force_y = force * force_coef / (self.position.x - other.position.x)
-        else:
-            force_y = force * force_coef * 2
+        force_coef = self.characteristics.elasticity * other.characteristics.elasticity * 25
+        centers_distance_x = self.position.x - other.position.x
+        centers_distance_y = self.position.y - other.position.y
+        centers_distance = math.sqrt(centers_distance_x**2 + centers_distance_y**2)
+        # случай, когда центры совпадают
+        if centers_distance == 0:
+            centers_distance = 0.5
+            centers_distance_x = random.random() * 2 - 1
+            centers_distance_y = random.random() * 2 - 1
+        force = (self.radius + other.radius - centers_distance) * force_coef
+        force_x = force / centers_distance * centers_distance_x
+        force_y = force / centers_distance * centers_distance_y
 
-        self.characteristics.force.accumulate(-force_x, -force_y)
-        other.characteristics.force.accumulate(force_x, force_y)
+        self.characteristics.force.accumulate(force_x, force_y)
+        other.characteristics.force.accumulate(-force_x, -force_y)

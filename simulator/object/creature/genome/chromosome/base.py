@@ -15,11 +15,11 @@ class BaseChromosome:
     def __len__(self) -> int:
         return len(self.genes)
 
-    def apply_genes(self, creature):
-        """Применяет эффекты генов на существо."""
+    def apply_genes(self, genome):
+        """Записывает эффекты генов в хранилище."""
 
         for gene in self.genes:
-            gene.apply(creature)
+            gene.apply(genome)
 
     @property
     def disappear_chance(self):

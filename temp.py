@@ -7,11 +7,11 @@ if simulation:
     method = "simulate"
     path = "simulator"
     params = {
-        "ticks": 120,
+        "ticks": 400,
         "width": 1000,
         "height": 1000,
         "draw": 1,
-        "tps": 15
+        "tps": 50
     }
 else:
     method = "play"

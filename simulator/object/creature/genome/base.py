@@ -13,8 +13,15 @@ if TYPE_CHECKING:
 GENE_CLASS = TypeVar("GENE_CLASS")
 
 
+class GenomeEffects:
+    """Хранилище эффектов генома."""
+    children_number = 0
+    size = 0
+
+
 class BaseGenome:
     def __init__(self, chromosomes: list[BaseChromosome] | None, world_generation: bool = False):
+        self.effects = GenomeEffects()
         # такая ситуация подразумевается только при генерации мира
         if world_generation:
             chromosomes = [BaseChromosome(BaseGene.get_required_genes())]
@@ -52,11 +59,11 @@ class BaseGenome:
             if chromosome_disappear:
                 del self.chromosomes[mutate_number]
 
-    def apply_genes(self, creature):
-        """Применяет эффекты генов на существо."""
+    def apply_genes(self):
+        """Записывает эффекты генов в хранилище."""
 
         for chromosome in self.chromosomes:
-            chromosome.apply_genes(creature)
+            chromosome.apply_genes(self)
 
     @staticmethod
     def get_child_genome(parents: list["BaseSimulationCreature"]) -> "BaseGenome":
