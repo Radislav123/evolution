@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Type, TypeVar
 
 from simulator.object.creature.genome.chromosome.base import BaseChromosome
 from simulator.object.creature.genome.chromosome.gene.base import BaseGene
+from simulator.world_resource.base import BaseWorldResource
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -19,6 +20,7 @@ class GenomeEffects:
     size = 0
     elasticity = 0.0
     consumption_amount = 0
+    consumption_resources: list[BaseWorldResource] = []
 
 
 class BaseGenome:

@@ -2,6 +2,8 @@ import abc
 import random
 from typing import TYPE_CHECKING, Type, TypeVar
 
+from simulator.world_resource.base import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
+
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
@@ -139,3 +141,45 @@ class ConsumptionAmountGene(BaseNumberGene):
     step = 1
     attribute_default = 10
     attribute_name = "consumption_amount"
+
+
+class BaseResourceConsumptionGene(BaseGene, abc.ABC):
+    """Базовый класс для генов, позволяющих потреблять ресурсы."""
+
+    resource: BaseWorldResource
+
+    def __repr__(self):
+        return f"{super().__repr__()}: {self.resource}"
+
+    def apply(self, genome):
+        genome.effects.consumption_resources.append(self.resource)
+
+    def mutate(self, genome) -> bool:
+        if self.disappear(genome):
+            return True
+        return False
+
+
+# todo: изменить - сделать из EnergyConsumptionGene абстрактный
+class EnergyConsumptionGene(BaseResourceConsumptionGene):
+    abstract = False
+    required = True
+    resource = ENERGY
+
+
+class CarbonConsumptionGene(BaseResourceConsumptionGene):
+    abstract = False
+    required = True
+    resource = CARBON
+
+
+class OxygenConsumptionGene(BaseResourceConsumptionGene):
+    abstract = False
+    required = True
+    resource = OXYGEN
+
+
+class HydrogenConsumptionGene(BaseResourceConsumptionGene):
+    abstract = False
+    required = True
+    resource = HYDROGEN
