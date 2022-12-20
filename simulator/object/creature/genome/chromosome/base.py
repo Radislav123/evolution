@@ -4,10 +4,13 @@ from simulator.object.creature.genome.chromosome.gene.base import BaseGene
 
 
 class BaseChromosome:
+    _mutation_chance = 0.02
+    _disappearance_chance = 0.01
+    # максимальное количество новых генов, которые могут появиться за одну мутацию
+    max_new_genes = 5
+
     def __init__(self, genes: list[BaseGene]):
         self.genes = genes
-        self._mutate_chance = 0.02
-        self._disappear_chance = 0.1
 
     def __repr__(self) -> str:
         return repr(self.genes)
@@ -22,31 +25,46 @@ class BaseChromosome:
             gene.apply(genome)
 
     @property
-    def disappear_chance(self):
+    def disappear_chance(self) -> float:
         if len(self) == 0:
-            return 0
+            disappear_chance = self._disappearance_chance * 2
         else:
-            return self._disappear_chance
+            disappear_chance = self._disappearance_chance / len(self)
+        return disappear_chance
 
     @property
-    def mutate_chance(self) -> float:
-        return self._mutate_chance + sum([gene.mutate_chance for gene in self.genes])
+    def mutation_chance(self) -> float:
+        return self._mutation_chance + sum([gene.mutation_chance for gene in self.genes])
+
+    def disappear(self) -> bool:
+        can_disappear = False
+        if random.random() < self.disappear_chance:
+            can_disappear = True
+        return can_disappear
 
     # если возвращает True, хромосому необходимо удалить из генома
     def mutate(self, genome) -> bool:
-        if len(self) == 0:
-            if random.random() < self.disappear_chance:
-                return True
+        if self.disappear():
+            return True
 
+        # добавляются новые гены
         mutate_number = random.randint(0, len(self))
         if mutate_number == len(self):
-            # todo: проверить это, когда будут доступные гены для добавления
-            if False:
-                available_genes = BaseGene.get_available_genes()
-                self.genes.append(available_genes[random.randint(0, len(available_genes) - 1)])
-        else:
-            gene_disappear = self.genes[mutate_number].mutate(genome)
+            available_genes = BaseGene.get_available_genes()
+            new_genes_number = 1 + random.choices(
+                range(self.max_new_genes), [1 / 5**x for x in range(self.max_new_genes)]
+            )[0]
+            weights = [gene.appearance_chance for gene in available_genes]
+
+            new_genes = set(random.choices(available_genes, weights, k = new_genes_number))
+            self.genes.extend(new_genes)
+
+        # мутации генов
+        amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+        genes_numbers = set(random.choices(list(range(len(self))), k = amount))
+        for number in genes_numbers:
+            gene_disappear = self.genes[number].mutate(genome)
             if gene_disappear:
-                del self.genes[mutate_number]
+                del self.genes[number]
 
         return False

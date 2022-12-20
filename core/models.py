@@ -18,11 +18,6 @@ class World(ObjectModel):
 
 
 class Creature(ObjectModel):
-    # потребление|запасание|выбрасывание
-    # <формула_количество.формула_количество...>|<формула_количество.формула_количество...>|<формула_количество.формула_количество...>
-    # noinspection GrazieInspection
-    # O_2.C_2.H_2.light_2|O_1.C_1.H_1.energy_1|O_1.C_1.H_1
-    consumption_formula = models.CharField(max_length = 100)
     world = models.ForeignKey(World, models.RESTRICT)
     # существо появилось
     start_tick = models.IntegerField()

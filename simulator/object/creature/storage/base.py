@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from core import models
 from logger import BaseLogger
 from simulator.object.base import BaseSimulationObject
-from simulator.world_resource.base import BaseResource
+from simulator.world_resource.base import BaseWorldResource
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class BaseStoredResource:
-    world_resource: BaseResource
+    world_resource: BaseWorldResource
     capacity: int
     current: int
     almost_full_level = 0.8
@@ -29,18 +29,25 @@ class BaseStoredResource:
         self.current -= number
 
     @property
-    def is_almost_full(self):
+    def almost_full(self) -> bool:
         return self.current >= self.capacity * self.almost_full_level
 
     @property
-    def is_full(self):
+    def full(self) -> bool:
         return self.current >= self.capacity
 
     @property
-    def is_empty(self):
+    def empty(self) -> bool:
         return self.current <= 0
 
-    def can_store(self, number):
+    @property
+    def extra(self) -> int:
+        extra = 0
+        if self.full:
+            extra = self.current - self.capacity
+        return extra
+
+    def can_store(self, number) -> bool:
         return self.current + number <= self.capacity
 
 
@@ -48,7 +55,7 @@ class BaseSimulationStorage(BaseSimulationObject):
     db_model = models.CreatureStorage
     counter: int = 0
 
-    def __init__(self, creature: "BaseSimulationCreature", resources: list[tuple[BaseResource, int, int]]):
+    def __init__(self, creature: "BaseSimulationCreature", resources: list[tuple[BaseWorldResource, int, int]]):
         self.id = int(f"{creature.id}{self.__class__.counter}")
         self.__class__.counter += 1
 
@@ -57,7 +64,7 @@ class BaseSimulationStorage(BaseSimulationObject):
             f"{self.creature.world.object_id}.{self.creature.object_id}.{self.object_id}"
         )
 
-        self._storage: dict[BaseResource, BaseStoredResource] = {}
+        self._storage: dict[BaseWorldResource, BaseStoredResource] = {}
         for resource in resources:
             self.add_stored_resource(*resource)
 
@@ -90,15 +97,36 @@ class BaseSimulationStorage(BaseSimulationObject):
 
         return self._storage[resource].can_store(number)
 
-    def add(self, resource, number):
+    def add(self, resource, number) -> int:
         """Добавляет ресурс в хранилище."""
 
         self._storage[resource].add(number)
+        return self._storage[resource].extra
 
     def remove(self, resource, number):
         """Убирает ресурс из хранилища."""
 
         self._storage[resource].remove(number)
+
+    @property
+    def fullness(self) -> dict[BaseWorldResource, float]:
+        fullness = {}
+        for resource in self._storage.values():
+            fullness[resource.world_resource] = resource.current / resource.capacity
+        return fullness
+
+    # если возвращает None -> все ресурсы хранятся в максимальном объеме
+    @property
+    def most_not_full(self) -> BaseWorldResource | None:
+        minimum_resource = list(self.fullness.keys())[0]
+        minimum = list(self.fullness.values())[0]
+        for resource, fullness in self.fullness.items():
+            if fullness < minimum:
+                minimum = fullness
+                minimum_resource = resource
+        if minimum == 1:
+            minimum_resource = None
+        return minimum_resource
 
     @property
     def mass(self):

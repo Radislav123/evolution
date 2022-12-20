@@ -1,6 +1,5 @@
 import abc
 import random
-from abc import ABC
 from typing import TYPE_CHECKING, Type, TypeVar
 
 
@@ -10,14 +9,16 @@ if TYPE_CHECKING:
 
 
 class BaseGene(abc.ABC):
+    mutation_chance = 0.001
+    disappearance_chance = 0.001
+    appearance_chance = 1
+
     # по умолчанию класс гена абстрактный
     abstract = True
     # обязательно ли присутствие хотя бы одного такого гена в геноме (могут ли все копии пропасть из генома)
     required: bool
 
     def __init__(self, first: bool):
-        self._mutate_chance = 0.001
-        self.disappear_chance = 0.001
         self.first = first
 
     def __repr__(self) -> str:
@@ -40,10 +41,6 @@ class BaseGene(abc.ABC):
 
         raise NotImplementedError()
 
-    @property
-    def mutate_chance(self) -> float:
-        return self._mutate_chance
-
     # если возвращает True, ген необходимо удалить из хромосомы
     @abc.abstractmethod
     def mutate(self, genome: "BaseGenome") -> bool:
@@ -61,10 +58,10 @@ class BaseGene(abc.ABC):
 
         return [gene(False) for gene in cls.get_all_subclasses() if not gene.abstract]
 
-    def can_disappear(self, genome: "BaseGenome") -> bool:
+    def disappear(self, genome: "BaseGenome") -> bool:
         can_disappear = False
-        if self.required and len(genome.get_genes(self.__class__)) > 1 or not self.required:
-            if random.random() < self.disappear_chance:
+        if not self.required or self.required and len(genome.get_genes(self.__class__)) > 1:
+            if random.random() < self.disappearance_chance:
                 can_disappear = True
         return can_disappear
 
@@ -72,7 +69,7 @@ class BaseGene(abc.ABC):
 step_type = TypeVar("step_type", int, float)
 
 
-class BaseNumberGene(BaseGene, ABC):
+class BaseNumberGene(BaseGene, abc.ABC):
     """Базовый класс для генов, влияющих численно."""
 
     step: step_type
@@ -85,7 +82,7 @@ class BaseNumberGene(BaseGene, ABC):
         if self.first:
             attribute_value = self.attribute_default
         else:
-            attribute_value = self.make_step()
+            attribute_value = 0
 
         self.__setattr__(self.attribute_name, attribute_value)
 
@@ -102,7 +99,7 @@ class BaseNumberGene(BaseGene, ABC):
         )
 
     def mutate(self, genome) -> bool:
-        if self.can_disappear(genome):
+        if self.disappear(genome):
             return True
 
         self.__setattr__(
@@ -134,3 +131,11 @@ class ElasticityGene(BaseNumberGene):
     step = 0.1
     attribute_default = 0.5
     attribute_name = "elasticity"
+
+
+class ConsumptionAmountGene(BaseNumberGene):
+    abstract = False
+    required = True
+    step = 1
+    attribute_default = 10
+    attribute_name = "consumption_amount"

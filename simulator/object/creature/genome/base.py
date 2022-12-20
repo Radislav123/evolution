@@ -18,17 +18,21 @@ class GenomeEffects:
     children_number = 0
     size = 0
     elasticity = 0.0
+    consumption_amount = 0
 
 
 class BaseGenome:
+    # [0, 1]
+    _mutation_chance = 0.05
+    # максимальное количество новых хромосом, которые могут появиться за одну мутацию
+    max_new_chromosomes = 3
+
     def __init__(self, chromosomes: list[BaseChromosome] | None, world_generation: bool = False):
         self.effects = GenomeEffects()
         # такая ситуация подразумевается только при генерации мира
         if world_generation:
             chromosomes = [BaseChromosome(BaseGene.get_required_genes())]
         self.chromosomes = chromosomes
-        # [0, 1]
-        self._mutate_chance = 0.05
 
     def __repr__(self) -> str:
         string = ""
@@ -47,18 +51,26 @@ class BaseGenome:
         return genes
 
     @property
-    def mutate_chance(self) -> float:
+    def mutation_chance(self) -> float:
         # todo: добавить возможность влияния внешних факторов на шанс мутации
-        return self._mutate_chance + sum([chromosome.mutate_chance for chromosome in self.chromosomes])
+        return self._mutation_chance + sum([chromosome.mutation_chance for chromosome in self.chromosomes])
 
     def mutate(self):
+        # добавляются новые хромосомы
         mutate_number = random.randint(0, len(self))
         if mutate_number == len(self):
-            self.chromosomes.append(BaseChromosome([]))
-        else:
-            chromosome_disappear = self.chromosomes[mutate_number].mutate(self)
+            new_chromosomes_number = 1 + random.choices(
+                range(self.max_new_chromosomes), [1 / 10**x for x in range(self.max_new_chromosomes)]
+            )[0]
+            self.chromosomes.extend([BaseChromosome([])] * new_chromosomes_number)
+
+        # мутации хромосом
+        amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+        chromosomes_numbers = random.sample(list(range(len(self))), k = amount)
+        for number in chromosomes_numbers:
+            chromosome_disappear = self.chromosomes[number].mutate(self)
             if chromosome_disappear:
-                del self.chromosomes[mutate_number]
+                del self.chromosomes[number]
 
     def apply_genes(self):
         """Записывает эффекты генов в хранилище."""
@@ -70,6 +82,6 @@ class BaseGenome:
     def get_child_genome(parents: list["BaseSimulationCreature"]) -> "BaseGenome":
         parent = parents[0]
         new_genome = parent.genome.__class__(None, copy.deepcopy(parent.genome.chromosomes))
-        if random.random() < new_genome.mutate_chance:
+        if random.random() < new_genome.mutation_chance:
             new_genome.mutate()
         return new_genome

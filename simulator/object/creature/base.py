@@ -14,7 +14,7 @@ from player.object.creature.base import BasePlaybackCreature
 from simulator.object.base import BaseSimulationObject
 from simulator.object.creature.genome.base import BaseGenome
 from simulator.object.creature.storage.base import BaseSimulationStorage
-from simulator.world_resource.base import BaseResource, CARBON, ENERGY, HYDROGEN, LIGHT, OXYGEN
+from simulator.world_resource.base import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -48,13 +48,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         super().__init__(*args, **kwargs)
         self.id = int(f"{world.id}{self.__class__.counter}")
         self.__class__.counter += 1
-
-        # ((consume, _storage, throw), (consume, _storage, throw), ...)
-        self.consumption_formula = (
-            {OXYGEN: 20, CARBON: 20, HYDROGEN: 20, LIGHT: 20},
-            {OXYGEN: 10, CARBON: 10, HYDROGEN: 10, ENERGY: 10},
-            {OXYGEN: 10, CARBON: 10, HYDROGEN: 10}
-        )
 
         # origin_surface - хранится как эталон, от него делаются вращения и сохраняются в surface
         # не должно изменятся
@@ -99,6 +92,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
         self.genome.apply_genes()
         self.children_number = self.genome.effects.children_number
+        self.consumption_amount = self.genome.effects.consumption_amount
 
     def __repr__(self):
         return self.object_id
@@ -131,26 +125,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         super().stop()
         self.storage.stop()
 
-    # потребление|запасание|выбрасывание
-    # <формула_количество.формула_количество...>|<формула_количество.формула_количество...>|<формула_количество.формула_количество...>
-    # noinspection GrazieInspection
-    # O_2.C_2.H_2.light_2|O_1.C_1.H_1.energy_1|O_1.C_1.H_1
-    def pack_consumption_formula(self) -> str:
-        # сжатая формула
-        formula = ""
-        for resources in self.consumption_formula:
-            formula_part = ""
-            for resource, number in resources.items():
-                formula_part += f"{resource.formula}_{number}."
-            formula_part = formula_part[:-1]
-            formula += f"{formula_part}|"
-        formula = formula[:-1]
-        return formula
-
     def save_to_db(self):
         self.db_instance = self.db_model(
             id = self.id,
-            consumption_formula = self.pack_consumption_formula(),
             world = self.world.db_instance,
             start_tick = self.start_tick,
             stop_tick = self.stop_tick,
@@ -201,7 +178,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         ).save()
         self._position = None
 
-    def get_children_resources(self) -> list[list[tuple[BaseResource, int, int]]]:
+    def get_children_resources(self) -> list[list[tuple[BaseWorldResource, int, int]]]:
         children_resources = []
         given_resources = {}
 
@@ -251,7 +228,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         return children_positions
 
     def can_reproduce(self) -> bool:
-        if self.storage[CARBON].is_almost_full:
+        if self.storage[CARBON].almost_full:
             return True
         return False
 
@@ -282,24 +259,26 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
     def can_consume(self) -> bool:
         can_consume = True
-        for resource, number in self.consumption_formula[0].items():
-            can_consume = can_consume and self.world.check_resource(self.position, resource, number)
-        for resource, number in self.consumption_formula[1].items():
-            can_consume = can_consume and self.storage.can_store(resource, number)
+        if self.storage.most_not_full is None:
+            can_consume = False
         return can_consume
+
+    def get_consumption_resource(self) -> BaseWorldResource:
+        resources = list(self.storage.fullness.keys())
+        weights = list(map(lambda x: 1 - x, self.storage.fullness.values()))
+        return random.choices(resources, weights)[0]
 
     def consume(self):
         """Симулирует потребление веществ существом."""
 
-        # забирает из мира ресурсы
-        for resource, number in self.consumption_formula[0].items():
-            self.world.remove_resource(self.position, resource, number)
+        resource = self.get_consumption_resource()
+        # забирает из мира ресурс
+        self.world.remove_resource(self.position, resource, self.consumption_amount)
         # добавляет в свое хранилище
-        for resource, number in self.consumption_formula[1].items():
-            self.storage.add(resource, number)
-        # отдает ресурсы в мир
-        for resource, number in self.consumption_formula[2].items():
-            self.world.add_resource(self.position, resource, number)
+        extra = self.storage.add(resource, self.consumption_amount)
+        # возвращает лишнее количество ресурса в мир
+        if extra > 0:
+            self.world.add_resource(self.position, resource, extra)
 
     def collision_interact(self, other: "BaseSimulationCreature"):
         force_coef = self.characteristics.elasticity * other.characteristics.elasticity * 100
