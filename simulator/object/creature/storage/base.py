@@ -1,8 +1,8 @@
+import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from core import models
-from logger import BaseLogger
 from simulator.object.base import BaseSimulationObject
 from simulator.world_resource.base import BaseWorldResource
 
@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 @dataclass
 class BaseStoredResource:
     world_resource: BaseWorldResource
-    capacity: int
     current: int
+    capacity: int
     almost_full_level = 0.8
 
     def __repr__(self):
@@ -53,20 +53,9 @@ class BaseStoredResource:
 
 class BaseSimulationStorage(BaseSimulationObject):
     db_model = models.CreatureStorage
-    counter: int = 0
 
-    def __init__(self, creature: "BaseSimulationCreature", resources: list[tuple[BaseWorldResource, int, int]]):
-        self.id = int(f"{creature.id}{self.__class__.counter}")
-        self.__class__.counter += 1
-
-        self.creature = creature
-        self.logger = BaseLogger(
-            f"{self.creature.world.object_id}.{self.creature.object_id}.{self.object_id}"
-        )
-
+    def __init__(self):
         self._storage: dict[BaseWorldResource, BaseStoredResource] = {}
-        for resource in resources:
-            self.add_stored_resource(*resource)
 
     def __getitem__(self, item):
         return self._storage[item]
@@ -74,9 +63,35 @@ class BaseSimulationStorage(BaseSimulationObject):
     def __iter__(self):
         return iter(self._storage)
 
-    def save_to_db(self):
-        self.db_instance = self.db_model(creature = self.creature.db_instance)
+    def __repr__(self) -> str:
+        string = ""
+        for resource in self.values():
+            string += f"{resource}\n"
+        string = string[:-1]
+        return string
+
+    @property
+    def deprecation_warning_message(self) -> str:
+        return f"{self.__class__.__name__} is not completely {BaseSimulationObject.__name__}"
+
+    @property
+    def object_id(self):
+        warnings.warn(self.deprecation_warning_message, DeprecationWarning)
+        return
+
+    def start(self, creature: "BaseSimulationCreature", *args, **kwargs):
+        super().start(creature, *args, **kwargs)
+
+    def stop(self, creature: "BaseSimulationCreature", *args, **kwargs):
+        super().stop(creature, *args, **kwargs)
+
+    def release_logs(self):
+        warnings.warn(self.deprecation_warning_message, DeprecationWarning)
+
+    def save_to_db(self, creature: "BaseSimulationCreature"):
+        self.db_instance = self.db_model(creature = creature.db_instance)
         self.db_instance.save()
+        # todo: сохранять ресурсы models.StoredResource
 
     def items(self):
         return self._storage.items()
@@ -87,10 +102,10 @@ class BaseSimulationStorage(BaseSimulationObject):
     def values(self):
         return self._storage.values()
 
-    def add_stored_resource(self, resource, capacity, current):
+    def add_stored_resource(self, resource, current, capacity):
         """Добавляет тип ресурса в хранилище."""
 
-        self._storage[resource] = BaseStoredResource(resource, capacity, current)
+        self._storage[resource] = BaseStoredResource(resource, current, capacity)
 
     def can_store(self, resource, number) -> bool:
         """Проверяет, может ли быть запасен ресурс."""

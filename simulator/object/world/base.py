@@ -60,8 +60,6 @@ class BaseSimulationWorld(BaseSimulationObject):
             Position(self.width // 2, self.height // 2),
             self,
             None,
-            None,
-            None,
             world_generation = True
         )
         creature.start()

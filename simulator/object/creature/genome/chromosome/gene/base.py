@@ -139,7 +139,7 @@ class ConsumptionAmountGene(BaseNumberGene):
     abstract = False
     required = True
     step = 1
-    attribute_default = 10
+    attribute_default = 5
     attribute_name = "consumption_amount"
 
 

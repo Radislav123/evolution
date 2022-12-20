@@ -14,7 +14,7 @@ from player.object.creature.base import BasePlaybackCreature
 from simulator.object.base import BaseSimulationObject
 from simulator.object.creature.genome.base import BaseGenome
 from simulator.object.creature.storage.base import BaseSimulationStorage
-from simulator.world_resource.base import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
+from simulator.world_resource.base import BaseWorldResource, CARBON
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -32,6 +32,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     # физические характеристики существа
     characteristics: BaseCreatureCharacteristics
     counter: int = 0
+    genome: BaseGenome
+    children_number: int
+    consumption_amount: int
 
     # position - левый верхний угол существа/спрайта
     def __init__(
@@ -39,8 +42,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             position: Position,
             world: "BaseSimulationWorld",
             parents: list["BaseSimulationCreature"] | None,
-            genome: BaseGenome | None,
-            storage: BaseSimulationStorage | None,
             world_generation: bool = False,
             *args,
             **kwargs
@@ -68,6 +69,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.stop_tick = self.world.age
         self.screen = self.world.screen
         self.logger = BaseLogger(f"{self.world.object_id}.{self.object_id}")
+        self.storage = BaseSimulationStorage()
 
         # такая ситуация подразумевается только при генерации мира
         if parents is None and world_generation:
@@ -75,27 +77,36 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.parents = parents
 
         # такая ситуация подразумевается только при генерации мира
-        if genome is None and world_generation:
+        if world_generation:
             genome = BaseGenome(None, world_generation = True)
+        else:
+            genome = parents[0].genome.get_child_genome(parents)
         self.genome = genome
 
-        # такая ситуация подразумевается только при генерации мира
-        if storage is None and world_generation:
-            start_resources = [
-                (CARBON, 1000, 500),
-                (OXYGEN, 1000, 500),
-                (HYDROGEN, 1000, 500),
-                (ENERGY, 1000, 500),
-            ]
-            storage = BaseSimulationStorage(self, start_resources)
-        self.storage = storage
+        self.apply_genes(world_generation)
 
+        # физические характеристики существа
+        # todo: переделать отображение картинки в соответствии с размером существа
+        radius = self.genome.effects.size // 2
+        self.characteristics = BaseCreatureCharacteristics(
+            radius,
+            self.genome.effects.elasticity,
+            self.world.characteristics,
+            self.storage
+        )
+
+    def apply_genes(self, world_generation: bool):
         self.genome.apply_genes()
+
         self.children_number = self.genome.effects.children_number
         self.consumption_amount = self.genome.effects.consumption_amount
 
-    def __repr__(self):
-        return self.object_id
+        for resource in self.genome.effects.consumption_resources:
+            current = 0
+            capacity = 100
+            if world_generation:
+                current = capacity // 2
+            self.storage.add_stored_resource(resource, current, capacity)
 
     # нужен для работы pygame.sprite.collide_circle
     @property
@@ -106,28 +117,16 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.world.add_creature(self)
         self.start_tick = self.world.age
 
-        # физические характеристики существа
-        # todo: убрать строку и переделать отображение картинки в соответствии с размером существа
-        # radius = (self.rect.width + self.rect.height) / 4
-        radius = self.genome.effects.size // 2
-        self.characteristics = BaseCreatureCharacteristics(
-            radius,
-            self.genome.effects.elasticity,
-            self.world.characteristics,
-            self.storage
-        )
-
         super().start()
-        self.storage.start()
+        self.storage.start(self)
 
     def stop(self):
         self.stop_tick = self.world.age
         super().stop()
-        self.storage.stop()
+        self.storage.stop(self)
 
     def save_to_db(self):
         self.db_instance = self.db_model(
-            id = self.id,
             world = self.world.db_instance,
             start_tick = self.start_tick,
             stop_tick = self.stop_tick,
@@ -241,17 +240,13 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             parent.__class__(
                 position,
                 parent.world,
-                [parent],
-                parent.genome.get_child_genome([parent]),
-                None
+                [parent]
             )
             for position in parent.get_children_positions()
         ]
 
         children_resources = parent.get_children_resources()
         for child, child_resources in zip(children, children_resources):
-            child.storage = parent.storage.__class__(child, child_resources)
-            child.storage.creature = child
             child.start()
             child.characteristics.speed = parent.characteristics.speed.copy()
 
