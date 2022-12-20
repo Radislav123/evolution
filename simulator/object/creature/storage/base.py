@@ -17,6 +17,7 @@ class BaseStoredResource:
     world_resource: BaseResource
     capacity: int
     current: int
+    almost_full_level = 0.8
 
     def __repr__(self):
         return f"{repr(self.world_resource)}: {self.current}/{self.capacity}"
@@ -26,6 +27,10 @@ class BaseStoredResource:
 
     def remove(self, number):
         self.current -= number
+
+    @property
+    def is_almost_full(self):
+        return self.current >= self.capacity * self.almost_full_level
 
     @property
     def is_full(self):

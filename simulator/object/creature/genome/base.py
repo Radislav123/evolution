@@ -17,6 +17,7 @@ class GenomeEffects:
     """Хранилище эффектов генома."""
     children_number = 0
     size = 0
+    elasticity = 0.0
 
 
 class BaseGenome:

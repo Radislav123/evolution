@@ -116,7 +116,12 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         # todo: убрать строку и переделать отображение картинки в соответствии с размером существа
         # radius = (self.rect.width + self.rect.height) / 4
         radius = self.genome.effects.size // 2
-        self.characteristics = BaseCreatureCharacteristics(radius, 1, self.world.characteristics, self.storage)
+        self.characteristics = BaseCreatureCharacteristics(
+            radius,
+            self.genome.effects.elasticity,
+            self.world.characteristics,
+            self.storage
+        )
 
         super().start()
         self.storage.start()
@@ -229,7 +234,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         return layers
 
     def get_children_positions(self) -> list[Position]:
-        offset_coef = 1.2
+        # чтобы снизить нагрузку, можно изменить сдвиг до 1.2,
+        # тогда существо будет появляться рядом и не будут рассчитываться столкновения
+        offset_coef = 0.5
         children_positions = []
         children_layers = self.get_children_layers()
         # располагает потомков равномерно по слоям
@@ -244,7 +251,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         return children_positions
 
     def can_reproduce(self) -> bool:
-        if self.storage[CARBON].is_full:
+        if self.storage[CARBON].is_almost_full:
             return True
         return False
 
@@ -295,7 +302,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             self.world.add_resource(self.position, resource, number)
 
     def collision_interact(self, other: "BaseSimulationCreature"):
-        force_coef = self.characteristics.elasticity * other.characteristics.elasticity * 25
+        force_coef = self.characteristics.elasticity * other.characteristics.elasticity * 100
         centers_distance_x = self.position.x - other.position.x
         centers_distance_y = self.position.y - other.position.y
         centers_distance = math.sqrt(centers_distance_x**2 + centers_distance_y**2)
