@@ -1,4 +1,5 @@
 import random
+from typing import Type
 
 from simulator.object.creature.genome.chromosome.gene.base import BaseGene
 
@@ -18,6 +19,14 @@ class BaseChromosome:
     def __len__(self) -> int:
         return len(self.genes)
 
+    def __contains__(self, gene: Type[BaseGene] | BaseGene) -> bool:
+        if isinstance(gene, type):
+            gene_class = gene
+        else:
+            gene_class = gene.__class__
+        genes_classes = [x.__class__ for x in self.genes]
+        return gene_class in genes_classes
+
     def apply_genes(self, genome):
         """Записывает эффекты генов в хранилище."""
 
@@ -25,7 +34,7 @@ class BaseChromosome:
             gene.apply(genome)
 
     @property
-    def disappear_chance(self) -> float:
+    def disappearance_chance(self) -> float:
         if len(self) == 0:
             disappear_chance = self._disappearance_chance * 2
         else:
@@ -38,19 +47,16 @@ class BaseChromosome:
 
     def disappear(self) -> bool:
         can_disappear = False
-        if random.random() < self.disappear_chance:
+        if random.random() < self.disappearance_chance:
             can_disappear = True
         return can_disappear
 
     # если возвращает True, хромосому необходимо удалить из генома
-    def mutate(self, genome) -> bool:
-        if self.disappear():
-            return True
-
+    def mutate(self, genome):
         # добавляются новые гены
         mutate_number = random.randint(0, len(self))
         if mutate_number == len(self):
-            available_genes = BaseGene.get_available_genes()
+            available_genes = BaseGene.get_available_genes(genome)
             new_genes_number = 1 + random.choices(
                 range(self.max_new_genes), [1 / 5**x for x in range(self.max_new_genes)]
             )[0]
@@ -59,12 +65,22 @@ class BaseChromosome:
             new_genes = set(random.choices(available_genes, weights, k = new_genes_number))
             self.genes.extend(new_genes)
 
-        # мутации генов
+        # исчезновение генов
+        # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
-        genes_numbers = set(random.choices(list(range(len(self))), k = amount))
+        weights = [gene.disappearance_chance for gene in self.genes]
+        genes_numbers = set(random.choices(range(len(self)), weights, k = amount))
         for number in genes_numbers:
-            gene_disappear = self.genes[number].mutate(genome)
-            if gene_disappear:
+            if self.genes[number].disappear(genome):
                 del self.genes[number]
 
-        return False
+        # мутации генов
+        # noinspection DuplicatedCode
+        amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+        weights = [gene.mutation_chance for gene in self.genes]
+        # если хромосома пустая или содержит лишь гены, которые не могут мутировать,
+        # то мутировать нечему (секция добавления генов в начале метода)
+        if len(self) > 0 and sum(weights) > 0:
+            genes_numbers = set(random.choices(range(len(self)), weights, k = amount))
+            for number in genes_numbers:
+                self.genes[number].mutate(genome)

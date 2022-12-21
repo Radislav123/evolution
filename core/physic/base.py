@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.object.creature.storage.base import BaseSimulationStorage
+    from simulator.object.creature.bodypart.base import BaseBodypart
+    from simulator.object.creature.genome.base import GenomeEffects
 
 
 class Vector:
@@ -68,28 +69,32 @@ class BaseWorldCharacteristics:
 class BaseCreatureCharacteristics:
     def __init__(
             self,
-            radius,
-            elasticity,
+            bodyparts: list["BaseBodypart"],
+            genome_effects: "GenomeEffects",
             world_characteristics: BaseWorldCharacteristics,
-            creature_storage: "BaseSimulationStorage"
     ):
-        # объем
-        self.radius = radius
-        self.elasticity = elasticity
+        self.bodyparts = bodyparts
+        self.genome_effects = genome_effects
+        self.elasticity = genome_effects.elasticity
+        self.size = self.genome_effects.size
         self.world_characteristics = world_characteristics
-        self.creature_storage = creature_storage
         # сила (сумма сил), с которой действуют на объект в данный тик
         self.force = Vector(0, 0)
         self.speed = Vector(0, 0)
         self.accumulated_movement = Vector(0, 0)
 
     @property
-    def mass(self):
-        return self.volume + self.creature_storage.mass
+    def radius(self):
+        return math.sqrt(self.volume / math.pi)
 
     @property
+    def mass(self):
+        return sum([bodypart.mass for bodypart in self.bodyparts])
+
+    # объем == площадь
+    @property
     def volume(self):
-        return math.pi * self.radius**2
+        return sum([bodypart.volume for bodypart in self.bodyparts])
 
     @property
     def movement(self) -> Vector:

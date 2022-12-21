@@ -12,9 +12,10 @@ from evolution import settings
 from logger import BaseLogger
 from player.object.creature.base import BasePlaybackCreature
 from simulator.object.base import BaseSimulationObject
+from simulator.object.creature.bodypart.base import BaseBodypart
+from simulator.object.creature.bodypart.storage import Storage
 from simulator.object.creature.genome.base import BaseGenome
-from simulator.object.creature.storage.base import BaseSimulationStorage
-from simulator.world_resource.base import BaseWorldResource, CARBON
+from simulator.world_resource.base import BaseWorldResource, ENERGY
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -29,14 +30,20 @@ class CollisionException(BaseException):
 class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     db_model = models.Creature
     draw = BasePlaybackCreature.draw
-    # физические характеристики существа
-    characteristics: BaseCreatureCharacteristics
     counter: int = 0
     genome: BaseGenome
     children_number: int
     consumption_amount: int
+    bodyparts: list[BaseBodypart]
+    storage: Storage
+    # todo: reproduction_lost_coef - перенести в гены
+    reproduction_lost_coef = 1.05
+    # todo: reproduction_reserve_coef - перенести в гены
+    reproduction_reserve_coef = 1.1
+    # todo: reproduction_energy_lost - перенести в гены
+    reproduction_energy_lost = 20
 
-    # position - левый верхний угол существа/спрайта
+    # position - центр существа/спрайта
     def __init__(
             self,
             position: Position,
@@ -69,7 +76,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.stop_tick = self.world.age
         self.screen = self.world.screen
         self.logger = BaseLogger(f"{self.world.object_id}.{self.object_id}")
-        self.storage = BaseSimulationStorage()
 
         # такая ситуация подразумевается только при генерации мира
         if parents is None and world_generation:
@@ -83,30 +89,43 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             genome = parents[0].genome.get_child_genome(parents)
         self.genome = genome
 
-        self.apply_genes(world_generation)
+        self.apply_genes()
+        self.apply_bodyparts()
 
         # физические характеристики существа
         # todo: переделать отображение картинки в соответствии с размером существа
-        radius = self.genome.effects.size // 2
         self.characteristics = BaseCreatureCharacteristics(
-            radius,
-            self.genome.effects.elasticity,
+            self.bodyparts,
+            self.genome.effects,
             self.world.characteristics,
-            self.storage
         )
+        self.characteristics.creature = self
 
-    def apply_genes(self, world_generation: bool):
+    def apply_bodyparts(self):
+        """Применяет эффекты частей тела на существо."""
+
+        self.bodyparts = []
+        for bodypart in [bodypart(self.genome.effects.size) for bodypart in self.genome.effects.bodyparts]:
+            self.bodyparts.append(bodypart)
+            if isinstance(bodypart, Storage):
+                self.storage = bodypart
+        for resource, capacity in self.genome.effects.resource_storages.items():
+            self.storage.add_resource_storage(resource, self.genome.effects.size)
+            self.bodyparts.append(self.storage[resource])
+
+        for resource, resource_storage in self.storage.items():
+            extra_amount = 0
+            if resource in self.extra_storage:
+                extra_amount = self.extra_storage[resource]
+            resource_storage.capacity = self.genome.effects.resource_storages[resource] + extra_amount
+
+    def apply_genes(self):
+        """Применяет эффекты генов на существо."""
+
         self.genome.apply_genes()
 
         self.children_number = self.genome.effects.children_number
         self.consumption_amount = self.genome.effects.consumption_amount
-
-        for resource in self.genome.effects.consumption_resources:
-            current = 0
-            capacity = 100
-            if world_generation:
-                current = capacity // 2
-            self.storage.add_stored_resource(resource, current, capacity)
 
     # нужен для работы pygame.sprite.collide_circle
     @property
@@ -118,12 +137,10 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.start_tick = self.world.age
 
         super().start()
-        self.storage.start(self)
 
     def stop(self):
         self.stop_tick = self.world.age
         super().stop()
-        self.storage.stop(self)
 
     def save_to_db(self):
         self.db_instance = self.db_model(
@@ -138,7 +155,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
     def release_logs(self):
         super().release_logs()
-        self.storage.release_logs()
 
     @property
     def position(self):
@@ -154,7 +170,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         if self.can_consume():
             self.consume()
         if self.can_reproduce():
-            self.reproduce([self])
+            self.reproduce()
 
         self.characteristics.update_speed()
         if self.can_move():
@@ -177,23 +193,45 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         ).save()
         self._position = None
 
+    @property
+    def resources(self) -> dict[BaseWorldResource, int]:
+        resources = {}
+        for bodypart in self.bodyparts:
+            for resource, amount in bodypart.resources.items():
+                if resource not in resources:
+                    resources[resource] = amount
+                else:
+                    resources[resource] += amount
+        return resources
+
+    @property
+    def extra_storage(self) -> dict[BaseWorldResource, int]:
+        extra_storage = {}
+        for bodypart in self.bodyparts:
+            for resource, amount in bodypart.extra_storage.items():
+                if resource not in extra_storage:
+                    extra_storage[resource] = amount
+                else:
+                    extra_storage[resource] += amount
+        return extra_storage
+
     def get_children_resources(self) -> list[list[tuple[BaseWorldResource, int, int]]]:
         children_resources = []
         given_resources = {}
 
         for i in range(self.children_number):
             child_resources = []
-            for world_resource, stored_resource in self.storage.items():
-                child_resource_number = stored_resource.current // (self.children_number + 1)
+            for world_resource, resource_storage in self.storage.items():
+                child_resource_amount = resource_storage.current // (self.children_number + 1)
                 if world_resource in given_resources:
-                    given_resources[world_resource] += child_resource_number
+                    given_resources[world_resource] += child_resource_amount
                 else:
-                    given_resources[world_resource] = child_resource_number
-                child_resources.append((world_resource, stored_resource.capacity, child_resource_number))
+                    given_resources[world_resource] = child_resource_amount
+                child_resources.append((world_resource, resource_storage.capacity, child_resource_amount))
             children_resources.append(child_resources)
 
-        for world_resource, number in given_resources.items():
-            self.storage.remove(world_resource, number)
+        for world_resource, amount in given_resources.items():
+            self.storage.remove(world_resource, amount)
 
         return children_resources
 
@@ -227,28 +265,45 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         return children_positions
 
     def can_reproduce(self) -> bool:
-        if self.storage[CARBON].almost_full:
-            return True
-        return False
+        can_reproduce = True
+        for resource, amount in self.resources.items():
+            if self.storage[resource].current < \
+                    int(amount * self.children_number * self.reproduction_lost_coef * self.reproduction_reserve_coef):
+                can_reproduce = False
+                break
+        if self.storage[ENERGY].current < \
+                int(self.reproduction_energy_lost * self.reproduction_lost_coef * self.reproduction_reserve_coef):
+            can_reproduce = False
 
-    @staticmethod
-    def reproduce(parents: list["BaseSimulationCreature"]) -> list["BaseSimulationCreature"]:
+        return can_reproduce
+
+    def reproduce(self) -> list["BaseSimulationCreature"]:
         """Симулирует размножение существа."""
 
-        parent = parents[0]
         children = [
-            parent.__class__(
+            self.__class__(
                 position,
-                parent.world,
-                [parent]
+                self.world,
+                [self]
             )
-            for position in parent.get_children_positions()
+            for position in self.get_children_positions()
         ]
 
-        children_resources = parent.get_children_resources()
+        resources_lost = {ENERGY: int(self.reproduction_energy_lost * self.reproduction_lost_coef)}
+        for child in children:
+            for resource, amount in child.resources.items():
+                if resource not in resources_lost:
+                    resources_lost[resource] = amount
+                else:
+                    resources_lost[resource] += amount
+
+        for resource, amount in resources_lost.items():
+            self.storage.remove(resource, int(amount * self.reproduction_lost_coef))
+
+        children_resources = self.get_children_resources()
         for child, child_resources in zip(children, children_resources):
             child.start()
-            child.characteristics.speed = parent.characteristics.speed.copy()
+            child.characteristics.speed = self.characteristics.speed.copy()
 
         return children
 
@@ -273,6 +328,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         extra = self.storage.add(resource, self.consumption_amount)
         # возвращает лишнее количество ресурса в мир
         if extra > 0:
+            self.storage.remove(resource, extra)
             self.world.add_resource(self.position, resource, extra)
 
     def collision_interact(self, other: "BaseSimulationCreature"):

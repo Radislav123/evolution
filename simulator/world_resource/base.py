@@ -5,7 +5,8 @@ from dataclasses import dataclass
 class BaseWorldResource:
     name: str
     formula: str
-    mass = 0.01
+    volume = 1
+    mass = 1
 
     def __hash__(self):
         return hash(self.name)
@@ -15,9 +16,9 @@ class BaseWorldResource:
 
 
 @dataclass(eq = False, repr = False)
-# все энергетические ресурсы конвертируемы друг в друга
 class EnergyResource(BaseWorldResource):
     formula: str = None
+    volume = 0
     mass = 0
 
     def __init__(self, name):
