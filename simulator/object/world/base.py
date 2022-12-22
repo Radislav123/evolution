@@ -3,12 +3,12 @@ import copy
 import pygame
 
 from core import models
-from core.physic.base import BaseWorldCharacteristics
+from core.physic import BaseWorldCharacteristics
 from core.position import Position
 from logger import BaseLogger
-from player.object.world.base import BasePlaybackWorld
-from simulator.object.base import BaseSimulationObject
-from simulator.object.creature.base import BaseSimulationCreature
+from player.object.world import BasePlaybackWorld
+from simulator.object import BaseSimulationObject
+from simulator.object.creature import BaseSimulationCreature
 
 
 class BaseSimulationWorld(BaseSimulationObject):

@@ -1,4 +1,4 @@
-from simulator.world_resource.base import BaseWorldResource, CARBON, HYDROGEN, OXYGEN
+from simulator.world_resource import BaseWorldResource, CARBON, HYDROGEN, OXYGEN
 import abc
 
 

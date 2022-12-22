@@ -2,15 +2,15 @@ import copy
 import random
 from typing import TYPE_CHECKING, Type, TypeVar
 
-from simulator.object.creature.bodypart.base import BaseBodypart
-from simulator.object.creature.genome.chromosome.base import BaseChromosome
-from simulator.object.creature.genome.chromosome.gene.base import BaseGene
-from simulator.world_resource.base import BaseWorldResource
+from simulator.object.creature.bodypart import BaseBodypart
+from simulator.object.creature.genome.chromosome import BaseChromosome
+from simulator.object.creature.genome.chromosome.gene import BaseGene
+from simulator.world_resource import BaseWorldResource
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.object.creature.base import BaseSimulationCreature
+    from simulator.object.creature import BaseSimulationCreature
 
 GENE_CLASS = TypeVar("GENE_CLASS", bound = BaseGene)
 
@@ -28,6 +28,32 @@ class GenomeEffects:
         self.consumption_resources: list[BaseWorldResource] = []
         self.bodyparts: list[BaseBodypart] = []
         self.resource_storages: dict[BaseWorldResource, int] = {}
+        self.color: list[int] = [0, 0, 0]
+
+    def prepare_color(self):
+        other_color_numbers = {
+            0: [1, 2],
+            1: [0, 2],
+            2: [0, 1]
+        }
+        if max(self.color) > 255:
+            temp_color = [max(self.color)] * 3
+        else:
+            temp_color = [255, 255, 255]
+        for number in range(len(self.color)):
+            for other_number in other_color_numbers[number]:
+                temp_color[other_number] -= self.color[number]
+        self.color = temp_color
+        minimum = min(self.color)
+        if minimum < 0:
+            for number in range(len(self.color)):
+                self.color[number] -= minimum
+
+        if max(self.color) > 255:
+            maximum = max(self.color)
+            if maximum != 0:
+                for number in range(len(self.color)):
+                    self.color[number] = self.color[number] * 255 // maximum
 
 
 class BaseGenome:
@@ -134,6 +160,8 @@ class BaseGenome:
 
         for chromosome in self.chromosomes:
             chromosome.apply_genes(self)
+
+        self.effects.prepare_color()
 
     @staticmethod
     def get_child_genome(parents: list["BaseSimulationCreature"]) -> "BaseGenome":

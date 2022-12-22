@@ -4,7 +4,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from player.object.world.base import BasePlaybackWorld
+from player.object.world import BasePlaybackWorld
 
 
 @method_decorator(csrf_exempt, name = "dispatch")

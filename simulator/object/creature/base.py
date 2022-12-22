@@ -5,21 +5,20 @@ from typing import TYPE_CHECKING
 import pygame
 
 from core import models
-from core.physic.base import BaseCreatureCharacteristics
+from core.physic import BaseCreatureCharacteristics
 from core.position import Position
-from core.surface.base import CreatureSurface
+from core.surface import CreatureSurface
 from logger import BaseLogger
-from player.object.creature.base import BasePlaybackCreature
-from simulator.object.base import BaseSimulationObject
-from simulator.object.creature.bodypart.base import BaseBodypart
-from simulator.object.creature.bodypart.storage import Storage
-from simulator.object.creature.genome.base import BaseGenome
-from simulator.world_resource.base import BaseWorldResource, ENERGY
+from player.object.creature import BasePlaybackCreature
+from simulator.object import BaseSimulationObject
+from simulator.object.creature.bodypart import BaseBodypart, Storage
+from simulator.object.creature.genome import BaseGenome
+from simulator.world_resource import BaseWorldResource, ENERGY
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.object.world.base import BaseSimulationWorld
+    from simulator.object.world import BaseSimulationWorld
 
 
 class CollisionException(BaseException):
@@ -39,12 +38,10 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     consumption_amount: int
     bodyparts: list[BaseBodypart]
     storage: Storage
-    # todo: reproduction_lost_coef - перенести в гены
     reproduction_lost_coef = 1.05
-    # todo: reproduction_reserve_coef - перенести в гены
     reproduction_reserve_coef = 1.1
-    # todo: reproduction_energy_lost - перенести в гены
     reproduction_energy_lost = 20
+    color: list[int]
 
     # position - центр существа/спрайта
     def __init__(
@@ -86,7 +83,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.apply_bodyparts()
 
         # физические характеристики существа
-        # todo: переделать отображение картинки в соответствии с размером существа
         self.characteristics = BaseCreatureCharacteristics(
             self.bodyparts,
             self.genome.effects,
@@ -103,7 +99,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         height = self.radius * 2
         # origin_surface - хранится как эталон, от него делаются вращения и сохраняются в surface
         # не должно изменятся
-        self.origin_surface = CreatureSurface.load_from_file(width, height)
+        self.origin_surface = CreatureSurface.load_from_file(width, height, self.color)
         # может быть изменено - оно отрисовывается на экране
         self.surface = self.origin_surface.copy()
         self.rect = self.surface.get_rect()
@@ -135,6 +131,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
         self.children_number = self.genome.effects.children_number
         self.consumption_amount = self.genome.effects.consumption_amount
+        self.color = self.genome.effects.color
 
     # нужен для работы pygame.sprite.collide_circle
     @property

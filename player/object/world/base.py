@@ -2,8 +2,8 @@ import pygame
 
 from core import models
 from logger import BaseLogger
-from player.object.base import BasePlaybackObject
-from player.object.creature.base import BasePlaybackCreature
+from player.object import BasePlaybackObject
+from player.object.creature import BasePlaybackCreature
 
 
 class BasePlaybackWorld(BasePlaybackObject):

@@ -4,14 +4,14 @@ import pygame
 
 from core import models
 from core.position import Position
-from core.surface.base import CreatureSurface
+from core.surface import CreatureSurface
 from logger import BaseLogger
-from player.object.base import BasePlaybackObject
+from player.object import BasePlaybackObject
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from player.object.world.base import BasePlaybackWorld
+    from player.object.world import BasePlaybackWorld
 
 
 # todo: унаследовать плеер от симулятора и переписать методы, ответственные за расчеты,

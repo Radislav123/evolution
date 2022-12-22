@@ -1,7 +1,7 @@
 import random
 from typing import Type
 
-from simulator.object.creature.genome.chromosome.gene.base import BaseGene
+from simulator.object.creature.genome.chromosome.gene import BaseGene
 
 
 class BaseChromosome:

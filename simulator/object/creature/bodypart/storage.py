@@ -1,5 +1,5 @@
-from simulator.object.creature.bodypart.base import BaseBodypart
-from simulator.world_resource.base import BaseWorldResource, CARBON, HYDROGEN, OXYGEN
+from simulator.object.creature.bodypart import BaseBodypart
+from simulator.world_resource import BaseWorldResource, CARBON, HYDROGEN, OXYGEN
 
 
 class ResourceStorage(BaseBodypart):

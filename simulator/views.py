@@ -4,7 +4,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from simulator.object.world.base import BaseSimulationWorld
+from simulator.object.world import BaseSimulationWorld
 
 
 @method_decorator(csrf_exempt, name = "dispatch")

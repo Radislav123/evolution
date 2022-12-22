@@ -1,0 +1,1 @@
+from core.physic.base import BaseCreatureCharacteristics, BaseWorldCharacteristics

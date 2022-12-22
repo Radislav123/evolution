@@ -11,7 +11,7 @@ if simulation:
         "width": 1000,
         "height": 1000,
         "draw": 1,
-        "tps": 50
+        "tps": 0
     }
 else:
     method = "play"

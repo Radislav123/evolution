@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.object.creature.bodypart.base import BaseBodypart
-    from simulator.object.creature.genome.base import GenomeEffects
+    from simulator.object.creature.bodypart import BaseBodypart
+    from simulator.object.creature.genome import GenomeEffects
 
 
 class Vector:
