@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from player.object.world.base import BasePlaybackWorld
 
 
+# todo: унаследовать плеер от симулятора и переписать методы, ответственные за расчеты,
+#  чтобы просто брать информацию из БД
 class BasePlaybackCreature(BasePlaybackObject, pygame.sprite.Sprite):
     db_model = models.Creature
     db_instance: models.Creature

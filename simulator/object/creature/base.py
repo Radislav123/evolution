@@ -8,7 +8,6 @@ from core import models
 from core.physic.base import BaseCreatureCharacteristics
 from core.position import Position
 from core.surface.base import CreatureSurface
-from evolution import settings
 from logger import BaseLogger
 from player.object.creature.base import BasePlaybackCreature
 from simulator.object.base import BaseSimulationObject
@@ -30,6 +29,10 @@ class CollisionException(BaseException):
 class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     db_model = models.Creature
     draw = BasePlaybackCreature.draw
+    origin_surface: CreatureSurface
+    # может быть изменено - оно отрисовывается на экране
+    surface: CreatureSurface
+    rect: pygame.Rect
     counter: int = 0
     genome: BaseGenome
     children_number: int
@@ -57,18 +60,8 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.id = int(f"{world.id}{self.__class__.counter}")
         self.__class__.counter += 1
 
-        # origin_surface - хранится как эталон, от него делаются вращения и сохраняются в surface
-        # не должно изменятся
-        self.origin_surface = CreatureSurface.load_from_file(
-            f"{settings.SIMULATION_IMAGES_PATH}/{self.__class__.__name__}.bmp"
-        )
-        # может быть изменено - оно отрисовывается на экране
-        self.surface = self.origin_surface.copy()
-        self.rect = self.surface.get_rect()
         self.start_x = position.x
         self.start_y = position.y
-        self.rect.x = self.start_x - self.rect.width // 2
-        self.rect.y = self.start_y - self.rect.height // 2
         self._position: Position | None = None
 
         self.world = world
@@ -101,6 +94,22 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         )
         self.characteristics.creature = self
 
+        self.prepare_surface()
+
+    def prepare_surface(self):
+        """Подготавливает все, что нужно для отображения существа."""
+
+        width = self.radius * 2
+        height = self.radius * 2
+        # origin_surface - хранится как эталон, от него делаются вращения и сохраняются в surface
+        # не должно изменятся
+        self.origin_surface = CreatureSurface.load_from_file(width, height)
+        # может быть изменено - оно отрисовывается на экране
+        self.surface = self.origin_surface.copy()
+        self.rect = self.surface.get_rect()
+        self.rect.x = self.start_x - self.rect.width // 2
+        self.rect.y = self.start_y - self.rect.height // 2
+
     def apply_bodyparts(self):
         """Применяет эффекты частей тела на существо."""
 
@@ -129,13 +138,12 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
     # нужен для работы pygame.sprite.collide_circle
     @property
-    def radius(self):
+    def radius(self) -> int:
         return self.characteristics.radius
 
     def start(self):
         self.world.add_creature(self)
         self.start_tick = self.world.age
-
         super().start()
 
     def stop(self):
@@ -151,7 +159,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             start_y = self.start_y
         )
         self.db_instance.save()
-        self.origin_surface.save_to_db(self.origin_surface, self.db_instance)
 
     def release_logs(self):
         super().release_logs()

@@ -11,13 +11,13 @@ if simulation:
         "width": 1000,
         "height": 1000,
         "draw": 1,
-        "tps": 0
+        "tps": 50
     }
 else:
     method = "play"
     path = "player"
     params = {
-        "world_db_id": 362,
+        "world_db_id": 237,
         "tps": 50
     }
 

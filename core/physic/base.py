@@ -84,16 +84,16 @@ class BaseCreatureCharacteristics:
         self.accumulated_movement = Vector(0, 0)
 
     @property
-    def radius(self):
-        return math.sqrt(self.volume / math.pi)
+    def radius(self) -> int:
+        return int(math.sqrt(self.volume / math.pi))
 
     @property
-    def mass(self):
+    def mass(self) -> float:
         return sum([bodypart.mass for bodypart in self.bodyparts])
 
     # объем == площадь
     @property
-    def volume(self):
+    def volume(self) -> float:
         return sum([bodypart.volume for bodypart in self.bodyparts])
 
     @property
