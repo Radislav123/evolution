@@ -7,6 +7,9 @@ class BaseColorGene(BaseGene, abc.ABC):
     required_for_creature = False
     positive_step = 10
     negative_step = 5
+    # сейчас вырабатываемый пигмент не дает расхода ресурсов
+    # потом можно будет добавить следующее - пигмент является синтезируемым веществом, накапливаемом в организме
+    effect_attribute_name = None
     current = 0
     # RGB - red, green, blue - 0, 1, 2
     color_number: int

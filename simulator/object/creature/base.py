@@ -42,6 +42,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     reproduction_reserve_coef = 1.1
     reproduction_energy_lost = 20
     color: list[int]
+    alive = True
+    resources_loss_accumulated: dict[BaseWorldResource, float]
+    _resources_loss: dict[BaseWorldResource, int] | None
 
     # position - центр существа/спрайта
     def __init__(
@@ -91,6 +94,35 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.characteristics.creature = self
 
         self.prepare_surface()
+        self.prepare_resources_loss()
+
+    def prepare_resources_loss(self):
+        self.resources_loss_accumulated = {resource: 0.0 for resource in self.resources}
+        self.resources_loss_accumulated[ENERGY] = 0.0
+
+        self._resources_loss = None
+
+    @property
+    def resources_loss(self) -> dict[BaseWorldResource, int]:
+        if self._resources_loss is None:
+            resources_loss = {
+                resource: amount * self.genome.effects.resources_loss_coef +
+                          self.resources_loss_accumulated[resource] +
+                          (self.genome.effects.resources_loss[resource]
+                           if resource in self.genome.effects.resources_loss else 0)
+                for resource, amount in self.resources.items()
+            }
+
+            resources_loss[ENERGY] = self.characteristics.volume * self.genome.effects.metabolism
+            if ENERGY in self.genome.effects.resources_loss:
+                resources_loss[ENERGY] += self.genome.effects.resources_loss[ENERGY]
+
+            final_resources_loss = {resource: int(amount) for resource, amount in resources_loss.items()}
+            self.resources_loss_accumulated = {
+                resource: resources_loss[resource] - final_resources_loss[resource] for resource in final_resources_loss
+            }
+            self._resources_loss = final_resources_loss
+        return self._resources_loss
 
     def prepare_surface(self):
         """Подготавливает все, что нужно для отображения существа."""
@@ -181,6 +213,16 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             self.move()
         self.characteristics.update_accumulated_movement()
         self.characteristics.update_force()
+
+        self.metabolize()
+
+    def metabolize(self):
+        for resource, amount in self.resources_loss.items():
+            self.storage.remove(resource, amount)
+            if resource != ENERGY:
+                self.world.add_resource(self.position, resource, amount)
+
+        self._resources_loss = None
 
     def can_move(self):
         return not self.characteristics.movement.less_then(1)

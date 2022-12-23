@@ -8,6 +8,8 @@ from simulator.world_resource import BaseWorldResource, CARBON, ENERGY, HYDROGEN
 class BaseBodyPartGene(BaseGene, abc.ABC):
     """Базовый класс для генов, добавляющих части тела."""
 
+    # утеря ресурсов из-за частей тела уже включена в расчеты (берется часть ресурсов существа для "обновления клеток")
+    effect_attribute_name = None
     bodypart: BaseBodypart
 
     def apply(self, genome):
@@ -105,6 +107,7 @@ class BaseResourceConsumptionGene(BaseGene, abc.ABC):
     """Базовый класс для генов, позволяющих потреблять ресурсы."""
 
     mutation_chance = 0
+    effect_attribute_name = None
     resource: BaseWorldResource
 
     def __repr__(self):

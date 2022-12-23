@@ -29,6 +29,14 @@ class GenomeEffects:
         self.bodyparts: list[BaseBodypart] = []
         self.resource_storages: dict[BaseWorldResource, int] = {}
         self.color: list[int] = [0, 0, 0]
+        self.resources_loss: dict[BaseWorldResource, float] = {}
+        # MetabolismGene
+        self.metabolism = 0.0
+        # ResourcesLossCoefGene
+        self.resources_loss_coef = 0.0
+
+    def prepare(self):
+        self.prepare_color()
 
     def prepare_color(self):
         other_color_numbers = {
@@ -161,7 +169,7 @@ class BaseGenome:
         for chromosome in self.chromosomes:
             chromosome.apply_genes(self)
 
-        self.effects.prepare_color()
+        self.effects.prepare()
 
     @staticmethod
     def get_child_genome(parents: list["BaseSimulationCreature"]) -> "BaseGenome":

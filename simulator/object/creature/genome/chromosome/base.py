@@ -32,6 +32,7 @@ class BaseChromosome:
 
         for gene in self.genes:
             gene.apply(genome)
+            gene.apply_resources_loss(genome)
 
     @property
     def disappearance_chance(self) -> float:

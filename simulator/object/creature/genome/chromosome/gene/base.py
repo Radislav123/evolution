@@ -2,6 +2,8 @@ import abc
 import random
 from typing import TYPE_CHECKING, Type, TypeVar
 
+from simulator.world_resource import BaseWorldResource
+
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
@@ -29,6 +31,7 @@ class BaseGene(abc.ABC):
 
     def __init__(self, first: bool):
         self.first = first
+        self.resources_loss_coeffs: dict[BaseWorldResource, float] = {}
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
@@ -48,6 +51,16 @@ class BaseGene(abc.ABC):
             children_subclasses.extend(child.get_all_subclasses())
         subclasses.extend(children_subclasses)
         return subclasses
+
+    @property
+    @abc.abstractmethod
+    def effect_attribute_name(self) -> str:
+        raise NotImplementedError()
+
+    def apply_resources_loss(self, genome: "BaseGenome"):
+        for resource in self.resources_loss_coeffs:
+            genome.effects.resources_loss[resource] += getattr(self, self.effect_attribute_name) * \
+                                                       self.resources_loss_coeffs[resource]
 
     @abc.abstractmethod
     def apply(self, genome: "BaseGenome"):
