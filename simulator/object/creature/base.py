@@ -1,3 +1,4 @@
+import copy
 import math
 import random
 from typing import TYPE_CHECKING
@@ -11,7 +12,7 @@ from core.surface import CreatureSurface
 from logger import BaseLogger
 from player.object.creature import BasePlaybackCreature
 from simulator.object import BaseSimulationObject
-from simulator.object.creature.bodypart import BaseBodypart, Storage
+from simulator.object.creature.bodypart import BaseBodypart, Body, Storage
 from simulator.object.creature.genome import BaseGenome
 from simulator.world_resource import BaseWorldResource, ENERGY
 
@@ -45,6 +46,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     alive = True
     resources_loss_accumulated: dict[BaseWorldResource, float]
     _resources_loss: dict[BaseWorldResource, int] | None
+    body: Body
 
     # position - центр существа/спрайта
     def __init__(
@@ -141,19 +143,30 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def apply_bodyparts(self):
         """Применяет эффекты частей тела на существо."""
 
-        self.bodyparts = []
-        for bodypart in [bodypart(self.genome.effects.size) for bodypart in self.genome.effects.bodyparts]:
-            self.bodyparts.append(bodypart)
+        # находит класс тела
+        for bodypart_class in self.genome.effects.bodyparts:
+            if issubclass(bodypart_class, Body):
+                self.body = bodypart_class(self.genome.effects.size, None)
+                break
+
+        # собирается тело
+        bodypart_classes = copy.copy(self.genome.effects.bodyparts)
+        bodypart_classes.remove(self.body.__class__)
+        self.body.construct(bodypart_classes, self)
+
+        # находится хранилище
+        for bodypart in self.bodyparts:
             if isinstance(bodypart, Storage):
                 self.storage = bodypart
-        for resource, capacity in self.genome.effects.resource_storages.items():
-            self.storage.add_resource_storage(resource, self.genome.effects.size)
-            self.bodyparts.append(self.storage[resource])
+                break
 
+        # собирается хранилище
+        for resource in self.genome.effects.resource_storages:
+            self.storage.add_resource_storage(resource, self.genome.effects.size)
+
+        # задаются емкости хранилищ ресурсов
         for resource, resource_storage in self.storage.items():
-            extra_amount = 0
-            if resource in self.extra_storage:
-                extra_amount = self.extra_storage[resource]
+            extra_amount = self.extra_storage[resource] if resource in self.extra_storage else 0
             resource_storage.capacity = self.genome.effects.resource_storages[resource] + extra_amount
 
     def apply_genes(self):
@@ -164,6 +177,12 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.children_number = self.genome.effects.children_number
         self.consumption_amount = self.genome.effects.consumption_amount
         self.color = self.genome.effects.color
+
+    @property
+    def bodyparts(self) -> list[BaseBodypart]:
+        bodyparts = [self.body]
+        bodyparts.extend(self.body.all_dependent)
+        return bodyparts
 
     # нужен для работы pygame.sprite.collide_circle
     @property
@@ -277,7 +296,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             children_resources.append(child_resources)
 
         for world_resource, amount in given_resources.items():
-            self.storage.remove(world_resource, amount)
+            lack = self.storage.remove(world_resource, amount)
+            if lack > 0:
+                raise ValueError(f"{self}: {world_resource} lack is {lack}")
 
         return children_resources
 
@@ -344,7 +365,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
                     resources_lost[resource] += amount
 
         for resource, amount in resources_lost.items():
-            self.storage.remove(resource, int(amount * self.reproduction_lost_coef))
+            lack = self.storage.remove(resource, int(amount * self.reproduction_lost_coef))
+            if lack > 0:
+                raise ValueError(f"{self}: {resource} lack is {lack}")
 
         children_resources = self.get_children_resources()
         for child, child_resources in zip(children, children_resources):
@@ -374,7 +397,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         extra = self.storage.add(resource, self.consumption_amount)
         # возвращает лишнее количество ресурса в мир
         if extra > 0:
-            self.storage.remove(resource, extra)
+            lack = self.storage.remove(resource, extra)
+            if lack > 0:
+                raise ValueError(f"{self}: {resource} lack is {lack}")
             self.world.add_resource(self.position, resource, extra)
 
     def collision_interact(self, other: "BaseSimulationCreature"):

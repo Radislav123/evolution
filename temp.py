@@ -7,7 +7,7 @@ if simulation:
     method = "simulate"
     path = "simulator"
     params = {
-        "ticks": 500,
+        "ticks": 1300,
         "width": 1000,
         "height": 1000,
         "draw": 1,

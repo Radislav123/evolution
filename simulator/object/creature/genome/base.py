@@ -149,6 +149,7 @@ class BaseGenome:
         # исчезновение хромосом
         # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+        amount = min(amount, len(self))
         weights = [chromosome.disappearance_chance for chromosome in self.chromosomes]
         chromosomes_numbers = set(random.choices(range(len(self)), weights, k = amount))
         for number in chromosomes_numbers:
@@ -158,6 +159,7 @@ class BaseGenome:
         # мутации хромосом
         # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+        amount = min(amount, len(self))
         weights = [chromosome.mutation_chance for chromosome in self.chromosomes]
         chromosomes_numbers = set(random.choices(range(len(self)), weights, k = amount))
         for number in chromosomes_numbers:

@@ -69,6 +69,7 @@ class BaseChromosome:
         # исчезновение генов
         # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+        amount = min(amount, len(self))
         weights = [gene.disappearance_chance for gene in self.genes]
         genes_numbers = set(random.choices(range(len(self)), weights, k = amount))
         for number in genes_numbers:
@@ -78,6 +79,7 @@ class BaseChromosome:
         # мутации генов
         # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+        amount = min(amount, len(self))
         weights = [gene.mutation_chance for gene in self.genes]
         # если хромосома пустая или содержит лишь гены, которые не могут мутировать,
         # то мутировать нечему (секция добавления генов в начале метода)

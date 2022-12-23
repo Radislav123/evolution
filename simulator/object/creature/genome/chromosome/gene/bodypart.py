@@ -24,6 +24,20 @@ class BodyGene(BaseBodyPartGene):
     disappearance_chance = 0
     mutation_chance = 0
 
+    def __init__(self, first: bool):
+        super().__init__(first)
+
+        self.required_genes = [
+            OxygenConsumptionGene,
+            CarbonConsumptionGene,
+            HydrogenConsumptionGene,
+            EnergyConsumptionGene,
+            OxygenStorageGene,
+            CarbonStorageGene,
+            HydrogenStorageGene,
+            EnergyStorageGene
+        ]
+
     def mutate(self, genome):
         # mutation_chance = 0 (никогда не мутирует)
         raise NotImplementedError()
@@ -37,6 +51,7 @@ class StorageGene(BaseBodyPartGene):
     appearance_chance = 0
     disappearance_chance = 0
     mutation_chance = 0
+    required_genes = [BodyGene]
 
     def mutate(self, genome):
         # mutation_chance = 0 (никогда не мутирует)
@@ -49,6 +64,7 @@ class BaseResourceStorageGene(BaseBodyPartGene, abc.ABC):
     resource: BaseWorldResource
     step = 10
     default_capacity: int
+    required_genes = [StorageGene]
 
     def __init__(self, first):
         super().__init__(first)
