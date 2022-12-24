@@ -92,7 +92,8 @@ class EnergyStorageGene(BaseResourceStorageGene):
     abstract = False
     required_for_creature = True
     resource = ENERGY
-    default_capacity = 100
+    # todo: вернуть на 100 (или 200), когда уберу ENERGY из ресурсов Body
+    default_capacity = 400
 
 
 # noinspection DuplicatedCode

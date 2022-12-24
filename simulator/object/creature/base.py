@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 import pygame
 
 from core import models
-from core.physic import BaseCreatureCharacteristics
 from core.position import Position
 from core.surface import CreatureSurface
 from logger import BaseLogger
@@ -14,6 +13,7 @@ from player.object.creature import BasePlaybackCreature
 from simulator.object import BaseSimulationObject
 from simulator.object.creature.bodypart import BaseBodypart, Body, Storage
 from simulator.object.creature.genome import BaseGenome
+from simulator.physic import BaseCreatureCharacteristics
 from simulator.world_resource import BaseWorldResource, ENERGY
 
 
@@ -39,8 +39,11 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     consumption_amount: int
     bodyparts: list[BaseBodypart]
     storage: Storage
+    # todo: привязать к генам
     reproduction_lost_coef = 1.05
+    # todo: привязать к генам
     reproduction_reserve_coef = 1.1
+    # todo: привязать к генам
     reproduction_energy_lost = 20
     color: list[int]
     alive = True
@@ -211,6 +214,19 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def release_logs(self):
         super().release_logs()
 
+    def kill(self):
+        super().kill()
+
+        return_resources = {resource: amount for resource, amount in self.body.destroy().items()}
+
+        for resource, amount in return_resources.items():
+            if resource != ENERGY:
+                self.world.add_resource(self.position, resource, amount)
+
+        self.alive = False
+        self.stop()
+        self.world.remove_creature(self)
+
     @property
     def position(self):
         """Центр существа."""
@@ -235,10 +251,77 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
         self.metabolize()
 
+    @property
+    def present_bodyparts(self) -> list[BaseBodypart]:
+        return [bodypart for bodypart in self.bodyparts if not bodypart.destroyed]
+
+    def get_bodypart_to_autophage(self, lack_resources: dict[BaseWorldResource, int]) -> BaseBodypart:
+        # random.sample(self.present_bodyparts, k = 1)[0]
+        bodyparts = []
+        for bodypart in self.present_bodyparts:
+            append = True
+            for resource in lack_resources:
+                if resource not in bodypart.resources:
+                    append = False
+                    break
+            if append:
+                bodyparts.append(bodypart)
+
+        random.shuffle(bodyparts)
+        bodypart = bodyparts[0]
+        return bodypart
+
+    # https://ru.wikipedia.org/wiki/%D0%90%D1%83%D1%82%D0%BE%D1%84%D0%B0%D0%B3%D0%B8%D1%8F
+    # если возвращается отрицательное количество ресурса, значит существу не хватает ресурсов частей тела,
+    # чтобы восполнить потерю -> оно должно умереть
+    def autophage(self):
+        """Существо попытается восполнить недостаток ресурсов в хранилище за счет частей тела."""
+
+        lack_resources = self.storage.lack_several
+        if ENERGY in lack_resources:
+            # todo: вернуть, когда энергию уберу из ресурсов Body
+            # del lack_resources[ENERGY]
+            pass
+
+        while not self.body.destroyed and len(lack_resources) > 0:
+            bodypart = self.get_bodypart_to_autophage(lack_resources)
+            extra_resources = bodypart.make_damage(lack_resources)
+            # часть тела была уничтожена (доедена)
+            if len(extra_resources) > 0:
+                for resource, amount in extra_resources.items():
+                    if amount > 0:
+                        self.storage.add(resource, amount)
+                    elif amount < 0:
+                        self.storage.add(resource, lack_resources[resource] + amount)
+            # ресурсов части тела хватило, чтобы покрыть дефицит
+            else:
+                for resource, amount in lack_resources.items():
+                    self.storage.add(resource, amount)
+
+            lack_resources = self.storage.lack_several
+            if ENERGY in lack_resources:
+                # todo: вернуть, когда энергию уберу из ресурсов Body
+                # del lack_resources[ENERGY]
+                pass
+
+    # todo: добавить возможность восстанавливать части тела (лечиться/регенерировать)
+    # todo: исправить - существам постоянно не хватает энергии, они из-за этого умирают
     def metabolize(self):
-        for resource, amount in self.resources_loss.items():
-            self.storage.remove(resource, amount)
-            if resource != ENERGY:
+        lack_resources = self.storage.remove_several(self.resources_loss)
+        energy_lack = 0
+        if ENERGY in lack_resources:
+            # todo: вернуть, когда энергию уберу из ресурсов Body
+            # energy_lack = lack_resources[ENERGY]
+            # del lack_resources[ENERGY]
+            pass
+
+        if len(lack_resources) > 0:
+            self.autophage()
+
+        if len(self.storage.lack_several) > 0 or self.body.destroyed or energy_lack > 0:
+            self.kill()
+        else:
+            for resource, amount in self.storage.extra_several.items():
                 self.world.add_resource(self.position, resource, amount)
 
         self._resources_loss = None
@@ -333,14 +416,21 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
     def can_reproduce(self) -> bool:
         can_reproduce = True
-        for resource, amount in self.resources.items():
-            if self.storage[resource].current < \
-                    int(amount * self.children_number * self.reproduction_lost_coef * self.reproduction_reserve_coef):
+        needed_resources = {
+            resource: int(amount * self.children_number * self.reproduction_lost_coef * self.reproduction_reserve_coef)
+            for resource, amount in self.resources.items()
+        }
+        needed_resources[ENERGY] = int(
+            # todo: убрать (self.resources[ENERGY] if ENERGY in self.resources else 0),
+            #  когда уберу ENERGY из ресурсов Body
+            (self.reproduction_energy_lost + (self.resources[ENERGY] if ENERGY in self.resources else 0))
+            * self.reproduction_lost_coef * self.reproduction_reserve_coef
+        )
+
+        for resource, amount in needed_resources.items():
+            if self.storage[resource].current <= amount:
                 can_reproduce = False
                 break
-        if self.storage[ENERGY].current < \
-                int(self.reproduction_energy_lost * self.reproduction_lost_coef * self.reproduction_reserve_coef):
-            can_reproduce = False
 
         return can_reproduce
 

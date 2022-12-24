@@ -42,24 +42,56 @@ class Storage(BaseBodypart):
     def values(self):
         return self._storage.values()
 
-    def add_resource_storage(self, resource, size):
+    def add_resource_storage(self, resource: BaseWorldResource, size: float):
         """Присоединяет хранилище ресурса к общему."""
 
         resource_storage = ResourceStorage(resource, size, self)
         self._storage[resource] = resource_storage
         self.dependent_bodyparts.append(resource_storage)
 
-    def add(self, resource, amount) -> int:
+    def add(self, resource: BaseWorldResource, amount: int) -> int:
         """Добавляет ресурс в хранилище."""
 
         self._storage[resource].add(amount)
         return self._storage[resource].extra
 
-    def remove(self, resource, amount) -> int:
+    def add_several(self, resources: dict[BaseWorldResource, int]) -> dict[BaseWorldResource, int]:
+        extra_resources = {}
+        for resource, amount in resources.items():
+            extra = self.add(resource, amount)
+            if extra > 0:
+                extra_resources[resource] = extra
+        return extra_resources
+
+    def remove(self, resource: BaseWorldResource, amount: int) -> int:
         """Убирает ресурс из хранилища."""
 
         self._storage[resource].remove(amount)
         return self._storage[resource].lack
+
+    def remove_several(self, resources: dict[BaseWorldResource, int]) -> dict[BaseWorldResource, int]:
+        lack_resources = {}
+        for resource, amount in resources.items():
+            lack = self.remove(resource, amount)
+            if lack > 0:
+                lack_resources[resource] = lack
+        return lack_resources
+
+    @property
+    def extra_several(self) -> dict[BaseWorldResource, int]:
+        extra_resources = {}
+        for resource in self._storage.values():
+            if resource.extra > 0:
+                extra_resources[resource.world_resource] = resource.extra
+        return extra_resources
+
+    @property
+    def lack_several(self) -> dict[BaseWorldResource, int]:
+        lack_resources = {}
+        for resource in self._storage.values():
+            if resource.lack > 0:
+                lack_resources[resource.world_resource] = resource.lack
+        return lack_resources
 
     @property
     def fullness(self) -> dict[BaseWorldResource, float]:
@@ -105,6 +137,15 @@ class ResourceStorage(BaseBodypart):
 
     def remove(self, amount):
         self.current -= amount
+
+    def destroy(self) -> dict[BaseWorldResource, int]:
+        return_resources = super(ResourceStorage, self).destroy()
+        if self.world_resource not in return_resources:
+            return_resources[self.world_resource] = self.current
+        else:
+            return_resources[self.world_resource] += self.current
+        self.remove(self.current)
+        return return_resources
 
     @property
     def full(self) -> bool:

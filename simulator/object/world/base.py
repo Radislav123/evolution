@@ -3,12 +3,12 @@ import copy
 import pygame
 
 from core import models
-from core.physic import BaseWorldCharacteristics
 from core.position import Position
 from logger import BaseLogger
 from player.object.world import BasePlaybackWorld
 from simulator.object import BaseSimulationObject
 from simulator.object.creature import BaseSimulationCreature
+from simulator.physic import BaseWorldCharacteristics
 
 
 class BaseSimulationWorld(BaseSimulationObject):
@@ -70,11 +70,11 @@ class BaseSimulationWorld(BaseSimulationObject):
         self.creatures[creature.object_id] = creature
         creature.add(self.creatures_group)
 
+    # если существо необходимо убить, то это нужно сделать отдельно
     def remove_creature(self, creature: BaseSimulationCreature):
         """Убирает существо из мира."""
 
         del self.creatures[creature.object_id]
-        creature.kill()
 
     def tick(self):
         existing_creatures = copy.copy(self.creatures)
@@ -98,15 +98,15 @@ class BaseSimulationWorld(BaseSimulationObject):
 
         return 100
 
-    def check_resource(self, position: Position, resource, number):
+    def check_resource(self, position: Position, resource, amount):
         """Проверяет, хватает ли ресурса в точке."""
 
-        return self.get_resource(position, resource) >= number
+        return self.get_resource(position, resource) >= amount
 
     # todo: write it
-    def add_resource(self, position: Position, resource, number):
+    def add_resource(self, position: Position, resource, amount):
         """Добавляет количество ресурса в точку."""
 
     # todo: write it
-    def remove_resource(self, position: Position, resource, number):
+    def remove_resource(self, position: Position, resource, amount):
         """Убирает количество ресурса из точки."""

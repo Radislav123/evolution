@@ -112,7 +112,7 @@ class BaseCreatureCharacteristics:
             self.force.y * ticks / self.mass
         )
         self.speed.divide_ip(1 + self.world_characteristics.viscosity * self.volume / 100)
-        if self.speed.less_then(0.001 / self.world_characteristics.viscosity):
+        if self.speed.less_then(0.05 * self.world_characteristics.viscosity):
             self.speed.reset()
 
     def update_force(self):
