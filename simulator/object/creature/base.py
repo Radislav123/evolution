@@ -243,20 +243,46 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         if self.can_reproduce():
             self.reproduce()
 
+        self.interact_world_borders()
         self.characteristics.update_speed()
+        self.characteristics.update_force()
         if self.can_move():
             self.move()
         self.characteristics.update_accumulated_movement()
-        self.characteristics.update_force()
 
         self.metabolize()
+
+    def interact_world_borders(self):
+        """Расчет пересечения границы мира существом."""
+
+        force_x = 0
+        force_y = 0
+
+        force_coef = self.characteristics.elasticity * 100
+        cross_left = self.position.x - self.radius - self.world.left_border
+        cross_right = self.position.x + self.radius - self.world.right_border
+        cross_top = self.position.y - self.radius - self.world.top_border
+        cross_bottom = self.position.y + self.radius - self.world.bottom_border
+
+        if cross_left < 0:
+            force_x -= cross_left
+        if cross_right > 0:
+            force_x -= cross_right
+        if cross_top < 0:
+            force_y -= cross_top
+        if cross_bottom > 0:
+            force_y -= cross_bottom
+
+        force_x *= force_coef
+        force_y *= force_coef
+
+        self.characteristics.force.accumulate(force_x, force_y)
 
     @property
     def present_bodyparts(self) -> list[BaseBodypart]:
         return [bodypart for bodypart in self.bodyparts if not bodypart.destroyed]
 
     def get_bodypart_to_autophage(self, lack_resources: dict[BaseWorldResource, int]) -> BaseBodypart:
-        # random.sample(self.present_bodyparts, k = 1)[0]
         bodyparts = []
         for bodypart in self.present_bodyparts:
             append = True
@@ -332,12 +358,12 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def move(self):
         """Перемещает существо."""
 
-        self.rect.move_ip(self.characteristics.round_movement.x, self.characteristics.round_movement.y)
+        self.rect.move_ip(self.characteristics.movement.round().x, self.characteristics.movement.round().y)
         models.CreatureMovement(
             age = self.world.age,
             creature = self.db_instance,
-            x = self.characteristics.round_movement.x,
-            y = self.characteristics.round_movement.y
+            x = self.characteristics.movement.round().x,
+            y = self.characteristics.movement.round().y
         ).save()
         self._position = None
 

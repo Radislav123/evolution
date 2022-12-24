@@ -101,17 +101,13 @@ class BaseCreatureCharacteristics:
         ticks = 1
         return Vector(self.speed.x * ticks, self.speed.y * ticks) + self.accumulated_movement
 
-    @property
-    def round_movement(self) -> Vector:
-        return self.movement.round()
-
     def update_speed(self):
         ticks = 1
         self.speed.accumulate(
             self.force.x * ticks / self.mass,
             self.force.y * ticks / self.mass
         )
-        self.speed.divide_ip(1 + self.world_characteristics.viscosity * self.volume / 100)
+        self.speed.divide_ip(1 + self.world_characteristics.viscosity * self.volume / 1000)
         if self.speed.less_then(0.05 * self.world_characteristics.viscosity):
             self.speed.reset()
 
@@ -119,4 +115,4 @@ class BaseCreatureCharacteristics:
         self.force.reset()
 
     def update_accumulated_movement(self):
-        self.accumulated_movement = self.movement - self.round_movement
+        self.accumulated_movement = self.movement - self.movement.round()

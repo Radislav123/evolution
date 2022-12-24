@@ -1,1 +1,1 @@
-from simulator.physic.base import BaseCreatureCharacteristics, BaseWorldCharacteristics
+from simulator.physic.base import BaseCreatureCharacteristics, BaseWorldCharacteristics, Vector

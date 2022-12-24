@@ -37,4 +37,11 @@ class BasePlaybackWorld(BasePlaybackObject):
         for creature in self.creatures.values():
             creature.draw()
 
+        color = [0, 0, 0]
+        rect = pygame.Rect(
+            (self.left_border, self.top_border),
+            (self.right_border - self.left_border, self.bottom_border - self.top_border)
+        )
+        pygame.draw.rect(self.screen, color, rect, 1)
+
         pygame.display.flip()

@@ -118,6 +118,7 @@ class ResourceStorage(BaseBodypart):
     world_resource: BaseWorldResource
     capacity: int
     required_bodypart_class = Storage
+    extra_volume_coef = 0.1
     _composition = {
         OXYGEN: 10,
         CARBON: 5
@@ -172,7 +173,7 @@ class ResourceStorage(BaseBodypart):
     @property
     def volume(self) -> int:
         volume = super().volume
-        volume += self.world_resource.volume * self.current
+        volume += self.world_resource.volume * self.capacity * self.extra_volume_coef
         return volume
 
     @property

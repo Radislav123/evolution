@@ -9,6 +9,7 @@ from player.object.world import BasePlaybackWorld
 from simulator.object import BaseSimulationObject
 from simulator.object.creature import BaseSimulationCreature
 from simulator.physic import BaseWorldCharacteristics
+from simulator.world_resource import BaseWorldResource
 
 
 class BaseSimulationWorld(BaseSimulationObject):
@@ -23,6 +24,13 @@ class BaseSimulationWorld(BaseSimulationObject):
         self.age = 0
         self.width = width
         self.height = height
+
+        # границы мира
+        self.left_border = 0
+        self.right_border = self.width
+        self.top_border = 0
+        self.bottom_border = self.height
+
         # {creature.object_id: creature}
         self.creatures: dict[str, BaseSimulationCreature] = {}
         self.logger = BaseLogger(self.object_id)
@@ -92,13 +100,16 @@ class BaseSimulationWorld(BaseSimulationObject):
 
         self.age += 1
 
+    def get_resources(self, position: Position) -> dict[BaseWorldResource, int]:
+        """Возвращает количества ресурсов в точке."""
+
     # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def get_resource(self, position: Position, resource):
+    def get_resource(self, position: Position, resource) -> int:
         """Возвращает количество ресурса в точке."""
 
         return 100
 
-    def check_resource(self, position: Position, resource, amount):
+    def check_resource(self, position: Position, resource, amount) -> bool:
         """Проверяет, хватает ли ресурса в точке."""
 
         return self.get_resource(position, resource) >= amount
