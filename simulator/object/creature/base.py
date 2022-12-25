@@ -9,7 +9,6 @@ from core import models
 from core.position import Position
 from core.surface import CreatureSurface
 from logger import BaseLogger
-from player.object.creature import BasePlaybackCreature
 from simulator.object import BaseSimulationObject
 from simulator.object.creature.bodypart import BaseBodypart, Body, Storage
 from simulator.object.creature.genome import BaseGenome
@@ -28,7 +27,6 @@ class CollisionException(BaseException):
 
 class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     db_model = models.Creature
-    draw = BasePlaybackCreature.draw
     origin_surface: CreatureSurface
     # может быть изменено - оно отрисовывается на экране
     surface: CreatureSurface
@@ -36,7 +34,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     counter: int = 0
     genome: BaseGenome
     children_number: int
-    consumption_amount: int
+    consumption_amount: dict[BaseWorldResource, int]
     bodyparts: list[BaseBodypart]
     storage: Storage
     # todo: привязать к генам
@@ -47,6 +45,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     reproduction_energy_lost = 20
     color: list[int]
     alive = True
+    # все траты ресурсов в течении тика добавлять сюда
     resources_loss_accumulated: dict[BaseWorldResource, float]
     _resources_loss: dict[BaseWorldResource, int] | None
     body: Body
@@ -127,7 +126,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
                 resource: resources_loss[resource] - final_resources_loss[resource] for resource in final_resources_loss
             }
             self._resources_loss = final_resources_loss
-        return self._resources_loss
+        return copy.copy(self._resources_loss)
 
     def prepare_surface(self):
         """Подготавливает все, что нужно для отображения существа."""
@@ -259,10 +258,10 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         force_y = 0
 
         force_coef = self.characteristics.elasticity * 100
-        cross_left = self.position.x - self.radius - self.world.left_border
-        cross_right = self.position.x + self.radius - self.world.right_border
-        cross_top = self.position.y - self.radius - self.world.top_border
-        cross_bottom = self.position.y + self.radius - self.world.bottom_border
+        cross_left = self.position.x - self.radius - self.world.borders.left
+        cross_right = self.position.x + self.radius - self.world.borders.right
+        cross_top = self.position.y - self.radius - self.world.borders.top
+        cross_bottom = self.position.y + self.radius - self.world.borders.bottom
 
         if cross_left < 0:
             force_x -= cross_left
@@ -331,9 +330,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
                 pass
 
     # todo: добавить возможность восстанавливать части тела (лечиться/регенерировать)
-    # todo: исправить - существам постоянно не хватает энергии, они из-за этого умирают
     def metabolize(self):
-        lack_resources = self.storage.remove_several(self.resources_loss)
+        return_resources = self.resources_loss
+        lack_resources = self.storage.remove_several(return_resources)
         energy_lack = 0
         if ENERGY in lack_resources:
             # todo: вернуть, когда энергию уберу из ресурсов Body
@@ -348,7 +347,12 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             self.kill()
         else:
             for resource, amount in self.storage.extra_several.items():
-                self.world.add_resource(self.position, resource, amount)
+                if resource not in return_resources:
+                    return_resources[resource] = amount
+                else:
+                    return_resources[resource] += amount
+
+        self.world.add_resources(self.position, return_resources)
 
         self._resources_loss = None
 
@@ -499,24 +503,45 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         return can_consume
 
     def get_consumption_resource(self) -> BaseWorldResource:
-        resources = list(self.storage.fullness.keys())
-        weights = list(map(lambda x: 1 - x, self.storage.fullness.values()))
-        return random.choices(resources, weights)[0]
+        available_resources = self.world.get_resources(self.position)
+        fullness = self.storage.fullness
+        fullness_copy = copy.copy(fullness)
+        for resource, amount in fullness_copy.items():
+            if amount >= 1 or available_resources[resource] <= 0:
+                del fullness[resource]
+        resources = list(fullness.keys())
+        if len(resources) > 0:
+            weights = list(map(lambda x: 1 - x, fullness.values()))
+            resource = random.choices(resources, weights)[0]
+        else:
+            resource = None
+        return resource
 
     def consume(self):
         """Симулирует потребление веществ существом."""
 
         resource = self.get_consumption_resource()
-        # забирает из мира ресурс
-        self.world.remove_resource(self.position, resource, self.consumption_amount)
-        # добавляет в свое хранилище
-        extra = self.storage.add(resource, self.consumption_amount)
-        # возвращает лишнее количество ресурса в мир
-        if extra > 0:
-            lack = self.storage.remove(resource, extra)
-            if lack > 0:
-                raise ValueError(f"{self}: {resource} lack is {lack}")
-            self.world.add_resource(self.position, resource, extra)
+        if resource is not None:
+            # забирает из мира ресурс
+            available_amount = self.world.get_resource(self.position, resource)
+            if available_amount >= self.consumption_amount[resource]:
+                consumption_amount = self.consumption_amount[resource]
+            else:
+                consumption_amount = available_amount
+            self.world.remove_resource(self.position, resource, consumption_amount)
+
+            # добавляет в свое хранилище
+            extra = self.storage.add(resource, consumption_amount)
+
+            # возвращает лишнее количество ресурса в мир
+            if extra > 0:
+                lack = self.storage.remove(resource, extra)
+                if lack > 0:
+                    raise ValueError(f"{self}: {resource} lack is {lack}")
+                self.world.add_resource(self.position, resource, extra)
+
+            # тратит энергию за потребление ресурса
+            self.resources_loss_accumulated[ENERGY] += consumption_amount * 0.01
 
     def collision_interact(self, other: "BaseSimulationCreature"):
         force_coef = self.characteristics.elasticity * other.characteristics.elasticity * 100
@@ -534,3 +559,8 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
         self.characteristics.force.accumulate(force_x, force_y)
         other.characteristics.force.accumulate(-force_x, -force_y)
+
+    def draw(self):
+        """Отрисовывает существо на экране."""
+
+        self.screen.blit(self.surface, self.rect)

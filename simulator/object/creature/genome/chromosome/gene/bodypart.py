@@ -123,20 +123,30 @@ class HydrogenStorageGene(BaseResourceStorageGene):
 class BaseResourceConsumptionGene(BaseGene, abc.ABC):
     """Базовый класс для генов, позволяющих потреблять ресурсы."""
 
-    mutation_chance = 0
-    effect_attribute_name = None
+    step = 1
+    default_consumption = 5
     resource: BaseWorldResource
+
+    def __init__(self, first: bool):
+        super().__init__(first)
+
+        if self.first:
+            self.consumption = self.default_consumption
+        else:
+            self.consumption = self.make_step()
 
     def __repr__(self):
         return f"{super().__repr__()}: {self.resource}"
 
     def apply(self, genome):
-        genome.effects.consumption_resources.append(self.resource)
+
+        if self.resource not in genome.effects.consumption_amount:
+            genome.effects.consumption_amount[self.resource] = self.consumption
+        else:
+            genome.effects.consumption_amount[self.resource] += self.consumption
 
     def mutate(self, genome):
-        # mutation_chance = 0 (никогда не мутирует)
-        raise NotImplementedError()
-        pass
+        self.consumption += self.make_step()
 
 
 # todo: изменить - сделать из EnergyConsumptionGene абстрактный

@@ -37,10 +37,10 @@ class BasePlaybackWorld(BasePlaybackObject):
         for creature in self.creatures.values():
             creature.draw()
 
-        color = [0, 0, 0]
+        color = (0, 0, 0)
         rect = pygame.Rect(
-            (self.left_border, self.top_border),
-            (self.right_border - self.left_border, self.bottom_border - self.top_border)
+            (self.borders.left, self.borders.top),
+            (self.borders.right - self.borders.left, self.borders.bottom - self.borders.top)
         )
         pygame.draw.rect(self.screen, color, rect, 1)
 

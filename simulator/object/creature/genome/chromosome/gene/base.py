@@ -28,6 +28,7 @@ class BaseGene(abc.ABC):
     positive_step: step_type
     # число должно быть положительным (см. make_step)
     negative_step: step_type
+    resources_loss_effect_attribute_name: str
 
     def __init__(self, first: bool):
         self.first = first
@@ -52,14 +53,9 @@ class BaseGene(abc.ABC):
         subclasses.extend(children_subclasses)
         return subclasses
 
-    @property
-    @abc.abstractmethod
-    def effect_attribute_name(self) -> str:
-        raise NotImplementedError()
-
     def apply_resources_loss(self, genome: "BaseGenome"):
         for resource in self.resources_loss_coeffs:
-            genome.effects.resources_loss[resource] += getattr(self, self.effect_attribute_name) * \
+            genome.effects.resources_loss[resource] += getattr(self, self.resources_loss_effect_attribute_name) * \
                                                        self.resources_loss_coeffs[resource]
 
     @abc.abstractmethod

@@ -23,8 +23,8 @@ class Creature(ObjectModel):
     start_tick = models.IntegerField()
     # существо перестало существовать
     stop_tick = models.IntegerField()
-    start_x = models.PositiveIntegerField()
-    start_y = models.PositiveIntegerField()
+    start_x = models.IntegerField()
+    start_y = models.IntegerField()
 
 
 class CreatureSurface(EvolutionModel):
@@ -49,8 +49,8 @@ class StoredResource(EvolutionModel):
     # формула ресурса
     # O/C/H/light
     resource = models.CharField(max_length = 10)
-    capacity = models.PositiveIntegerField()
-    current = models.PositiveIntegerField()
+    capacity = models.IntegerField()
+    current = models.IntegerField()
 
 
 # характеризует сдвиг существа каждый тик

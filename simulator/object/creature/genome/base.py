@@ -24,8 +24,7 @@ class GenomeEffects:
         self.children_number = 0
         self.size = 0.0
         self.elasticity = 0.0
-        self.consumption_amount = 0
-        self.consumption_resources: list[BaseWorldResource] = []
+        self.consumption_amount: dict[BaseWorldResource, int] = {}
         self.bodyparts: list[BaseBodypart] = []
         self.resource_storages: dict[BaseWorldResource, int] = {}
         self.color: list[int] = [0, 0, 0]

@@ -1,7 +1,6 @@
 import abc
 
 from simulator.object.creature.genome.chromosome.gene import BaseGene, step_type
-from simulator.world_resource import ENERGY
 
 
 class BaseNumberGene(BaseGene, abc.ABC):
@@ -24,7 +23,7 @@ class BaseNumberGene(BaseGene, abc.ABC):
         return f"{super().__repr__()}: {self.__getattribute__(self.attribute_name)}"
 
     @property
-    def effect_attribute_name(self) -> str:
+    def resources_loss_effect_attribute_name(self) -> str:
         return self.attribute_name
 
     def apply(self, genome):
@@ -64,23 +63,8 @@ class ElasticityGene(BaseNumberGene):
     attribute_name = "elasticity"
 
 
-class ConsumptionAmountGene(BaseNumberGene):
-    abstract = False
-    required_for_creature = True
-    step = 1
-    attribute_default = 5
-    attribute_name = "consumption_amount"
-
-    def __init__(self, first):
-        super().__init__(first)
-
-        self.resources_loss_coef = {ENERGY: 0.01}
-
-
 # todo: добавить мутации
 class MetabolismGene(BaseNumberGene):
-    """Потеря"""
-
     abstract = False
     required_for_creature = True
     appearance_chance = 0
