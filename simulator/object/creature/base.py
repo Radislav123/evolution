@@ -282,8 +282,8 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.return_resources()
 
     def return_resources(self):
-        self.storage.remove_several(self.storage.extra_several)
-        self.returned_resources += self.storage.extra_several
+        self.storage.remove_resources(self.storage.extra_resources)
+        self.returned_resources += self.storage.extra_resources
         self.world.add_resources(self.position, self.returned_resources)
         self.returned_resources = Resources[int]()
 
@@ -321,7 +321,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         bodyparts = []
         for bodypart in self.present_bodyparts:
             append = True
-            for resource, amount in self.storage.lack_several.items():
+            for resource, amount in self.storage.lack_resources.items():
                 if amount > 0 >= bodypart.resources[resource]:
                     append = False
                     break
@@ -340,30 +340,30 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
         # todo: заменить len(self.storage.lack) > 0, когда уберу ENERGY из Body там (len(self.storage.lack))
         #  будет учитываться еще и ENERGY, дефицит которой должен будет обрабатываться иначе
-        while not self.body.destroyed and len(self.storage.lack_several) > 0:
+        while not self.body.destroyed and len(self.storage.lack_resources) > 0:
             bodypart = self.get_bodypart_to_autophage()
-            damage = self.storage.lack_several
+            damage = self.storage.lack_resources
             for resource, amount in bodypart.remaining_resources.items():
                 if amount < damage[resource]:
                     damage[resource] = amount
             extra_resources = bodypart.make_damage(damage)
             # часть тела была уничтожена (доедена)
             if len(extra_resources) > 0:
-                self.storage.add_several(extra_resources)
+                self.storage.add_resources(extra_resources)
             # ресурсов части тела хватило, чтобы покрыть дефицит
             else:
-                self.storage.add_several(damage)
+                self.storage.add_resources(damage)
 
     def metabolize(self):
-        self.storage.remove_several(self.resources_loss)
+        self.storage.remove_resources(self.resources_loss)
         self.returned_resources += self.resources_loss
 
-        if len(self.storage.lack_several) > 0:
+        if len(self.storage.lack_resources) > 0:
             self.autophage()
 
         # todo: заменить len(self.storage.lack) > 0, когда уберу ENERGY из Body там (len(self.storage.lack))
         #  будет учитываться еще и ENERGY, дефицит которой должен будет обрабатываться иначе
-        if len(self.storage.lack_several) > 0 or self.body.destroyed:
+        if len(self.storage.lack_resources) > 0 or self.body.destroyed:
             self.kill()
 
         self._resources_loss = None
@@ -460,10 +460,10 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
         for child, child_resources in zip(children, self.get_children_resources()):
             child.start()
-            self.storage.remove_several(
+            self.storage.remove_resources(
                 child_resources + {ENERGY: self.reproduction_energy_lost * self.reproduction_lost_coef}
             )
-            child.storage.add_several(child_resources)
+            child.storage.add_resources(child_resources)
             child.characteristics.speed = self.characteristics.speed.copy()
 
         return children
@@ -503,7 +503,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             self.world.remove_resources(self.position, Resources[int]({resource: consumption_amount}))
 
             # добавляет в свое хранилище
-            self.storage.add_several({resource: consumption_amount})
+            self.storage.add_resources({resource: consumption_amount})
 
             # тратит энергию за потребление ресурса
             self.resources_loss_accumulated[ENERGY] += consumption_amount * 0.01

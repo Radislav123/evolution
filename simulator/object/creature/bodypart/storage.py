@@ -57,14 +57,14 @@ class Storage(BaseBodypart):
         self._storage[resource] = resource_storage
         self.dependent_bodyparts.append(resource_storage)
 
-    def add_several(self, resources: Resources[int] | dict[BaseWorldResource, ResourceAmount[int] | int]):
+    def add_resources(self, resources: Resources[int] | dict[BaseWorldResource, ResourceAmount[int] | int]):
         for resource, amount in resources.items():
             if amount > 0:
                 self._storage[resource].add(amount)
             elif amount < 0:
                 raise ValueError(f"Adding resource ({resource}) must be not negative ({amount})")
 
-    def remove_several(self, resources: Resources[int]):
+    def remove_resources(self, resources: Resources[int]):
         for resource, amount in resources.items():
             if amount > 0:
                 self._storage[resource].remove(amount)
@@ -72,14 +72,14 @@ class Storage(BaseBodypart):
                 raise ValueError(f"Removing resource ({resource}) must be not negative ({amount})")
 
     @property
-    def extra_several(self) -> Resources[int]:
+    def extra_resources(self) -> Resources[int]:
         extra_resources = Resources[int]()
         for resource_storage in self._storage.values():
             extra_resources[resource_storage.world_resource] = resource_storage.extra
         return extra_resources
 
     @property
-    def lack_several(self) -> Resources[int]:
+    def lack_resources(self) -> Resources[int]:
         lack_resources = Resources[int]()
         for resource_storage in self._storage.values():
             lack_resources[resource_storage.world_resource] = resource_storage.lack
