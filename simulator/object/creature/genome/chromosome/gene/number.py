@@ -73,6 +73,7 @@ class MetabolismGene(BaseNumberGene):
     attribute_name = "metabolism"
 
 
+# todo: добавить мутации
 class ResourcesLossCoefGene(BaseNumberGene):
     abstract = False
     required_for_creature = True
@@ -80,3 +81,11 @@ class ResourcesLossCoefGene(BaseNumberGene):
     mutation_chance = 0
     attribute_default = 0.005
     attribute_name = "resources_loss_coef"
+
+
+class RegenerateAmountGene(BaseNumberGene):
+    abstract = False
+    required_for_creature = True
+    step = 1
+    attribute_default = 5
+    attribute_name = "regenerate_amount"

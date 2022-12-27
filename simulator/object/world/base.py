@@ -8,7 +8,7 @@ from logger import BaseLogger
 from simulator.object import BaseSimulationObject
 from simulator.object.creature import BaseSimulationCreature
 from simulator.physic import BaseWorldCharacteristics
-from simulator.world_resource import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
+from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
 
 
 class BaseSimulationWorld(BaseSimulationObject):
@@ -86,7 +86,6 @@ class BaseSimulationWorld(BaseSimulationObject):
     def tick(self):
         existing_creatures = copy.copy(self.creatures)
         for creature in existing_creatures.values():
-            creature: BaseSimulationCreature
             creature.tick()
 
         existing_creatures = list(self.creatures.values())
@@ -103,36 +102,20 @@ class BaseSimulationWorld(BaseSimulationObject):
 
         self.age += 1
 
-    def get_resources(self, position: Position) -> dict[BaseWorldResource, int]:
+    def get_resources(self, position: Position) -> Resources[int]:
         """Возвращает ресурсы в чанке."""
 
         return self.position_to_chunk(position).get_resources()
 
-    # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def get_resource(self, position: Position, resource) -> int:
-        """Возвращает ресурс в чанке."""
-
-        return self.position_to_chunk(position).get_resource(resource)
-
-    def add_resources(self, position: Position, resources: dict[BaseWorldResource, int]):
+    def add_resources(self, position: Position, resources: Resources[int]):
         """Добавляет ресурсы в чанк."""
 
         return self.position_to_chunk(position).add_resources(resources)
 
-    def add_resource(self, position: Position, resource: BaseWorldResource, amount: int):
-        """Добавляет ресурс в чанк."""
-
-        return self.position_to_chunk(position).add_resource(resource, amount)
-
-    def remove_resources(self, position: Position, resources: dict[BaseWorldResource, int]):
+    def remove_resources(self, position: Position, resources: Resources[int]):
         """Убирает ресурсы из чанка."""
 
         return self.position_to_chunk(position).remove_resources(resources)
-
-    def remove_resource(self, position: Position, resource: BaseWorldResource, amount: int):
-        """Убирает ресурс из чанка."""
-
-        return self.position_to_chunk(position).remove_resource(resource, amount)
 
     def draw(self):
         # залить фон белым
@@ -189,40 +172,29 @@ class BaseSimulationWorldChunk:
         self.top = left_top.y
         self.bottom = self.top + height - 1
         self.default_resource_amount = (self.right - self.left + 1) * (self.bottom - self.top + 1) * 5
-        self.resources = {
-            ENERGY: self.default_resource_amount,
-            CARBON: self.default_resource_amount,
-            OXYGEN: self.default_resource_amount,
-            HYDROGEN: self.default_resource_amount
-        }
+        self._resources = Resources[int](
+            {
+                ENERGY: self.default_resource_amount,
+                CARBON: self.default_resource_amount,
+                OXYGEN: self.default_resource_amount,
+                HYDROGEN: self.default_resource_amount
+            }
+        )
 
     def __repr__(self) -> str:
         return f"{self.left, self.top, self.right, self.bottom}"
 
     def tick(self):
-        self.resources[ENERGY] = self.default_resource_amount
+        self._resources[ENERGY] = self.default_resource_amount
 
-    def get_resources(self) -> dict[BaseWorldResource, int]:
-        return copy.copy(self.resources)
+    def get_resources(self) -> Resources[int]:
+        return copy.deepcopy(self._resources)
 
-    def get_resource(self, resource: BaseWorldResource) -> int:
-        return self.resources[resource]
+    def add_resources(self, resources: Resources[int]):
+        self._resources += resources
 
-    def add_resources(self, resources: dict[BaseWorldResource, int]):
-        for resource, amount in resources.items():
-            self.add_resource(resource, amount)
-
-    def add_resource(self, resource: BaseWorldResource, amount: int):
-        self.resources[resource] += amount
-
-    def remove_resources(self, resources: dict[BaseWorldResource, int]):
-        for resource, amount in resources.items():
-            self.remove_resource(resource, amount)
-
-    def remove_resource(self, resource: BaseWorldResource, amount: int):
-        self.resources[resource] -= amount
-        if self.resources[resource] < 0:
-            raise ValueError(f"{self}: {resource} lack is {-self.resources[resource]}")
+    def remove_resources(self, resources: Resources[int]):
+        self._resources -= resources
 
     def draw(self, surface):
         rect = pygame.Rect(

@@ -78,10 +78,7 @@ class BaseResourceStorageGene(BaseBodyPartGene, abc.ABC):
         return f"{super().__repr__()}: {self.capacity}"
 
     def apply(self, genome):
-        if self.resource not in genome.effects.resource_storages:
-            genome.effects.resource_storages[self.resource] = self.capacity
-        else:
-            genome.effects.resource_storages[self.resource] += self.capacity
+        genome.effects.resource_storages[self.resource] += self.capacity
 
     def mutate(self, genome):
         self.capacity += self.make_step()
@@ -139,11 +136,7 @@ class BaseResourceConsumptionGene(BaseGene, abc.ABC):
         return f"{super().__repr__()}: {self.resource}"
 
     def apply(self, genome):
-
-        if self.resource not in genome.effects.consumption_amount:
-            genome.effects.consumption_amount[self.resource] = self.consumption
-        else:
-            genome.effects.consumption_amount[self.resource] += self.consumption
+        genome.effects.consumption_amount[self.resource] += self.consumption
 
     def mutate(self, genome):
         self.consumption += self.make_step()

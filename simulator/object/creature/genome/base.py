@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Type, TypeVar
 from simulator.object.creature.bodypart import BaseBodypart
 from simulator.object.creature.genome.chromosome import BaseChromosome
 from simulator.object.creature.genome.chromosome.gene import BaseGene
-from simulator.world_resource import BaseWorldResource
+from simulator.world_resource import Resources
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -24,15 +24,16 @@ class GenomeEffects:
         self.children_number = 0
         self.size = 0.0
         self.elasticity = 0.0
-        self.consumption_amount: dict[BaseWorldResource, int] = {}
+        self.consumption_amount = Resources[int]()
         self.bodyparts: list[BaseBodypart] = []
-        self.resource_storages: dict[BaseWorldResource, int] = {}
+        self.resource_storages = Resources[int]()
         self.color: list[int] = [0, 0, 0]
-        self.resources_loss: dict[BaseWorldResource, float] = {}
+        self.resources_loss = Resources[float]()
         # MetabolismGene
         self.metabolism = 0.0
         # ResourcesLossCoefGene
         self.resources_loss_coef = 0.0
+        self.regenerate_amount = 0
 
     def prepare(self):
         self.prepare_color()
