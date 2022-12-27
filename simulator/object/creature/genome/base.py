@@ -33,7 +33,7 @@ class GenomeEffects:
         self.metabolism = 0.0
         # ResourcesLossCoefGene
         self.resources_loss_coef = 0.0
-        self.regenerate_amount = 0
+        self.regeneration_amount = 0
 
     def prepare(self):
         self.prepare_color()

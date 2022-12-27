@@ -48,54 +48,57 @@ class ResourceAmount(Generic[VT]):
     def __repr__(self) -> str:
         return f"{self.amount}"
 
-    def __iadd__(self, other: Union["ResourceAmount", VT]) -> Self:
+    def __iadd__(self, other: Union["ResourceAmount", int, float]) -> Self:
         self.amount += self.get_amount(other)
         return self
 
-    def __add__(self, other: Union["ResourceAmount", VT]) -> Self:
+    def __add__(self, other: Union["ResourceAmount", int, float]) -> Self:
         return self.__class__(self.amount + self.get_amount(other))
 
-    def __isub__(self, other: Union["ResourceAmount", VT]) -> Self:
+    def __isub__(self, other: Union["ResourceAmount", int, float]) -> Self:
         self.amount -= self.get_amount(other)
         return self
 
-    def __sub__(self, other: Union["ResourceAmount", VT]) -> Self:
+    def __sub__(self, other: Union["ResourceAmount", int, float]) -> Self:
         return self.__class__(self.amount - self.get_amount(other))
 
-    def __mul__(self, other: Union["ResourceAmount", VT]) -> Self:
+    def __mul__(self, other: Union["ResourceAmount", int, float]) -> Self:
         return self.__class__(self.amount * self.get_amount(other))
 
-    def __truediv__(self, other: Union["ResourceAmount", VT]) -> Self:
+    def __truediv__(self, other: Union["ResourceAmount", int, float]) -> Self:
         return self.__class__(self.amount / self.get_amount(other))
 
-    def __eq__(self, other: Union["ResourceAmount", VT]) -> bool:
+    def __floordiv__(self, other: Union["ResourceAmount", int, float]) -> Self:
+        return (self / other).round_ip()
+
+    def __eq__(self, other: Union["ResourceAmount", int, float]) -> bool:
         return self.amount == self.get_amount(other)
 
-    def __ne__(self, other: Union["ResourceAmount", VT]) -> bool:
+    def __ne__(self, other: Union["ResourceAmount", int, float]) -> bool:
         return self.amount != self.get_amount(other)
 
-    def __lt__(self, other: Union["ResourceAmount", VT]) -> bool:
+    def __lt__(self, other: Union["ResourceAmount", int, float]) -> bool:
         return self.amount < self.get_amount(other)
 
-    def __le__(self, other: Union["ResourceAmount", VT]) -> bool:
+    def __le__(self, other: Union["ResourceAmount", int, float]) -> bool:
         return self.amount <= self.get_amount(other)
 
-    def __gt__(self, other: Union["ResourceAmount", VT]) -> bool:
+    def __gt__(self, other: Union["ResourceAmount", int, float]) -> bool:
         return self.amount > self.get_amount(other)
 
-    def __ge__(self, other: Union["ResourceAmount", VT]) -> bool:
+    def __ge__(self, other: Union["ResourceAmount", int, float]) -> bool:
         return self.amount >= self.get_amount(other)
 
     def __neg__(self) -> Self:
         return self.__class__(-self.amount)
 
     @classmethod
-    def check_type(cls, amount: Union["ResourceAmount", VT]):
+    def check_type(cls, amount: Union["ResourceAmount", int, float]):
         if not (isinstance(amount, cls) or isinstance(amount, int) or isinstance(amount, float)):
             raise TypeError(f"amount ({amount} must be {cls.__name__} int or float)")
 
     @classmethod
-    def get_amount(cls, other: Union["ResourceAmount", VT]) -> VT:
+    def get_amount(cls, other: Union["ResourceAmount", int, float]) -> int | float:
         if isinstance(other, cls):
             other_amount = other.amount
         else:
@@ -103,7 +106,7 @@ class ResourceAmount(Generic[VT]):
         return other_amount
 
     @classmethod
-    def get_resource_amount(cls, other: Union["ResourceAmount", VT]) -> Self:
+    def get_resource_amount(cls, other: Union["ResourceAmount", int, float]) -> Self:
         if isinstance(other, cls):
             other_amount = ResourceAmount(other.amount)
         else:
@@ -133,7 +136,7 @@ class Resources(Generic[VT]):
         string = f"{self.__class__.__name__}: "
         if len(self) > 0:
             for resource, amount in self._storage.items():
-                string += f"{resource}: {amount}, "
+                string += f"{resource.formula}: {amount}, "
             if string[-2:] == ", ":
                 string = string[:-2]
         else:
@@ -179,14 +182,14 @@ class Resources(Generic[VT]):
             resources = self.number_multiplication(multiplier)
         return resources
 
-    def __truediv__(self, divisor: Union["Resources", int, float]) -> Self:
+    def __truediv__(self, divisor: Union["Resources", ResourceAmount, int, float]) -> Self:
         if isinstance(divisor, Resources):
             resources = self.resources_division(divisor)
         else:
             resources = self.number_division(divisor)
         return resources
 
-    def __floordiv__(self, divisor: Union["Resources", int, float]) -> Self:
+    def __floordiv__(self, divisor: Union["Resources", ResourceAmount, int, float]) -> Self:
         return (self / divisor).round_ip()
 
     def __iter__(self):
@@ -199,6 +202,12 @@ class Resources(Generic[VT]):
                 length += 1
         return length
 
+    def sum(self) -> VT:
+        total = 0
+        for amount in self._storage.values():
+            total += amount.amount
+        return total
+
     @classmethod
     def get_resources(cls, other: Union["Resources", dict[BaseWorldResource, int | float]]) -> Self:
         if isinstance(other, cls):
@@ -207,7 +216,7 @@ class Resources(Generic[VT]):
             resources = cls(other)
         return resources
 
-    def number_division(self, divisor: int | float) -> Self:
+    def number_division(self, divisor: ResourceAmount | int | float) -> Self:
         resources = self.__class__()
         for resource, amount in self.items():
             resources[resource] = self[resource] / divisor
@@ -219,7 +228,7 @@ class Resources(Generic[VT]):
             resources[resource] = self[resource] / divisor[resource]
         return resources
 
-    def number_multiplication(self, multiplier: int | float) -> Self:
+    def number_multiplication(self, multiplier: ResourceAmount | int | float) -> Self:
         resources = self.__class__()
         for resource, amount in self.items():
             resources[resource] = self[resource] * multiplier

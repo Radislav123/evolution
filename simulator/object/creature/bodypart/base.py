@@ -42,12 +42,18 @@ class BaseBodypart(abc.ABC):
 
         return returned_resources
 
-    # todo: реализовать регенерацию
-    def regenerate(self, resources: Resources[int]):
-        self.damage -= resources
-        for resource in resources:
-            if self.damage[resource] < 0:
-                raise ValueError(f"{self} damage[{resource} is {self.damage[resource]}]")
+    # если возвращаемые ресурсы != 0, значит эти ресурсы не израсходованы при регенерации
+    def regenerate(self, resources: Resources[int]) -> Resources[int]:
+        regenerating_resources = copy.deepcopy(resources)
+        for resource, amount in resources.items():
+            if self.damage[resource] < amount:
+                regenerating_resources[resource] = self.damage[resource]
+
+        self.damage -= regenerating_resources
+        if self._present:
+            self.destroyed = False
+
+        return resources - regenerating_resources
 
     @property
     def damaged(self) -> bool:

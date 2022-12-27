@@ -50,6 +50,9 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     resources_loss_accumulated: Resources[float]
     _resources_loss: Resources[int] | None
     body: Body
+    # todo: привязать к генам
+    # отношение количества регенерируемых ресурсов и энергии
+    energy_regenerate_cost = 1
 
     # position - центр существа
     def __init__(
@@ -211,7 +214,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         super().kill()
 
         return_resources = self.body.destroy()
-        return_resources[ENERGY] = 0
         self.returned_resources += return_resources
 
         self.alive = False
@@ -219,7 +221,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         self.world.remove_creature(self)
 
     @property
-    def position(self):
+    def position(self) -> Position:
         """Центр существа."""
 
         if self._position is None:
@@ -231,15 +233,38 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
     def regenerate(self):
         # выбирается часть тела для регенерации
-        bodypart = self.get_bodypart_to_regenerate()
+        bodypart = self.get_regeneration_bodypart()
 
         if bodypart is not None:
-            # todo: write it
-            # регенерировать можно только по одному ресурсу за тик
-            # todo: прописать трату энергии за регенерацию
-            pass
+            regenerating_resources = Resources[int](
+                {
+                    resource: self.genome.effects.regeneration_amount for resource in self.storage.stored_resources
+                }
+            )
 
-    def get_bodypart_to_regenerate(self):
+            for resource in regenerating_resources:
+                # делается поправка на количество ресурса в хранилище
+                if regenerating_resources[resource] > self.storage.stored_resources[resource]:
+                    regenerating_resources[resource] = self.storage.stored_resources[resource]
+                # делается поправка на урон части тела
+                if regenerating_resources[resource] > bodypart.damage[resource]:
+                    regenerating_resources[resource] = bodypart.damage[resource]
+
+            # проверяется доступное количество энергии
+            if self.storage.stored_resources[ENERGY] < regenerating_resources[ENERGY] + \
+                    regenerating_resources.sum() * self.energy_regenerate_cost:
+                reduction_coef = self.storage.stored_resources[ENERGY] / \
+                                 (regenerating_resources[ENERGY] +
+                                  regenerating_resources.sum() * self.energy_regenerate_cost)
+                regenerating_resources = regenerating_resources * reduction_coef
+                regenerating_resources.round_ip()
+
+            extra_resources = bodypart.regenerate(regenerating_resources)
+            spent_resources = regenerating_resources - extra_resources
+            spent_resources[ENERGY] += int(spent_resources.sum() * self.energy_regenerate_cost)
+            self.storage.remove_resources(spent_resources)
+
+    def get_regeneration_bodypart(self) -> BaseBodypart | None:
         bodyparts = []
         for bodypart in self.damaged_bodyparts:
             append = False
@@ -284,6 +309,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def return_resources(self):
         self.storage.remove_resources(self.storage.extra_resources)
         self.returned_resources += self.storage.extra_resources
+        self.returned_resources[ENERGY] = 0
         self.world.add_resources(self.position, self.returned_resources)
         self.returned_resources = Resources[int]()
 
@@ -317,7 +343,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def present_bodyparts(self) -> list[BaseBodypart]:
         return [bodypart for bodypart in self.bodyparts if not bodypart.destroyed]
 
-    def get_bodypart_to_autophage(self) -> BaseBodypart:
+    def get_autophagic_bodypart(self) -> BaseBodypart:
         bodyparts = []
         for bodypart in self.present_bodyparts:
             append = True
@@ -341,7 +367,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         # todo: заменить len(self.storage.lack) > 0, когда уберу ENERGY из Body там (len(self.storage.lack))
         #  будет учитываться еще и ENERGY, дефицит которой должен будет обрабатываться иначе
         while not self.body.destroyed and len(self.storage.lack_resources) > 0:
-            bodypart = self.get_bodypart_to_autophage()
+            bodypart = self.get_autophagic_bodypart()
             damage = self.storage.lack_resources
             for resource, amount in bodypart.remaining_resources.items():
                 if amount < damage[resource]:

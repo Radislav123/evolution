@@ -88,4 +88,4 @@ class RegenerateAmountGene(BaseNumberGene):
     required_for_creature = True
     step = 1
     attribute_default = 5
-    attribute_name = "regenerate_amount"
+    attribute_name = "regeneration_amount"
