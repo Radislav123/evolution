@@ -1,6 +1,6 @@
 import abc
 
-from simulator.object.creature.genome.chromosome.gene import BaseGene, step_type
+from simulator.creature.genome.chromosome.gene import BaseGene, step_type
 
 
 class BaseNumberGene(BaseGene, abc.ABC):

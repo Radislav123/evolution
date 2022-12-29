@@ -1,10 +1,7 @@
-import pygame
 from django.http import HttpRequest, HttpResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-
-from player.object.world import BasePlaybackWorld
 
 
 @method_decorator(csrf_exempt, name = "dispatch")
@@ -27,22 +24,5 @@ class PlaybackView(View):
     def play(self, request: HttpRequest):
         world_db_id, tps = self.process_parameters(request)
 
-        pygame.init()
-        world = BasePlaybackWorld(world_db_id)
-        world.start()
-        clock = pygame.time.Clock()
-
-        try:
-            for tick in range(world.stop_tick):
-                # чтобы окно не зависало (freeze)
-                pygame.event.pump()
-                world.tick()
-                world.draw()
-                clock.tick(tps)
-        except Exception as error:
-            raise error
-        finally:
-            world.stop()
-            pygame.quit()
-
-        return HttpResponse(f"Воспроизведение окончено. World id {world.id}.")
+        # return HttpResponse(f"Воспроизведение окончено. World id {world.id}.")
+        return HttpResponse(f"Воспроизведение окончено. World id .")

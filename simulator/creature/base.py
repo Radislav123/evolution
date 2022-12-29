@@ -3,34 +3,24 @@ import math
 import random
 from typing import TYPE_CHECKING
 
-import pygame
+import arcade
 
 from core import models
-from core.position import Position
-from core.surface import CreatureSurface
-from logger import BaseLogger
-from simulator.object import BaseSimulationObject
-from simulator.object.creature.bodypart import BaseBodypart, Body, Storage
-from simulator.object.creature.genome import BaseGenome
+from core.mixin import DatabaseSavableMixin, WorldObjectMixin
+from evolution import settings
+from simulator.creature.bodypart import BaseBodypart, Body, Storage
+from simulator.creature.genome import BaseGenome
 from simulator.physic import BaseCreatureCharacteristics
 from simulator.world_resource import BaseWorldResource, ENERGY, Resources
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.object.world import BaseSimulationWorld
+    from simulator.world import BaseSimulationWorld
 
 
-class CollisionException(BaseException):
-    pass
-
-
-class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
+class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Sprite):
     db_model = models.Creature
-    origin_surface: CreatureSurface
-    # может быть изменено - оно отрисовывается на экране
-    surface: CreatureSurface
-    rect: pygame.Rect
     counter: int = 0
     genome: BaseGenome
     children_number: int
@@ -57,26 +47,23 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     # position - центр существа
     def __init__(
             self,
-            position: Position,
+            position: tuple[int, int],
             world: "BaseSimulationWorld",
             parents: list["BaseSimulationCreature"] | None,
             world_generation: bool = False,
             *args,
             **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(f"{settings.SIMULATION_IMAGES_PATH}/BaseCreature.png", *args, **kwargs)
         self.id = int(f"{world.id}{self.__class__.counter}")
         self.__class__.counter += 1
 
-        self.start_x = position.x
-        self.start_y = position.y
-        self._position: Position | None = None
+        self.center_x = position[0]
+        self.center_y = position[1]
 
         self.world = world
         self.start_tick = self.world.age
         self.stop_tick = self.world.age
-        self.screen = self.world.screen
-        self.logger = BaseLogger(f"{self.world.object_id}.{self.object_id}")
 
         # такая ситуация подразумевается только при генерации мира
         if parents is None and world_generation:
@@ -101,10 +88,12 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         )
         self.characteristics.creature = self
 
-        self.prepare_surface()
         self.prepare_resources_loss()
         # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
         self.returned_resources = Resources[int]()
+
+    def __repr__(self) -> str:
+        return self.object_id
 
     def prepare_resources_loss(self):
         self.resources_loss_accumulated = Resources[float]()
@@ -122,20 +111,6 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             self.resources_loss_accumulated = resources_loss - resources_loss.round()
             self._resources_loss = resources_loss.round()
         return copy.copy(self._resources_loss)
-
-    def prepare_surface(self):
-        """Подготавливает все, что нужно для отображения существа."""
-
-        width = self.radius * 2
-        height = self.radius * 2
-        # origin_surface - хранится как эталон, от него делаются вращения и сохраняются в surface
-        # не должно изменятся
-        self.origin_surface = CreatureSurface.load_from_file(width, height, self.color)
-        # может быть изменено - оно отрисовывается на экране
-        self.surface = self.origin_surface.copy()
-        self.rect = self.surface.get_rect()
-        self.rect.x = self.start_x - self.rect.width // 2
-        self.rect.y = self.start_y - self.rect.height // 2
 
     def apply_bodyparts(self):
         """Применяет эффекты частей тела на существо."""
@@ -189,44 +164,29 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         return self.characteristics.radius
 
     def start(self):
-        self.world.add_creature(self)
+        self.save_to_db()
         self.start_tick = self.world.age
-        super().start()
+        self.world.add_creature(self)
 
     def stop(self):
         self.stop_tick = self.world.age
-        super().stop()
+        self.save_to_db()
 
     def save_to_db(self):
         self.db_instance = self.db_model(
             world = self.world.db_instance,
             start_tick = self.start_tick,
-            stop_tick = self.stop_tick,
-            start_x = self.start_x,
-            start_y = self.start_y
+            stop_tick = self.stop_tick
         )
         self.db_instance.save()
 
-    def release_logs(self):
-        super().release_logs()
-
     def kill(self):
-        super().kill()
-
         return_resources = self.body.destroy()
         self.returned_resources += return_resources
 
         self.alive = False
         self.stop()
         self.world.remove_creature(self)
-
-    @property
-    def position(self) -> Position:
-        """Центр существа."""
-
-        if self._position is None:
-            self._position = Position(self.rect.x + self.rect.width // 2, self.rect.y + self.rect.height // 2)
-        return self._position
 
     def can_regenerate(self) -> bool:
         return not self.storage[ENERGY].empty
@@ -286,7 +246,8 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def damaged_bodyparts(self) -> list[BaseBodypart]:
         return [bodypart for bodypart in self.bodyparts if bodypart.damaged]
 
-    def tick(self):
+    # noinspection PyMethodOverriding
+    def on_update(self, delta_time: float):
         """Симулирует жизнедеятельность за один тик."""
 
         if self.can_consume():
@@ -320,10 +281,10 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
         force_y = 0
 
         force_coef = self.characteristics.elasticity * 100
-        cross_left = self.position.x - self.radius - self.world.borders.left
-        cross_right = self.position.x + self.radius - self.world.borders.right
-        cross_top = self.position.y - self.radius - self.world.borders.top
-        cross_bottom = self.position.y + self.radius - self.world.borders.bottom
+        cross_left = self.position[0] - self.radius - self.world.borders.left
+        cross_right = self.position[0] + self.radius - self.world.borders.right
+        cross_top = self.position[1] - self.radius - self.world.borders.top
+        cross_bottom = self.position[1] + self.radius - self.world.borders.bottom
 
         if cross_left < 0:
             force_x -= cross_left
@@ -400,14 +361,14 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
     def move(self):
         """Перемещает существо."""
 
-        self.rect.move_ip(self.characteristics.movement.round().x, self.characteristics.movement.round().y)
+        # todo: remove line
+        # self.rect.move_ip(self.characteristics.movement.round().x, self.characteristics.movement.round().y)
         models.CreatureMovement(
             age = self.world.age,
             creature = self.db_instance,
             x = self.characteristics.movement.round().x,
             y = self.characteristics.movement.round().y
         ).save()
-        self._position = None
 
     @property
     def resources(self) -> Resources[int]:
@@ -439,7 +400,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             layers.append(self.children_number - sum(layers))
         return layers
 
-    def get_children_positions(self) -> list[Position]:
+    def get_children_positions(self) -> list[tuple[int, int]]:
         # чтобы снизить нагрузку, можно изменить сдвиг до 1.2,
         # тогда существо будет появляться рядом и не будут рассчитываться столкновения
         offset_coef = 0.5
@@ -451,9 +412,7 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
             for number in range(children_in_layer):
                 offset_x = int(self.radius * 2 * math.cos(child_sector * number) * offset_coef * (layer_number + 1))
                 offset_y = int(self.radius * 2 * math.sin(child_sector * number) * offset_coef * (layer_number + 1))
-                children_positions.append(
-                    Position(self.position.x + offset_x, self.position.y + offset_y)
-                )
+                children_positions.append((self.position[0] + offset_x, self.position[1] + offset_y))
         return children_positions
 
     def can_reproduce(self) -> bool:
@@ -536,8 +495,8 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
     def collision_interact(self, other: "BaseSimulationCreature"):
         force_coef = self.characteristics.elasticity * other.characteristics.elasticity * 100
-        centers_distance_x = self.position.x - other.position.x
-        centers_distance_y = self.position.y - other.position.y
+        centers_distance_x = self.position[0] - other.position[0]
+        centers_distance_y = self.position[1] - other.position[1]
         centers_distance = math.sqrt(centers_distance_x**2 + centers_distance_y**2)
         # случай, когда центры совпадают
         if centers_distance == 0:
@@ -550,8 +509,3 @@ class BaseSimulationCreature(BaseSimulationObject, pygame.sprite.Sprite):
 
         self.characteristics.force.accumulate(force_x, force_y)
         other.characteristics.force.accumulate(-force_x, -force_y)
-
-    def draw(self):
-        """Отрисовывает существо на экране."""
-
-        self.screen.blit(self.surface, self.rect)

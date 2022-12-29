@@ -1,4 +1,4 @@
-from simulator.object.creature.bodypart import BaseBodypart, Body
+from simulator.creature.bodypart import BaseBodypart, Body
 from simulator.world_resource import BaseWorldResource, CARBON, HYDROGEN, OXYGEN, ResourceAmount, Resources
 
 

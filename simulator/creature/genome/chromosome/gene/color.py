@@ -1,6 +1,6 @@
 import abc
 
-from simulator.object.creature.genome.chromosome.gene import BaseGene
+from simulator.creature.genome.chromosome.gene import BaseGene
 
 
 class BaseColorGene(BaseGene, abc.ABC):

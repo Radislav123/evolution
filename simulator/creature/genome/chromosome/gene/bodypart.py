@@ -1,7 +1,7 @@
 import abc
 
-from simulator.object.creature.bodypart import BaseBodypart, Body, Storage
-from simulator.object.creature.genome.chromosome.gene import BaseGene
+from simulator.creature.bodypart import BaseBodypart, Body, Storage
+from simulator.creature.genome.chromosome.gene import BaseGene
 from simulator.world_resource import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
 
 

@@ -1,20 +1,17 @@
 import copy
 
-import pygame
+import arcade
 
 from core import models
-from core.position import Position
-from logger import BaseLogger
-from simulator.object import BaseSimulationObject
-from simulator.object.creature import BaseSimulationCreature
+from core.mixin import DatabaseSavableMixin, WorldObjectMixin
+from simulator.creature import BaseSimulationCreature
 from simulator.physic import BaseWorldCharacteristics
 from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
 
 
-class BaseSimulationWorld(BaseSimulationObject):
+class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
     db_model = models.World
-    creatures_group: pygame.sprite.Group
-    screen: pygame.Surface
+    db_instance: models.World
 
     # width - минимальное значение ширины экрана - 120
     def __init__(self, width: int, height: int):
@@ -22,20 +19,14 @@ class BaseSimulationWorld(BaseSimulationObject):
         self.age = 0
         self.width = width
         self.height = height
-        self.center = Position(width // 2, height // 2)
+        self.center = (width // 2, height // 2)
         self.chunk_width = 10
         self.chunk_height = 10
 
         # границы мира
         self.borders = BaseSimulationWorldBorders(0, self.width, 0, self.height)
-
         # {creature.object_id: creature}
-        self.creatures: dict[str, BaseSimulationCreature] = {}
-        self.logger = BaseLogger(self.object_id)
-
-        self.creatures_group = pygame.sprite.Group()
-        self.screen = pygame.display.set_mode((self.width, self.height))
-
+        self.creatures = arcade.SpriteList()
         self.characteristics = BaseWorldCharacteristics(1)
         self.chunks = BaseSimulationWorldChunk.cut_world(self)
 
@@ -50,17 +41,8 @@ class BaseSimulationWorld(BaseSimulationObject):
         self.db_instance.save()
 
     def start(self):
-        super().start()
+        self.save_to_db()
         self.spawn_start_creature()
-
-    def stop(self):
-        super().stop()
-
-        for creature in self.creatures.values():
-            creature.stop()
-
-    def release_logs(self):
-        super().release_logs()
 
     def spawn_start_creature(self):
         creature = BaseSimulationCreature(
@@ -74,68 +56,62 @@ class BaseSimulationWorld(BaseSimulationObject):
     def add_creature(self, creature: BaseSimulationCreature):
         """Добавляет существо в мир."""
 
-        self.creatures[creature.object_id] = creature
-        creature.add(self.creatures_group)
+        self.creatures.append(creature)
 
     # если существо необходимо убить, то это нужно сделать отдельно
     def remove_creature(self, creature: BaseSimulationCreature):
         """Убирает существо из мира."""
 
-        del self.creatures[creature.object_id]
+        self.creatures.remove(creature)
 
-    def tick(self):
+    def on_update(self, delta_time: float):
         existing_creatures = copy.copy(self.creatures)
-        for creature in existing_creatures.values():
-            creature.tick()
+        for creature in existing_creatures:
+            creature.on_update(delta_time)
 
-        existing_creatures = list(self.creatures.values())
+        existing_creatures = copy.copy(self.creatures)
         for i in range(len(existing_creatures)):
             for j in range(i + 1, len(existing_creatures)):
                 creature_0 = existing_creatures[i]
                 creature_1 = existing_creatures[j]
-                if pygame.sprite.collide_circle(creature_0, creature_1):
-                    creature_0.collision_interact(creature_1)
+                # todo: replace it with physic engine
+                """if pygame.sprite.collide_circle(creature_0, creature_1):
+                    creature_0.collision_interact(creature_1)"""
 
         for line in self.chunks:
             for chunk in line:
-                chunk.tick()
+                chunk.on_update()
 
         self.age += 1
 
-    def get_resources(self, position: Position) -> Resources[int]:
+    def get_resources(self, position: tuple[int, int]) -> Resources[int]:
         """Возвращает ресурсы в чанке."""
 
         return self.position_to_chunk(position).get_resources()
 
-    def add_resources(self, position: Position, resources: Resources[int]):
+    def add_resources(self, position: tuple[int, int], resources: Resources[int]):
         """Добавляет ресурсы в чанк."""
 
         return self.position_to_chunk(position).add_resources(resources)
 
-    def remove_resources(self, position: Position, resources: Resources[int]):
+    def remove_resources(self, position: tuple[int, int], resources: Resources[int]):
         """Убирает ресурсы из чанка."""
 
         return self.position_to_chunk(position).remove_resources(resources)
 
     def draw(self):
-        # залить фон белым
-        self.screen.fill((255, 255, 255))
-        for creature in self.creatures.values():
-            creature.draw()
-
-        self.borders.draw(self.screen)
+        self.creatures.draw()
+        self.borders.draw()
 
         draw_chunks = False
         if draw_chunks:
             for line in self.chunks:
                 for chunk in line:
-                    chunk.draw(self.screen)
+                    chunk.draw()
 
-        pygame.display.flip()
-
-    def position_to_chunk(self, position: Position) -> "BaseSimulationWorldChunk":
-        x = (position.x - self.chunks[0][0].left) // self.chunk_width
-        y = (position.y - self.chunks[0][0].top) // self.chunk_height
+    def position_to_chunk(self, position: tuple[int, int]) -> "BaseSimulationWorldChunk":
+        x = int((position[0] - self.chunks[0][0].left) / self.chunk_width)
+        y = int((position[1] - self.chunks[0][0].bottom) / self.chunk_height)
         if x < 0:
             x = 0
         if x > len(self.chunks) - 1:
@@ -148,30 +124,32 @@ class BaseSimulationWorld(BaseSimulationObject):
 
 
 class BaseSimulationWorldBorders:
-    def __init__(self, left, right, top, bottom):
+    def __init__(self, left, right, bottom, top):
+        # todo: использовать use_spatial_hash, когда буду переводить на спрайты
         self.left = left
         self.right = right
-        self.top = top
         self.bottom = bottom
+        self.top = top
         self.color = (0, 0, 0)
-        self.width = 1
 
-    def draw(self, surface):
-        rect = pygame.Rect(
-            (self.left, self.top),
-            (self.right - self.left, self.bottom - self.top)
+    def draw(self):
+        arcade.draw_xywh_rectangle_outline(
+            self.left,
+            self.bottom,
+            self.right - self.left,
+            self.top - self.bottom,
+            self.color
         )
-        pygame.draw.rect(surface, self.color, rect, self.width)
 
 
 class BaseSimulationWorldChunk:
-    def __init__(self, left_top: Position, width: int, height: int):
-        self.color = (0, 0, 0)
-        self.left = left_top.x
+    def __init__(self, left_bottom: tuple[int, int], width: int, height: int):
+        self.left = left_bottom[0]
         self.right = self.left + width - 1
-        self.top = left_top.y
-        self.bottom = self.top + height - 1
-        self.default_resource_amount = (self.right - self.left + 1) * (self.bottom - self.top + 1) * 5
+        self.bottom = left_bottom[1]
+        self.top = self.bottom + height - 1
+        self.color = (0, 0, 0)
+        self.default_resource_amount = (self.right - self.left + 1) * (self.top - self.bottom + 1) * 5
         self._resources = Resources[int](
             {
                 ENERGY: self.default_resource_amount,
@@ -182,9 +160,9 @@ class BaseSimulationWorldChunk:
         )
 
     def __repr__(self) -> str:
-        return f"{self.left, self.top, self.right, self.bottom}"
+        return f"{self.left, self.bottom, self.right, self.top}"
 
-    def tick(self):
+    def on_update(self):
         self._resources[ENERGY] = self.default_resource_amount
 
     def get_resources(self) -> Resources[int]:
@@ -196,27 +174,29 @@ class BaseSimulationWorldChunk:
     def remove_resources(self, resources: Resources[int]):
         self._resources -= resources
 
-    def draw(self, surface):
-        rect = pygame.Rect(
-            (self.left - 1, self.top - 1),
-            (self.right - self.left + 2, self.bottom - self.top + 2)
+    def draw(self):
+        arcade.draw_xywh_rectangle_outline(
+            self.left,
+            self.bottom,
+            self.right - self.left,
+            self.top - self.bottom,
+            self.color
         )
-        pygame.draw.rect(surface, self.color, rect, 1)
 
     @classmethod
     def cut_world(cls, world: BaseSimulationWorld) -> list[list["BaseSimulationWorldChunk"]]:
         chunks: list[list[cls]] = []
 
-        left_top = copy.copy(world.center)
-        while left_top.x > world.borders.left:
-            left_top.x -= world.chunk_width
-        while left_top.y > world.borders.top:
-            left_top.y -= world.chunk_height
+        left_bottom = list(world.center)
+        while left_bottom[0] > world.borders.left:
+            left_bottom[0] -= world.chunk_width
+        while left_bottom[1] > world.borders.bottom:
+            left_bottom[1] -= world.chunk_height
 
-        for left in range(left_top.x, world.borders.right, world.chunk_width):
+        for left in range(left_bottom[0], world.borders.right, world.chunk_width):
             line = len(chunks)
             chunks.append([])
-            for top in range(left_top.y, world.borders.bottom, world.chunk_height):
-                chunks[line].append(cls(Position(left, top), world.chunk_width, world.chunk_height))
+            for bottom in range(left_bottom[1], world.borders.top, world.chunk_height):
+                chunks[line].append(cls((left, bottom), world.chunk_width, world.chunk_height))
 
         return chunks

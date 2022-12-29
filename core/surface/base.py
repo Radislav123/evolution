@@ -1,12 +1,10 @@
 from pathlib import Path
 
-import pygame
-
 from core import models
 from evolution import settings
 
 
-class CreatureSurface(pygame.Surface):
+class CreatureSurface:
     db_model = models.CreatureSurface
 
     @classmethod

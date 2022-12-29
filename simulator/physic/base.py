@@ -3,12 +3,6 @@ import math
 from typing import TYPE_CHECKING
 
 
-# https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
-if TYPE_CHECKING:
-    from simulator.object.creature.bodypart import BaseBodypart
-    from simulator.object.creature.genome import GenomeEffects
-
-
 class Vector:
     def __init__(self, x, y):
         self.x = x
@@ -58,6 +52,12 @@ class Vector:
 
     def copy(self) -> "Vector":
         return copy.deepcopy(self)
+
+
+# https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
+if TYPE_CHECKING:
+    from simulator.creature.bodypart import BaseBodypart
+    from simulator.creature.genome import GenomeEffects
 
 
 class BaseWorldCharacteristics:

@@ -6,7 +6,7 @@ from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
 
 
 if TYPE_CHECKING:
-    from simulator.object.creature import BaseSimulationCreature
+    from simulator.creature import BaseSimulationCreature
 
 
 class BaseBodypart(abc.ABC):

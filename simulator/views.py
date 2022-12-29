@@ -1,10 +1,11 @@
-import pygame
+import arcade
 from django.http import HttpRequest, HttpResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from simulator.object.world import BaseSimulationWorld
+from core.force_server_update import reload_server
+from simulator.window import BaseWindow
 
 
 @method_decorator(csrf_exempt, name = "dispatch")
@@ -31,25 +32,9 @@ class SimulationView(View):
     def simulate(self, request: HttpRequest):
         ticks, width, height, draw, tps = self.process_parameters(request)
 
-        pygame.init()
-        world = BaseSimulationWorld(width, height)
-        if not draw:
-            pygame.display.set_mode(flags = pygame.HIDDEN)
-        world.start()
-        clock = pygame.time.Clock()
+        window = BaseWindow(width, height)
+        window.start()
+        arcade.run()
+        reload_server()
 
-        try:
-            for tick in range(ticks):
-                # чтобы окно не зависало (freeze)
-                pygame.event.pump()
-                world.tick()
-                if draw:
-                    world.draw()
-                clock.tick(tps)
-        except Exception as error:
-            raise error
-        finally:
-            world.stop()
-            pygame.quit()
-
-        return HttpResponse(f"Симуляция окончена. World id: {world.id}.")
+        return HttpResponse(f"Симуляция окончена. World id: {window.world.id}.")

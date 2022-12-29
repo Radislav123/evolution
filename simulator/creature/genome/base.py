@@ -2,15 +2,15 @@ import copy
 import random
 from typing import TYPE_CHECKING, Type, TypeVar
 
-from simulator.object.creature.bodypart import BaseBodypart
-from simulator.object.creature.genome.chromosome import BaseChromosome
-from simulator.object.creature.genome.chromosome.gene import BaseGene
+from simulator.creature.bodypart import BaseBodypart
+from simulator.creature.genome.chromosome import BaseChromosome
+from simulator.creature.genome.chromosome.gene import BaseGene
 from simulator.world_resource import Resources
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.object.creature import BaseSimulationCreature
+    from simulator.creature import BaseSimulationCreature
 
 GENE_CLASS = TypeVar("GENE_CLASS", bound = BaseGene)
 

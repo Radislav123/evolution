@@ -8,7 +8,7 @@ from simulator.world_resource import BaseWorldResource
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.object.creature.genome import BaseGenome
+    from simulator.creature.genome import BaseGenome
 
 step_type = TypeVar("step_type")
 

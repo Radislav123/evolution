@@ -23,8 +23,6 @@ class Creature(ObjectModel):
     start_tick = models.IntegerField()
     # существо перестало существовать
     stop_tick = models.IntegerField()
-    start_x = models.IntegerField()
-    start_y = models.IntegerField()
 
 
 class CreatureSurface(EvolutionModel):
