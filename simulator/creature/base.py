@@ -3,7 +3,9 @@ import math
 import random
 from typing import TYPE_CHECKING
 
+import imagesize
 import arcade
+import pymunk
 
 from core import models
 from core.mixin import DatabaseSavableMixin, WorldObjectMixin
@@ -39,44 +41,51 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
     # (забираются из хранилища, добавляются в returned_resources, а потом (через returned_resources) возвращаются в мир)
     resources_loss_accumulated: Resources[float]
     _resources_loss: Resources[int] | None
+    # часть тела
     body: Body
+    # физический объект в мире
+    physics_body: pymunk.Body
     # todo: привязать к генам
     # отношение количества регенерируемых ресурсов и энергии
     energy_regenerate_cost = 1
+    image_path = f"{settings.SIMULATION_IMAGES_PATH}/BaseCreature.png"
+    image_size = imagesize.get(image_path)
 
     # position - центр существа
     def __init__(
             self,
-            position: tuple[int, int],
+            position: tuple[float, float],
             world: "BaseSimulationWorld",
             parents: list["BaseSimulationCreature"] | None,
             world_generation: bool = False,
             *args,
             **kwargs
     ):
-        super().__init__(f"{settings.SIMULATION_IMAGES_PATH}/BaseCreature.png", *args, **kwargs)
-        self.id = int(f"{world.id}{self.__class__.counter}")
-        self.__class__.counter += 1
-
-        self.center_x = position[0]
-        self.center_y = position[1]
-
-        self.world = world
-        self.start_tick = self.world.age
-        self.stop_tick = self.world.age
-
+        super().__init__(
+            self.image_path,
+            center_x = position[0],
+            center_y = position[1],
+            *args,
+            **kwargs
+        )
         # такая ситуация подразумевается только при генерации мира
         if parents is None and world_generation:
             parents = []
-        self.parents = parents
-
         # такая ситуация подразумевается только при генерации мира
         if world_generation:
             genome = BaseGenome(None, world_generation = True)
         else:
             genome = parents[0].genome.get_child_genome(parents)
-        self.genome = genome
 
+        self.id = int(f"{world.id}{self.__class__.counter}")
+        self.__class__.counter += 1
+
+        self.world = world
+        self.start_tick = self.world.age
+        self.stop_tick = self.world.age
+
+        self.parents = parents
+        self.genome = genome
         self.apply_genes()
         self.apply_bodyparts()
 
@@ -86,7 +95,9 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             self.genome.effects,
             self.world.characteristics,
         )
-        self.characteristics.creature = self
+        # todo: изменять размер отрисовываемого существа при изменении объема (уничтожение/восстановление части тела)
+        self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
+        self.prepare_physics()
 
         self.prepare_resources_loss()
         # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
@@ -94,6 +105,21 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
     def __repr__(self) -> str:
         return self.object_id
+
+    def prepare_physics(self):
+        self.world.physics_engine.add_sprite(
+            self,
+            mass = self.characteristics.mass,
+            # todo: добавить friction (шероховатость поверхности существа) в гены
+            friction = 0.5,
+            elasticity = self.characteristics.elasticity,
+            # сюда передается радиус скругления углов для хитбокса, поэтому его передавать не надо
+            # radius = self.characteristics.radius
+        )
+        self.physics_body = self.world.physics_engine.get_physics_object(self).body
+
+    def update_physics(self):
+        self.physics_body.mass = self.characteristics.mass
 
     def prepare_resources_loss(self):
         self.resources_loss_accumulated = Resources[float]()
@@ -156,12 +182,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         bodyparts = [self.body]
         bodyparts.extend(self.body.all_dependent)
         return bodyparts
-
-    # нужен для работы pygame.sprite.collide_circle
-    # todo: изменять размер отрисовываемого существа при изменении объема (уничтожение/восстановление части тела)
-    @property
-    def radius(self) -> int:
-        return self.characteristics.radius
 
     def start(self):
         self.save_to_db()
@@ -257,15 +277,10 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         if self.can_reproduce():
             self.reproduce()
 
-        self.interact_world_borders()
-        self.characteristics.update_speed()
-        self.characteristics.update_force()
-        if self.can_move():
-            self.move()
-        self.characteristics.update_accumulated_movement()
-
         self.metabolize()
         self.return_resources()
+
+        self.update_physics()
 
     def return_resources(self):
         self.storage.remove_resources(self.storage.extra_resources)
@@ -273,32 +288,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.returned_resources[ENERGY] = 0
         self.world.add_resources(self.position, self.returned_resources)
         self.returned_resources = Resources[int]()
-
-    def interact_world_borders(self):
-        """Расчет пересечения границы мира существом."""
-
-        force_x = 0
-        force_y = 0
-
-        force_coef = self.characteristics.elasticity * 100
-        cross_left = self.position[0] - self.radius - self.world.borders.left
-        cross_right = self.position[0] + self.radius - self.world.borders.right
-        cross_top = self.position[1] - self.radius - self.world.borders.top
-        cross_bottom = self.position[1] + self.radius - self.world.borders.bottom
-
-        if cross_left < 0:
-            force_x -= cross_left
-        if cross_right > 0:
-            force_x -= cross_right
-        if cross_top < 0:
-            force_y -= cross_top
-        if cross_bottom > 0:
-            force_y -= cross_bottom
-
-        force_x *= force_coef
-        force_y *= force_coef
-
-        self.characteristics.force.accumulate(force_x, force_y)
 
     @property
     def present_bodyparts(self) -> list[BaseBodypart]:
@@ -355,21 +344,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
         self._resources_loss = None
 
-    def can_move(self) -> bool:
-        return not self.characteristics.movement.less_then(1)
-
-    def move(self):
-        """Перемещает существо."""
-
-        # todo: remove line
-        # self.rect.move_ip(self.characteristics.movement.round().x, self.characteristics.movement.round().y)
-        models.CreatureMovement(
-            age = self.world.age,
-            creature = self.db_instance,
-            x = self.characteristics.movement.round().x,
-            y = self.characteristics.movement.round().y
-        ).save()
-
     @property
     def resources(self) -> Resources[int]:
         resources = Resources[int]()
@@ -400,7 +374,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             layers.append(self.children_number - sum(layers))
         return layers
 
-    def get_children_positions(self) -> list[tuple[int, int]]:
+    def get_children_positions(self) -> list[tuple[float, float]]:
         # чтобы снизить нагрузку, можно изменить сдвиг до 1.2,
         # тогда существо будет появляться рядом и не будут рассчитываться столкновения
         offset_coef = 0.5
@@ -410,8 +384,12 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         for layer_number, children_in_layer in enumerate(children_layers):
             child_sector = math.pi * 2 / children_in_layer
             for number in range(children_in_layer):
-                offset_x = int(self.radius * 2 * math.cos(child_sector * number) * offset_coef * (layer_number + 1))
-                offset_y = int(self.radius * 2 * math.sin(child_sector * number) * offset_coef * (layer_number + 1))
+                offset_x = int(
+                    self.characteristics.radius * 2 * math.cos(child_sector * number) * offset_coef * (layer_number + 1)
+                )
+                offset_y = int(
+                    self.characteristics.radius * 2 * math.sin(child_sector * number) * offset_coef * (layer_number + 1)
+                )
                 children_positions.append((self.position[0] + offset_x, self.position[1] + offset_y))
         return children_positions
 
@@ -449,7 +427,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
                 child_resources + {ENERGY: self.reproduction_energy_lost * self.reproduction_lost_coef}
             )
             child.storage.add_resources(child_resources)
-            child.characteristics.speed = self.characteristics.speed.copy()
+            # todo: сообщать потомку момент инерции
 
         return children
 
@@ -492,20 +470,3 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
             # тратит энергию за потребление ресурса
             self.resources_loss_accumulated[ENERGY] += consumption_amount * 0.01
-
-    def collision_interact(self, other: "BaseSimulationCreature"):
-        force_coef = self.characteristics.elasticity * other.characteristics.elasticity * 100
-        centers_distance_x = self.position[0] - other.position[0]
-        centers_distance_y = self.position[1] - other.position[1]
-        centers_distance = math.sqrt(centers_distance_x**2 + centers_distance_y**2)
-        # случай, когда центры совпадают
-        if centers_distance == 0:
-            centers_distance = 0.5
-            centers_distance_x = random.random() * 2 - 1
-            centers_distance_y = random.random() * 2 - 1
-        force = (self.radius + other.radius - centers_distance) * force_coef
-        force_x = force / centers_distance * centers_distance_x
-        force_y = force / centers_distance * centers_distance_y
-
-        self.characteristics.force.accumulate(force_x, force_y)
-        other.characteristics.force.accumulate(-force_x, -force_y)

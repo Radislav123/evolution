@@ -27,8 +27,13 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         self.borders = BaseSimulationWorldBorders(0, self.width, 0, self.height)
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
-        self.characteristics = BaseWorldCharacteristics(1)
+        self.characteristics = BaseWorldCharacteristics(0.1)
+        self.physics_engine = self.prepare_physics_engine()
         self.chunks = BaseSimulationWorldChunk.cut_world(self)
+
+    def prepare_physics_engine(self) -> arcade.PymunkPhysicsEngine:
+        physics_engine = arcade.PymunkPhysicsEngine(damping = 1 - self.characteristics.viscosity)
+        return physics_engine
 
     @property
     def id(self) -> int:
@@ -43,6 +48,13 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
     def start(self):
         self.save_to_db()
         self.spawn_start_creature()
+
+    def stop(self):
+        """Выполняет завершающие действия при окончании симуляции."""
+
+        self.save_to_db()
+        for creature in self.creatures:
+            creature.stop()
 
     def spawn_start_creature(self):
         creature = BaseSimulationCreature(
@@ -69,14 +81,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         for creature in existing_creatures:
             creature.on_update(delta_time)
 
-        existing_creatures = copy.copy(self.creatures)
-        for i in range(len(existing_creatures)):
-            for j in range(i + 1, len(existing_creatures)):
-                creature_0 = existing_creatures[i]
-                creature_1 = existing_creatures[j]
-                # todo: replace it with physic engine
-                """if pygame.sprite.collide_circle(creature_0, creature_1):
-                    creature_0.collision_interact(creature_1)"""
+        self.physics_engine.step()
 
         for line in self.chunks:
             for chunk in line:
@@ -84,22 +89,24 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
 
         self.age += 1
 
-    def get_resources(self, position: tuple[int, int]) -> Resources[int]:
+    def get_resources(self, position: tuple[float, float]) -> Resources[int]:
         """Возвращает ресурсы в чанке."""
 
         return self.position_to_chunk(position).get_resources()
 
-    def add_resources(self, position: tuple[int, int], resources: Resources[int]):
+    def add_resources(self, position: tuple[float, float], resources: Resources[int]):
         """Добавляет ресурсы в чанк."""
 
         return self.position_to_chunk(position).add_resources(resources)
 
-    def remove_resources(self, position: tuple[int, int], resources: Resources[int]):
+    def remove_resources(self, position: tuple[float, float], resources: Resources[int]):
         """Убирает ресурсы из чанка."""
 
         return self.position_to_chunk(position).remove_resources(resources)
 
     def draw(self):
+        # можно отрисовывать всех существ по отдельности, итерируясь по self.creatures,
+        # что позволит переопределить метод draw существа (иначе, переопределение этого метода не влияет на отрисовку)
         self.creatures.draw()
         self.borders.draw()
 
@@ -109,7 +116,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
                 for chunk in line:
                     chunk.draw()
 
-    def position_to_chunk(self, position: tuple[int, int]) -> "BaseSimulationWorldChunk":
+    def position_to_chunk(self, position: tuple[float, float]) -> "BaseSimulationWorldChunk":
         x = int((position[0] - self.chunks[0][0].left) / self.chunk_width)
         y = int((position[1] - self.chunks[0][0].bottom) / self.chunk_height)
         if x < 0:

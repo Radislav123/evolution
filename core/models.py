@@ -6,18 +6,13 @@ class EvolutionModel(models.Model):
         abstract = True
 
 
-class ObjectModel(EvolutionModel):
-    class Meta:
-        abstract = True
-
-
-class World(ObjectModel):
+class World(EvolutionModel):
     stop_tick = models.PositiveIntegerField()
     width = models.PositiveIntegerField()
     height = models.PositiveIntegerField()
 
 
-class Creature(ObjectModel):
+class Creature(EvolutionModel):
     world = models.ForeignKey(World, models.RESTRICT)
     # существо появилось
     start_tick = models.IntegerField()
@@ -38,7 +33,7 @@ class CreatureParent(EvolutionModel):
     parent = models.ForeignKey(Creature, models.RESTRICT, related_name = "creature_parent")
 
 
-class CreatureStorage(ObjectModel):
+class CreatureStorage(EvolutionModel):
     creature = models.OneToOneField(Creature, models.RESTRICT, primary_key = True)
 
 
@@ -49,14 +44,3 @@ class StoredResource(EvolutionModel):
     resource = models.CharField(max_length = 10)
     capacity = models.IntegerField()
     current = models.IntegerField()
-
-
-# характеризует сдвиг существа каждый тик
-class CreatureMovement(EvolutionModel):
-    creature = models.ForeignKey(Creature, models.RESTRICT)
-    age = models.IntegerField()
-    x = models.IntegerField()
-    y = models.IntegerField()
-
-    def __str__(self):
-        return f"creature: {self.creature}, age: {self.age}, x: {self.x}, y: {self.y}"

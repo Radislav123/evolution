@@ -26,7 +26,6 @@ class BaseColorGene(BaseGene, abc.ABC):
 class RedGene(BaseColorGene):
     abstract = False
     color_number = 0
-    current = 100
 
 
 class GreenGene(BaseColorGene):

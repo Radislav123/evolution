@@ -23,6 +23,8 @@ class GenomeEffects:
         # иначе не простые типы (list, dict) используются всеми экземплярами совместно
         self.children_number = 0
         self.size = 0.0
+        # todo: настроить гены, чтобы эластичность принадлежала отрезку [0, 1),
+        #  где 0 - абсолютно твердое тела, а 1 - абсолютно упругое тело
         self.elasticity = 0.0
         self.consumption_amount = Resources[int]()
         self.bodyparts: list[BaseBodypart] = []

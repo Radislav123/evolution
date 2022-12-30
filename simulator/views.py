@@ -33,8 +33,13 @@ class SimulationView(View):
         ticks, width, height, draw, tps = self.process_parameters(request)
 
         window = BaseWindow(width, height)
-        window.start()
-        arcade.run()
-        reload_server()
+        try:
+            window.start()
+            arcade.run()
+        except Exception as error:
+            raise error
+        finally:
+            window.world.stop()
+            reload_server()
 
         return HttpResponse(f"Симуляция окончена. World id: {window.world.id}.")
