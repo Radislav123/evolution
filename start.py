@@ -8,8 +8,8 @@ if simulation:
     path = "simulator"
     params = {
         "ticks": 500,
-        "width": 200,
-        "height": 200,
+        "width": 50,
+        "height": 50,
         "draw": 1,
         "tps": 0
     }

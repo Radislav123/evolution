@@ -3,8 +3,8 @@ import math
 import random
 from typing import TYPE_CHECKING
 
-import imagesize
 import arcade
+import imagesize
 import pymunk
 
 from core import models
@@ -23,31 +23,9 @@ if TYPE_CHECKING:
 
 class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Sprite):
     db_model = models.Creature
-    counter: int = 0
-    genome: BaseGenome
-    children_number: int
-    consumption_amount: Resources[int]
-    bodyparts: list[BaseBodypart]
-    storage: Storage
-    # todo: привязать к генам
-    reproduction_lost_coef = 1.05
-    # todo: привязать к генам
-    reproduction_reserve_coef = 1.1
-    # todo: привязать к генам
-    reproduction_energy_lost = 20
-    color: list[int]
-    alive = True
-    # все траты ресурсов в течении тика добавлять сюда
-    # (забираются из хранилища, добавляются в returned_resources, а потом (через returned_resources) возвращаются в мир)
-    resources_loss_accumulated: Resources[float]
-    _resources_loss: Resources[int] | None
-    # часть тела
-    body: Body
-    # физический объект в мире
-    physics_body: pymunk.Body
-    # todo: привязать к генам
-    # отношение количества регенерируемых ресурсов и энергии
-    energy_regenerate_cost = 1
+    counter = 0
+    birth_counter = 0
+    death_counter = 0
     image_path = f"{settings.SIMULATION_IMAGES_PATH}/BaseCreature.png"
     image_size = imagesize.get(image_path)
 
@@ -61,6 +39,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             *args,
             **kwargs
     ):
+        self.__class__.birth_counter += 1
         super().__init__(
             self.image_path,
             center_x = position[0],
@@ -75,21 +54,37 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         if world_generation:
             genome = BaseGenome(None, world_generation = True)
         else:
+            # noinspection PyUnresolvedReferences
             genome = parents[0].genome.get_child_genome(parents)
 
         self.id = int(f"{world.id}{self.__class__.counter}")
         self.__class__.counter += 1
 
+        # общая инициализация
         self.world = world
         self.start_tick = self.world.age
         self.stop_tick = self.world.age
+        self.alive = True
 
+        # инициализация генов
         self.parents = parents
         self.genome = genome
+        self.children_number: int | None = None
+        # todo: привязать к генам
+        self.reproduction_lost_coef = 1.05
+        # todo: привязать к генам
+        self.reproduction_reserve_coef = 1.1
+        # todo: привязать к генам
+        self.reproduction_energy_lost = 20
+        self.consumption_amount: Resources[int] | None = None
         self.apply_genes()
+
+        # инициализация частей тела
+        self.body: Body | None = None
+        self.storage: Storage | None = None
         self.apply_bodyparts()
 
-        # физические характеристики существа
+        # инициализация физических характеристик
         self.characteristics = BaseCreatureCharacteristics(
             self.bodyparts,
             self.genome.effects,
@@ -97,8 +92,18 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         )
         # todo: изменять размер отрисовываемого существа при изменении объема (уничтожение/восстановление части тела)
         self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
+        self.physics_body: pymunk.Body | None = None
         self.prepare_physics()
 
+        # инициализация ресурсов, которые будут тратиться каждый тик
+        # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
+        # (забираются из хранилища, добавляются в returned_resources,
+        # а потом (через returned_resources) возвращаются в мир)
+        self.resources_loss_accumulated: Resources[float] | None = None
+        self._resources_loss: Resources[int] | None = None
+        # todo: привязать к генам
+        # отношение количества регенерируемых ресурсов и энергии
+        self.energy_regenerate_cost = 1
         self.prepare_resources_loss()
         # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
         self.returned_resources = Resources[int]()
@@ -136,7 +141,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
             self.resources_loss_accumulated = resources_loss - resources_loss.round()
             self._resources_loss = resources_loss.round()
-        return copy.copy(self._resources_loss)
+        return self._resources_loss
 
     def apply_bodyparts(self):
         """Применяет эффекты частей тела на существо."""
@@ -201,8 +206,8 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.db_instance.save()
 
     def kill(self):
-        return_resources = self.body.destroy()
-        self.returned_resources += return_resources
+        self.__class__.death_counter += 1
+        self.returned_resources += self.body.destroy()
 
         self.alive = False
         self.stop()
@@ -283,8 +288,8 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.update_physics()
 
     def return_resources(self):
-        self.storage.remove_resources(self.storage.extra_resources)
         self.returned_resources += self.storage.extra_resources
+        self.storage.remove_resources(self.storage.extra_resources)
         self.returned_resources[ENERGY] = 0
         self.world.add_resources(self.position, self.returned_resources)
         self.returned_resources = Resources[int]()
@@ -352,6 +357,20 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         return resources
 
     @property
+    def damage(self) -> Resources[int]:
+        resources = Resources[int]()
+        for bodypart in self.bodyparts:
+            resources += bodypart.damage
+        return resources
+
+    @property
+    def remaining_resources(self) -> Resources[int]:
+        resources = Resources[int]()
+        for bodypart in self.bodyparts:
+            resources += bodypart.remaining_resources
+        return resources
+
+    @property
     def extra_storage(self) -> Resources[int]:
         extra_storage = Resources[int]()
         for bodypart in self.bodyparts:
@@ -359,7 +378,8 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         return extra_storage
 
     def get_children_resources(self) -> list[Resources[int]]:
-        children_resources = [self.storage.stored_resources // (self.children_number + 1)] * self.children_number
+        resources = self.storage.stored_resources // (self.children_number + 1)
+        children_resources = [copy.deepcopy(resources) for _ in range(self.children_number)]
         return children_resources
 
     def get_children_layers(self) -> list[int]:
@@ -384,12 +404,11 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         for layer_number, children_in_layer in enumerate(children_layers):
             child_sector = math.pi * 2 / children_in_layer
             for number in range(children_in_layer):
-                offset_x = int(
-                    self.characteristics.radius * 2 * math.cos(child_sector * number) * offset_coef * (layer_number + 1)
-                )
-                offset_y = int(
-                    self.characteristics.radius * 2 * math.sin(child_sector * number) * offset_coef * (layer_number + 1)
-                )
+                offset_x = self.characteristics.radius * 2 * math.cos(child_sector * number) \
+                           * offset_coef * (layer_number + 1)
+                offset_y = self.characteristics.radius * 2 * math.sin(child_sector * number) \
+                           * offset_coef * (layer_number + 1)
+
                 children_positions.append((self.position[0] + offset_x, self.position[1] + offset_y))
         return children_positions
 
@@ -412,6 +431,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
     def reproduce(self) -> list["BaseSimulationCreature"]:
         """Симулирует размножение существа."""
 
+        # инициализация потомков
         children = [
             self.__class__(
                 position,
@@ -421,11 +441,20 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             for position in self.get_children_positions()
         ]
 
+        # трата ресурсов на тела потомков
+        child_body_resources = Resources[int](
+            {ENERGY: self.reproduction_energy_lost * self.reproduction_lost_coef * self.children_number}
+        )
+        for child in children:
+            child_body_resources += child.resources
+        self.storage.remove_resources(child_body_resources)
+
+        # подготовка потомков
         for child, child_resources in zip(children, self.get_children_resources()):
             child.start()
-            self.storage.remove_resources(
-                child_resources + {ENERGY: self.reproduction_energy_lost * self.reproduction_lost_coef}
-            )
+            # изымание ресурсов для потомка у родителя
+            self.storage.remove_resources(child_resources)
+            # передача потомку части ресурсов родителя
             child.storage.add_resources(child_resources)
             # todo: сообщать потомку момент инерции
 
@@ -463,10 +492,12 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
                 consumption_amount = self.consumption_amount[resource]
             else:
                 consumption_amount = available_amount
-            self.world.remove_resources(self.position, Resources[int]({resource: consumption_amount}))
+
+            consumption_resources = {resource: consumption_amount}
+            self.world.remove_resources(self.position, consumption_resources)
 
             # добавляет в свое хранилище
-            self.storage.add_resources({resource: consumption_amount})
+            self.storage.add_resources(consumption_resources)
 
             # тратит энергию за потребление ресурса
             self.resources_loss_accumulated[ENERGY] += consumption_amount * 0.01
