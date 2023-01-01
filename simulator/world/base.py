@@ -50,7 +50,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         self.prepare_borders()
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
-        self.characteristics = BaseWorldCharacteristics(0.1)
+        self.characteristics = BaseWorldCharacteristics(0.1, 0)
         self.prepare_physics_engine()
         self.chunks = BaseSimulationWorldChunk.cut_world(self)
 
@@ -108,8 +108,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         self.physics_engine = arcade.PymunkPhysicsEngine(damping = 1 - self.characteristics.viscosity)
         self.physics_engine.add_sprite_list(
             self.borders,
-            # todo: перенести в характеристики мира
-            friction = 0,
+            friction = self.characteristics.borders_friction,
             body_type = arcade.PymunkPhysicsEngine.STATIC
         )
 

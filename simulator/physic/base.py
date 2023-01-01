@@ -9,13 +9,14 @@ if TYPE_CHECKING:
 
 
 class BaseWorldCharacteristics:
-    def __init__(self, viscosity):
+    def __init__(self, viscosity: float, borders_friction: float):
         # вязкость
         # 1 - объекты теряют всю скорость после каждого тика
         # 0 - не теряют скорости вообще
         if not 0 <= viscosity <= 1:
             raise ValueError(f"Viscosity must belong to [0, 1], but {viscosity} was given")
         self.viscosity = viscosity
+        self.borders_friction = borders_friction
 
 
 class BaseCreatureCharacteristics:
