@@ -141,6 +141,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
             world_generation = True
         )
         creature.start()
+        self.remove_resources(creature.position, creature.remaining_resources)
 
     def add_creature(self, creature: BaseSimulationCreature):
         """Добавляет существо в мир."""
@@ -240,7 +241,7 @@ class BaseSimulationWorldChunk:
         self.bottom = left_bottom[1]
         self.top = self.bottom + height - 1
         self.color = (100, 100, 100)
-        resource_coef = 0.1
+        resource_coef = 0.5
         self.default_resource_amount = int((self.right - self.left + 1) * (self.top - self.bottom + 1) * resource_coef)
         self._resources = Resources[int](
             {
@@ -265,6 +266,9 @@ class BaseSimulationWorldChunk:
 
     def remove_resources(self, resources: Resources[int] | dict[BaseWorldResource, ResourceAmount[int] | int]):
         self._resources -= resources
+        for resource, amount in self._resources.items():
+            if amount < 0:
+                raise ValueError(f"{resource} in {self} can not be lower than 0, current is {amount}")
 
     def draw(self):
         arcade.draw_xywh_rectangle_outline(

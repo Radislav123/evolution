@@ -1,12 +1,11 @@
 import abc
 
-from simulator.creature.genome.chromosome.gene import BaseGene
+from simulator.creature.genome.chromosome.gene import BaseGene, StepGeneMixin
 
 
-class BaseColorGene(BaseGene, abc.ABC):
+class BaseColorGene(StepGeneMixin, BaseGene, abc.ABC):
     required_for_creature = False
-    positive_step = 10
-    negative_step = 5
+    step = 10
     # сейчас вырабатываемый пигмент не дает расхода ресурсов
     # потом можно будет добавить следующее - пигмент является синтезируемым веществом, накапливаемом в организме
     effect_attribute_name = None

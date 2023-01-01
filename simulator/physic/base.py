@@ -29,7 +29,7 @@ class BaseCreatureCharacteristics:
         self.bodyparts = bodyparts
         self.genome_effects = genome_effects
         if not 0 <= genome_effects.elasticity <= 1:
-            raise ValueError(f"Elasticity must belong to [0, 1), but {genome_effects.elasticity} was given")
+            raise ValueError(f"Elasticity must belong to [0, 1], but {genome_effects.elasticity} was given")
         self.elasticity = genome_effects.elasticity
         self.size = self.genome_effects.size
         self.world_characteristics = world_characteristics

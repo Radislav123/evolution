@@ -1,7 +1,7 @@
 import abc
 
 from simulator.creature.bodypart import BaseBodypart, Body, Storage
-from simulator.creature.genome.chromosome.gene import BaseGene
+from simulator.creature.genome.chromosome.gene import BaseGene, StepGeneMixin
 from simulator.world_resource import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
 
 
@@ -59,7 +59,7 @@ class StorageGene(BaseBodyPartGene):
         pass
 
 
-class BaseResourceStorageGene(BaseBodyPartGene, abc.ABC):
+class BaseResourceStorageGene(StepGeneMixin, BaseBodyPartGene, abc.ABC):
     # bodypart = ResourceStorage
     resource: BaseWorldResource
     step = 10
@@ -117,7 +117,7 @@ class HydrogenStorageGene(BaseResourceStorageGene):
     default_capacity = 100
 
 
-class BaseResourceConsumptionGene(BaseGene, abc.ABC):
+class BaseResourceConsumptionGene(StepGeneMixin, BaseGene, abc.ABC):
     """Базовый класс для генов, позволяющих потреблять ресурсы."""
 
     step = 1

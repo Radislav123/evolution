@@ -1,6 +1,6 @@
 import abc
 import random
-from typing import Self, TYPE_CHECKING, Type, TypeVar
+from typing import Self, TYPE_CHECKING, Type, TypeVar, Literal
 
 from core.mixin import GetSubclassesMixin
 from simulator.world_resource import BaseWorldResource
@@ -25,10 +25,6 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
     mutation_chance = 0.001
     disappearance_chance = 0.001
     appearance_chance = 1
-    step: step_type
-    positive_step: step_type
-    # число должно быть положительным (см. make_step)
-    negative_step: step_type
     resources_loss_effect_attribute_name: str
 
     def __init__(self, first: bool):
@@ -37,11 +33,6 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
-
-    def make_step(self) -> step_type:
-        negative_step = self.negative_step if hasattr(self, "negative_step") else self.step
-        positive_step = self.positive_step if hasattr(self, "positive_step") else self.step
-        return [-negative_step, positive_step][random.randint(0, 1)]
 
     def apply_resources_loss(self, genome: "BaseGenome"):
         for resource in self.resources_loss_coeffs:
@@ -79,3 +70,31 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
             if random.random() < self.disappearance_chance:
                 can_disappear = True
         return can_disappear
+
+
+class StepGeneMixin:
+    # шаг изменения влияния гена
+    step: step_type
+    positive_step: step_type
+    # число должно быть положительным (см. make_step)
+    negative_step: step_type
+    # минимальное значение влияния гена
+    min_limit: int
+    # максимальное значение влияния гена
+    max_limit: int
+    # минимальное значение влияния всех таких генов
+    common_min_limit: int
+    # максимальное значение влияния всех таких генов
+    common_max_limit: int
+
+    def make_step(self, sign: Literal['+', '-', None] = None) -> step_type:
+        step = None
+        negative_step = self.negative_step if hasattr(self, "negative_step") else self.step
+        positive_step = self.positive_step if hasattr(self, "positive_step") else self.step
+        if sign is None:
+            step = [-negative_step, positive_step][random.randint(0, 1)]
+        elif sign == '+':
+            step = positive_step
+        elif sign == '-':
+            step = negative_step
+        return step
