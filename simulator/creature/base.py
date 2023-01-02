@@ -90,7 +90,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             self.genome.effects,
             self.world.characteristics,
         )
-        # todo: изменять размер отрисовываемого существа при изменении объема (уничтожение/восстановление части тела)
         self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
         self.physics_body: pymunk.Body | None = None
         self.prepare_physics()
