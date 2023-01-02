@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="start" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+  <configuration default="false" name="start_from_django" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
     <module name="evolution" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -9,10 +9,10 @@
     <option name="SDK_HOME" value="C:\intellij_projects\evolution\venv\Scripts\python.exe" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
     <option name="IS_MODULE_SDK" value="true" />
-    <option name="ADD_CONTENT_ROOTS" value="false" />
-    <option name="ADD_SOURCE_ROOTS" value="false" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/start.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/start_from_django.py" />
     <option name="PARAMETERS" value="" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />

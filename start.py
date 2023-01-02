@@ -1,25 +1,26 @@
-import requests
+import arcade
+
+# noinspection PyUnresolvedReferences
+import configure_django
+from simulator.window import BaseWindow
 
 
-simulation = True
+# https://www.b-list.org/weblog/2007/sep/22/standalone-django-scripts/
+def simulate():
+    width = 50
+    height = 50
 
-if simulation:
-    method = "simulate"
-    path = "simulator"
-    params = {
-        "ticks": 500,
-        "width": 50,
-        "height": 50,
-        "draw": 1,
-        "tps": 0
-    }
-else:
-    method = "play"
-    path = "player"
-    params = {
-        "world_db_id": 237,
-        "tps": 50
-    }
+    window = BaseWindow(width, height)
+    try:
+        window.start()
+        arcade.run()
+    except Exception as error:
+        raise error
+    finally:
+        window.world.stop()
+        # reload_server()
 
-response = requests.request(method, f"http://127.0.0.1:8000/{path}/", params = params)
-print(f"{response.status_code}: {response.text}")
+
+if __name__ == "__main__":
+    # main()
+    simulate()
