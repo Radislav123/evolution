@@ -24,7 +24,7 @@ class BaseBodypart(abc.ABC):
         self.required_bodypart: "BaseBodypart" = required_bodypart
         self.dependent_bodyparts: list["BaseBodypart"] = []
 
-        self.damage = Resources[0]()
+        self.damage = Resources[int]()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"

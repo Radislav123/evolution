@@ -259,7 +259,7 @@ class BaseSimulationWorldChunk:
         self._resources[ENERGY] = self.default_resource_amount
 
     def get_resources(self) -> Resources[int]:
-        return copy.deepcopy(self._resources)
+        return self._resources
 
     def add_resources(self, resources: Resources[int] | dict[BaseWorldResource, ResourceAmount[int] | int]):
         self._resources += resources

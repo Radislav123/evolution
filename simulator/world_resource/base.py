@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Generic, Self, TypeVar, Union
+from evolution import settings
 
 
 @dataclass
@@ -42,7 +43,8 @@ VT = TypeVar("VT", int, float)
 
 class ResourceAmount(Generic[VT]):
     def __init__(self, amount: Union["ResourceAmount", VT]):
-        self.check_type(amount)
+        if settings.DEBUG:
+            self.check_type(amount)
         self.amount = self.get_amount(amount)
 
     def __repr__(self) -> str:

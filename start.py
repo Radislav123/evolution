@@ -18,9 +18,8 @@ def simulate():
         raise error
     finally:
         window.world.stop()
-        # reload_server()
+    print(f"Симуляция окончена. World id: {window.world.id}.")
 
 
 if __name__ == "__main__":
-    # main()
     simulate()
