@@ -29,10 +29,10 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
     image_path = f"{settings.SIMULATION_IMAGES_PATH}/BaseCreature.png"
     image_size = imagesize.get(image_path)
 
+    # todo: структурировать код, упорядочить методы классов
     # position - центр существа
     def __init__(
             self,
-            position: tuple[float, float],
             world: "BaseSimulationWorld",
             parents: list["BaseSimulationCreature"] | None,
             world_generation: bool = False,
@@ -42,8 +42,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.__class__.birth_counter += 1
         super().__init__(
             self.image_path,
-            center_x = position[0],
-            center_y = position[1],
             *args,
             **kwargs
         )
@@ -70,6 +68,9 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.parents = parents
         self.genome = genome
         self.children_number: int | None = None
+        self.children: list[BaseSimulationCreature] | None = None
+        # ресурсы, необходимые для воспроизведения всех потомков
+        self.reproduction_resources: Resources[int] | None = None
         # todo: привязать к генам
         self.reproduction_lost_coef = 1.05
         # todo: привязать к генам
@@ -85,12 +86,12 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.apply_bodyparts()
 
         # инициализация физических характеристик
+        self.characteristics: BaseCreatureCharacteristics | None = None
         self.characteristics = BaseCreatureCharacteristics(
             self.bodyparts,
             self.genome.effects,
             self.world.characteristics,
         )
-        self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
         self.physics_body: pymunk.Body | None = None
         self.prepare_physics()
 
@@ -100,17 +101,27 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         # а потом (через returned_resources) возвращаются в мир)
         self.resources_loss_accumulated: Resources[float] | None = None
         self._resources_loss: Resources[int] | None = None
+        self.prepare_resources_loss()
         # todo: привязать к генам
         # отношение количества регенерируемых ресурсов и энергии
         self.energy_regenerate_cost = 1
-        self.prepare_resources_loss()
         # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
         self.returned_resources = Resources[int]()
 
     def __repr__(self) -> str:
         return self.object_id
 
+    def fertilize(self):
+        self.children = [self.__class__(self.world, [self]) for _ in range(self.children_number)]
+        self.reproduction_resources = Resources[int]()
+        for child in self.children:
+            self.reproduction_resources += child.resources
+        self.reproduction_resources[ENERGY] += int(
+            self.reproduction_energy_lost * self.reproduction_lost_coef * self.children_number
+        )
+
     def prepare_physics(self):
+        self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
         self.world.physics_engine.add_sprite(
             self,
             mass = self.characteristics.mass,
@@ -188,8 +199,10 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         return bodyparts
 
     def start(self):
-        self.save_to_db()
         self.start_tick = self.world.age
+        self.save_to_db()
+        # todo: изменить логику оплодотворения после введения полового размножения
+        self.fertilize()
         self.world.add_creature(self)
 
     def stop(self):
@@ -376,9 +389,12 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             extra_storage += bodypart.extra_storage
         return extra_storage
 
-    def get_children_resources(self) -> list[Resources[int]]:
-        resources = self.storage.stored_resources // (self.children_number + 1)
-        children_resources = [copy.deepcopy(resources) for _ in range(self.children_number)]
+    def get_children_sharing_resources(self) -> list[Resources[int]]:
+        if self.children_number > 0:
+            resources = self.storage.stored_resources // (self.children_number + 1)
+            children_resources = [copy.deepcopy(resources) for _ in range(self.children_number)]
+        else:
+            children_resources = []
         return children_resources
 
     def get_children_layers(self) -> list[int]:
@@ -413,51 +429,31 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
     def can_reproduce(self) -> bool:
         can_reproduce = True
-        needed_resources = self.resources * self.children_number * self.reproduction_lost_coef * \
-                           self.reproduction_reserve_coef
-        # todo: убрать self.resources[ENERGY], когда уберу ENERGY из ресурсов Body
-        needed_resources[ENERGY] = self.resources[ENERGY] * self.reproduction_lost_coef * \
-                                   self.reproduction_reserve_coef + self.reproduction_energy_lost * self.children_number
-        needed_resources.round_ip()
-
-        for resource, amount in needed_resources.items():
+        for resource, amount in self.reproduction_resources.items():
             if self.storage[resource].current <= amount:
                 can_reproduce = False
                 break
-
         return can_reproduce
 
-    def reproduce(self) -> list["BaseSimulationCreature"]:
+    def reproduce(self):
         """Симулирует размножение существа."""
 
-        # инициализация потомков
-        children = [
-            self.__class__(
-                position,
-                self.world,
-                [self]
-            )
-            for position in self.get_children_positions()
-        ]
-
         # трата ресурсов на тела потомков
-        child_body_resources = Resources[int](
-            {ENERGY: self.reproduction_energy_lost * self.reproduction_lost_coef * self.children_number}
-        )
-        for child in children:
-            child_body_resources += child.resources
-        self.storage.remove_resources(child_body_resources)
+        self.storage.remove_resources(self.returned_resources)
 
         # подготовка потомков
-        for child, child_resources in zip(children, self.get_children_resources()):
-            child.start()
+        for child, child_resources, child_position in \
+                zip(self.children, self.get_children_sharing_resources(), self.get_children_positions()):
+            child.physics_body.position = child_position
             # изымание ресурсов для потомка у родителя
             self.storage.remove_resources(child_resources)
             # передача потомку части ресурсов родителя
             child.storage.add_resources(child_resources)
+            child.start()
             # todo: сообщать потомку момент инерции
 
-        return children
+        # подготовка новых потомков
+        self.fertilize()
 
     def can_consume(self) -> bool:
         can_consume = False

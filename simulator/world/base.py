@@ -134,11 +134,11 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
 
     def spawn_start_creature(self):
         creature = BaseSimulationCreature(
-            copy.copy(self.center),
             self,
             None,
             world_generation = True
         )
+        creature.physics_body.position = self.center
         creature.start()
         self.remove_resources(creature.position, creature.remaining_resources)
 
