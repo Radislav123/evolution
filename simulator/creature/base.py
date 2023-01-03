@@ -473,7 +473,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         for resource in self.storage:
             if 0 <= self.storage.fullness[resource] < 1 and self.world.get_resources(self.position)[resource] > 0:
                 resources.append(resource)
-                weights.append(1 - self.storage.fullness[resource].amount)
+                weights.append(1 - self.storage.fullness[resource])
         if len(resources) > 0:
             resource = random.choices(resources, weights)[0]
         else:

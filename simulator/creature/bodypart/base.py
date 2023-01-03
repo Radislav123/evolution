@@ -137,7 +137,7 @@ class BaseBodypart(abc.ABC):
     @property
     def volume(self) -> int:
         if not self.destroyed:
-            volume = int(sum([resource.volume * amount.amount for resource, amount in self.resources.items()]))
+            volume = int(sum([resource.volume * amount for resource, amount in self.resources.items()]))
         else:
             volume = 0
         return volume
@@ -145,7 +145,7 @@ class BaseBodypart(abc.ABC):
     @property
     def mass(self) -> int:
         if not self.destroyed:
-            mass = sum([resource.mass * amount.amount for resource, amount in self.remaining_resources.items()])
+            mass = sum([resource.mass * amount for resource, amount in self.remaining_resources.items()])
         else:
             mass = 0
         return mass

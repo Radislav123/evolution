@@ -1,5 +1,5 @@
 from simulator.creature.bodypart import BaseBodypart, Body
-from simulator.world_resource import BaseWorldResource, CARBON, HYDROGEN, OXYGEN, ResourceAmount, Resources
+from simulator.world_resource import BaseWorldResource, CARBON, HYDROGEN, OXYGEN, Resources
 
 
 class Storage(BaseBodypart):
@@ -57,7 +57,7 @@ class Storage(BaseBodypart):
         self._storage[resource] = resource_storage
         self.dependent_bodyparts.append(resource_storage)
 
-    def add_resources(self, resources: Resources[int] | dict[BaseWorldResource, ResourceAmount[int] | int]):
+    def add_resources(self, resources: Resources[int] | dict[BaseWorldResource, int | int]):
         for resource, amount in resources.items():
             if amount > 0:
                 self._storage[resource].add(amount)
@@ -95,7 +95,7 @@ class Storage(BaseBodypart):
 
 class ResourceStorage(BaseBodypart):
     world_resource: BaseWorldResource
-    capacity: ResourceAmount[int]
+    capacity: int
     required_bodypart_class = Storage
     # показывает дополнительное увеличение объема части тела (хранилища), в зависимости от вместимости
     extra_volume_coef = 0.1
@@ -110,23 +110,23 @@ class ResourceStorage(BaseBodypart):
         super().__init__(size, required_bodypart)
 
         self.world_resource = world_resource
-        self.current = ResourceAmount[int](0)
+        self.current = 0
 
     def __repr__(self):
         return f"{repr(self.world_resource)}Storage: {self.current}/{self.capacity}"
 
     @property
     def fullness(self) -> float:
-        return (self.current / self.capacity).amount
+        return self.current / self.capacity
 
-    def add(self, amount: ResourceAmount[int] | int):
+    def add(self, amount: int):
         self.current += amount
 
-    def remove(self, amount: ResourceAmount[int] | int):
+    def remove(self, amount: int):
         self.current -= amount
 
     def reset(self):
-        self.current = ResourceAmount[int](0)
+        self.current = 0
 
     def destroy(self) -> Resources[int]:
         return_resources = Resources[int]({self.world_resource: self.current})
@@ -143,29 +143,29 @@ class ResourceStorage(BaseBodypart):
         return self.current <= 0
 
     @property
-    def extra(self) -> ResourceAmount[int]:
+    def extra(self) -> int:
         if self.full:
             extra = self.current - self.capacity
         else:
-            extra = ResourceAmount[int](0)
+            extra = 0
         return extra
 
     @property
-    def lack(self) -> ResourceAmount[int]:
+    def lack(self) -> int:
         if self.empty:
             lack = -self.current
         else:
-            lack = ResourceAmount[int](0)
+            lack = 0
         return lack
 
     @property
     def volume(self) -> int:
         volume = super().volume
-        volume += int(self.world_resource.volume * self.capacity.amount * self.extra_volume_coef)
+        volume += int(self.world_resource.volume * self.capacity * self.extra_volume_coef)
         return volume
 
     @property
     def mass(self) -> int:
         mass = super().mass
-        mass += self.world_resource.mass * self.current.amount
+        mass += self.world_resource.mass * self.current
         return mass

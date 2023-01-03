@@ -6,7 +6,7 @@ from core import models
 from core.mixin import DatabaseSavableMixin, WorldObjectMixin
 from simulator.creature import BaseSimulationCreature
 from simulator.physic import BaseWorldCharacteristics
-from simulator.world_resource import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN, ResourceAmount, Resources
+from simulator.world_resource import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
 
 
 class Switch:
@@ -47,10 +47,10 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         self.chunk_width = 50
         self.chunk_height = 50
 
-        self.prepare_borders()
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
-        self.characteristics = BaseWorldCharacteristics(0.1, 0)
+        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.2)
+        self.prepare_borders()
         self.prepare_physics_engine()
         self.chunks = BaseSimulationWorldChunk.cut_world(self)
 
@@ -71,30 +71,29 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         left, right, bottom, top = self.get_borders_coordinates()
 
         # инициализация спрайтов границ
-        thickness = 100
-        color = (0, 0, 0)
+        color = (200, 200, 200)
 
         left_border = arcade.SpriteSolidColor(
-            thickness,
-            self.height + thickness * 2,
+            self.characteristics.borders_thickness,
+            self.height + self.characteristics.borders_thickness * 2,
             color
         )
         right_border = copy.deepcopy(left_border)
         bottom_border = arcade.SpriteSolidColor(
-            self.width + thickness * 2,
-            thickness,
+            self.width + self.characteristics.borders_thickness * 2,
+            self.characteristics.borders_thickness,
             color
         )
 
         # размещение спрайтов границ
         top_border = copy.deepcopy(bottom_border)
         left_border.right = left
-        left_border.bottom = bottom - thickness
+        left_border.bottom = bottom - self.characteristics.borders_thickness
         right_border.left = right
-        right_border.bottom = bottom - thickness
-        bottom_border.left = left - thickness
+        right_border.bottom = bottom - self.characteristics.borders_thickness
+        bottom_border.left = left - self.characteristics.borders_thickness
         bottom_border.top = bottom
-        top_border.left = left - thickness
+        top_border.left = left - self.characteristics.borders_thickness
         top_border.bottom = top
 
         # добавление в список
@@ -193,7 +192,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
     def add_resources(
             self,
             position: tuple[float, float],
-            resources: Resources[int] | dict[BaseWorldResource, ResourceAmount[int] | int]
+            resources: Resources[int] | dict[BaseWorldResource, int]
     ):
         """Добавляет ресурсы в чанк."""
 
@@ -202,7 +201,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
     def remove_resources(
             self,
             position: tuple[float, float],
-            resources: Resources[int] | dict[BaseWorldResource, ResourceAmount[int] | int]
+            resources: Resources[int] | dict[BaseWorldResource, int]
     ):
         """Убирает ресурсы из чанка."""
 
@@ -214,7 +213,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         # что позволит переопределить метод draw существа (иначе, переопределение этого метода не влияет на отрисовку)
         self.creatures.draw()
 
-        draw_chunks = True
+        draw_chunks = False
         if draw_chunks:
             for line in self.chunks:
                 for chunk in line:
@@ -235,14 +234,15 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
 
 
 class BaseSimulationWorldChunk:
-    def __init__(self, left_bottom: tuple[int, int], width: int, height: int):
+    def __init__(self, left_bottom: tuple[int, int], width: int, height: int, world: BaseSimulationWorld):
         self.left = left_bottom[0]
         self.right = self.left + width - 1
         self.bottom = left_bottom[1]
         self.top = self.bottom + height - 1
         self.color = (100, 100, 100)
-        resource_coef = 0.5
-        self.default_resource_amount = int((self.right - self.left + 1) * (self.top - self.bottom + 1) * resource_coef)
+        self.default_resource_amount = int(
+            (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_coef
+        )
         self._resources = Resources[int](
             {
                 ENERGY: self.default_resource_amount,
@@ -261,10 +261,10 @@ class BaseSimulationWorldChunk:
     def get_resources(self) -> Resources[int]:
         return self._resources
 
-    def add_resources(self, resources: Resources[int] | dict[BaseWorldResource, ResourceAmount[int] | int]):
+    def add_resources(self, resources: Resources[int] | dict[BaseWorldResource, int]):
         self._resources += resources
 
-    def remove_resources(self, resources: Resources[int] | dict[BaseWorldResource, ResourceAmount[int] | int]):
+    def remove_resources(self, resources: Resources[int] | dict[BaseWorldResource, int]):
         self._resources -= resources
         for resource, amount in self._resources.items():
             if amount < 0:
@@ -290,10 +290,10 @@ class BaseSimulationWorldChunk:
         while left_bottom[1] > bottom:
             left_bottom[1] -= world.chunk_height
 
-        for left in range(left_bottom[0], right, world.chunk_width):
+        for left in range(left_bottom[0] - world.chunk_width, right + world.chunk_width, world.chunk_width):
             line = len(chunks)
             chunks.append([])
-            for bottom in range(left_bottom[1], top, world.chunk_height):
-                chunks[line].append(cls((left, bottom), world.chunk_width, world.chunk_height))
+            for bottom in range(left_bottom[1] - world.chunk_height, top + world.chunk_height, world.chunk_height):
+                chunks[line].append(cls((left, bottom), world.chunk_width, world.chunk_height, world))
 
         return chunks

@@ -7,8 +7,8 @@ from simulator.window import BaseWindow
 
 # https://www.b-list.org/weblog/2007/sep/22/standalone-django-scripts/
 def simulate():
-    width = 50
-    height = 50
+    width = 500
+    height = 500
 
     window = BaseWindow(width, height)
     try:

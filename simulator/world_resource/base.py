@@ -1,33 +1,35 @@
-from dataclasses import dataclass
 from typing import Generic, Self, TypeVar, Union
-from evolution import settings
 
 
-@dataclass
 class BaseWorldResource:
-    abstract = True
-    name: str
-    formula: str
+    counter = [0]
     # если будет принято решение сделать mass или volume не целым, решить,
     # что делать с атрибутами BaseBodypart.mass и BaseBodypart.volume
     volume = 1
     mass = 1
 
+    def __init__(self, name: str, formula: str | None):
+        self.hash = self.__class__.counter[0]
+        self.__class__.counter[0] += 1
+        self.name = name
+        self.formula = formula
+
     def __hash__(self):
-        return hash(self.name)
+        return self.hash
 
     def __repr__(self):
         return self.name
 
+    def __eq__(self, other: "BaseWorldResource") -> bool:
+        return hash(self) == hash(other) and isinstance(other, self.__class__)
 
-@dataclass(eq = False, repr = False)
+
 class EnergyResource(BaseWorldResource):
-    formula: str = None
     volume = 0
     mass = 0
 
     def __init__(self, name):
-        super().__init__(name, self.formula)
+        super().__init__(name, None)
         self.formula = self.name.lower()
 
 
@@ -41,98 +43,15 @@ RESOURCES_LIST = [ENERGY, OXYGEN, CARBON, HYDROGEN]
 VT = TypeVar("VT", int, float)
 
 
-class ResourceAmount(Generic[VT]):
-    def __init__(self, amount: Union["ResourceAmount", VT]):
-        if settings.DEBUG:
-            self.check_type(amount)
-        self.amount = self.get_amount(amount)
-
-    def __repr__(self) -> str:
-        return f"{self.amount}"
-
-    def __iadd__(self, other: Union["ResourceAmount", int, float]) -> Self:
-        self.amount += self.get_amount(other)
-        return self
-
-    def __add__(self, other: Union["ResourceAmount", int, float]) -> Self:
-        return self.__class__(self.amount + self.get_amount(other))
-
-    def __isub__(self, other: Union["ResourceAmount", int, float]) -> Self:
-        self.amount -= self.get_amount(other)
-        return self
-
-    def __sub__(self, other: Union["ResourceAmount", int, float]) -> Self:
-        return self.__class__(self.amount - self.get_amount(other))
-
-    def __mul__(self, other: Union["ResourceAmount", int, float]) -> Self:
-        return self.__class__(self.amount * self.get_amount(other))
-
-    def __truediv__(self, other: Union["ResourceAmount", int, float]) -> Self:
-        return self.__class__(self.amount / self.get_amount(other))
-
-    def __floordiv__(self, other: Union["ResourceAmount", int, float]) -> Self:
-        return (self / other).round_ip()
-
-    def __eq__(self, other: Union["ResourceAmount", int, float]) -> bool:
-        return self.amount == self.get_amount(other)
-
-    def __ne__(self, other: Union["ResourceAmount", int, float]) -> bool:
-        return self.amount != self.get_amount(other)
-
-    def __lt__(self, other: Union["ResourceAmount", int, float]) -> bool:
-        return self.amount < self.get_amount(other)
-
-    def __le__(self, other: Union["ResourceAmount", int, float]) -> bool:
-        return self.amount <= self.get_amount(other)
-
-    def __gt__(self, other: Union["ResourceAmount", int, float]) -> bool:
-        return self.amount > self.get_amount(other)
-
-    def __ge__(self, other: Union["ResourceAmount", int, float]) -> bool:
-        return self.amount >= self.get_amount(other)
-
-    def __neg__(self) -> Self:
-        return self.__class__(-self.amount)
-
-    @classmethod
-    def check_type(cls, amount: Union["ResourceAmount", int, float]):
-        if not (isinstance(amount, cls) or isinstance(amount, int) or isinstance(amount, float)):
-            raise TypeError(f"amount ({amount} must be {cls.__name__} int or float)")
-
-    @classmethod
-    def get_amount(cls, other: Union["ResourceAmount", int, float]) -> int | float:
-        if isinstance(other, cls):
-            other_amount = other.amount
-        else:
-            other_amount = other
-        return other_amount
-
-    @classmethod
-    def get_resource_amount(cls, other: Union["ResourceAmount", int, float]) -> Self:
-        if isinstance(other, cls):
-            other_amount = ResourceAmount(other.amount)
-        else:
-            # noinspection PyTypeChecker
-            other_amount = ResourceAmount(other)
-        return other_amount
-
-    def round(self) -> "ResourceAmount[int]":
-        return self.__class__[int](int(self.amount))
-
-    def round_ip(self) -> "ResourceAmount[int]":
-        self.amount = int(self.amount)
-        return self
-
-
 class Resources(Generic[VT]):
     """Обертка для удобной работы с ресурсами."""
 
-    def __init__(self, dictionary: dict[BaseWorldResource, VT] | dict[BaseWorldResource, ResourceAmount[VT]] = None):
-        resources = {resource: ResourceAmount[VT](0) for resource in RESOURCES_LIST}
+    def __init__(self, dictionary: dict[BaseWorldResource, VT] = None):
+        resources = {resource: 0 for resource in RESOURCES_LIST}
         if dictionary is not None:
             for resource, amount in dictionary.items():
-                resources[resource] = ResourceAmount.get_resource_amount(amount)
-        self._storage: dict[BaseWorldResource, ResourceAmount] = resources
+                resources[resource] = amount
+        self._storage: dict[BaseWorldResource, VT] = resources
 
     def __repr__(self) -> str:
         string = f"{self.__class__.__name__}: "
@@ -145,10 +64,10 @@ class Resources(Generic[VT]):
             string += "empty"
         return string
 
-    def __setitem__(self, resource: BaseWorldResource, amount: ResourceAmount | VT):
-        self._storage[resource] = ResourceAmount(amount)
+    def __setitem__(self, resource: BaseWorldResource, amount: VT):
+        self._storage[resource] = amount
 
-    def __getitem__(self, resource: BaseWorldResource) -> ResourceAmount:
+    def __getitem__(self, resource: BaseWorldResource) -> VT:
         return self._storage[resource]
 
     def __iadd__(self, other: Union["Resources", dict[BaseWorldResource, int | float]]) -> Self:
@@ -184,14 +103,14 @@ class Resources(Generic[VT]):
             resources = self.number_multiplication(multiplier)
         return resources
 
-    def __truediv__(self, divisor: Union["Resources", ResourceAmount, int, float]) -> Self:
+    def __truediv__(self, divisor: Union["Resources", int, float]) -> Self:
         if isinstance(divisor, Resources):
             resources = self.resources_division(divisor)
         else:
             resources = self.number_division(divisor)
         return resources
 
-    def __floordiv__(self, divisor: Union["Resources", ResourceAmount, int, float]) -> Self:
+    def __floordiv__(self, divisor: Union["Resources", int, float]) -> Self:
         return (self / divisor).round_ip()
 
     def __iter__(self):
@@ -207,7 +126,7 @@ class Resources(Generic[VT]):
     def sum(self) -> VT:
         total = 0
         for amount in self._storage.values():
-            total += amount.amount
+            total += amount
         return total
 
     @classmethod
@@ -218,7 +137,7 @@ class Resources(Generic[VT]):
             resources = cls(other)
         return resources
 
-    def number_division(self, divisor: ResourceAmount | int | float) -> Self:
+    def number_division(self, divisor: int | float) -> Self:
         resources = self.__class__()
         for resource, amount in self.items():
             resources[resource] = self[resource] / divisor
@@ -230,7 +149,7 @@ class Resources(Generic[VT]):
             resources[resource] = self[resource] / divisor[resource]
         return resources
 
-    def number_multiplication(self, multiplier: ResourceAmount | int | float) -> Self:
+    def number_multiplication(self, multiplier: int | float) -> Self:
         resources = self.__class__()
         for resource, amount in self.items():
             resources[resource] = self[resource] * multiplier
@@ -242,19 +161,19 @@ class Resources(Generic[VT]):
             resources[resource] = self[resource] * multiplier[resource]
         return resources
 
-    def items(self) -> tuple[tuple[BaseWorldResource, ResourceAmount]]:
+    def items(self) -> tuple[tuple[BaseWorldResource, VT]]:
         return tuple(zip(self.keys(), self.values()))
 
     def keys(self) -> tuple[BaseWorldResource]:
         return tuple(self._storage.keys())
 
-    def values(self) -> tuple[ResourceAmount]:
+    def values(self) -> tuple[VT]:
         return tuple(amount for amount in self._storage.values())
 
     def round(self) -> "Resources[int]":
         resources = self.__class__()
         for resource, amount in self._storage.items():
-            resources[resource] = amount.round()
+            resources[resource] = int(amount)
         return resources
 
     def round_ip(self) -> "Resources[int]":
