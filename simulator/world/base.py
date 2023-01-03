@@ -138,7 +138,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
             None,
             world_generation = True
         )
-        creature.physics_body.position = self.center
+        creature.position = copy.deepcopy(self.center)
         creature.start()
         self.remove_resources(creature.position, creature.remaining_resources)
 

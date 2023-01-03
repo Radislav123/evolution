@@ -62,14 +62,14 @@ class Storage(BaseBodypart):
             if amount > 0:
                 self._storage[resource].add(amount)
             elif amount < 0:
-                raise ValueError(f"Adding resource ({resource}) must be not negative ({amount})")
+                raise ValueError(f"Adding resource ({resource}) must be not negative ({amount}). {self}")
 
     def remove_resources(self, resources: Resources[int]):
         for resource, amount in resources.items():
             if amount > 0:
                 self._storage[resource].remove(amount)
             elif amount < 0:
-                raise ValueError(f"Removing resource ({resource}) must be not negative ({amount})")
+                raise ValueError(f"Removing resource ({resource}) must be not negative ({amount}). {self}")
 
     @property
     def extra_resources(self) -> Resources[int]:

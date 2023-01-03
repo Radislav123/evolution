@@ -39,7 +39,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             *args,
             **kwargs
     ):
-        self.__class__.birth_counter += 1
         super().__init__(
             self.image_path,
             *args,
@@ -87,13 +86,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
         # инициализация физических характеристик
         self.characteristics: BaseCreatureCharacteristics | None = None
-        self.characteristics = BaseCreatureCharacteristics(
-            self.bodyparts,
-            self.genome.effects,
-            self.world.characteristics,
-        )
         self.physics_body: pymunk.Body | None = None
-        self.prepare_physics()
 
         # инициализация ресурсов, которые будут тратиться каждый тик
         # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
@@ -101,7 +94,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         # а потом (через returned_resources) возвращаются в мир)
         self.resources_loss_accumulated: Resources[float] | None = None
         self._resources_loss: Resources[int] | None = None
-        self.prepare_resources_loss()
         # todo: привязать к генам
         # отношение количества регенерируемых ресурсов и энергии
         self.energy_regenerate_cost = 1
@@ -132,6 +124,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             # radius = self.characteristics.radius
         )
         self.physics_body = self.world.physics_engine.get_physics_object(self).body
+        self.physics_body.position = self.position
 
     def update_physics(self):
         self.physics_body.mass = self.characteristics.mass
@@ -199,6 +192,14 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         return bodyparts
 
     def start(self):
+        self.__class__.birth_counter += 1
+        self.characteristics = BaseCreatureCharacteristics(
+            self.bodyparts,
+            self.genome.effects,
+            self.world.characteristics,
+        )
+        self.prepare_physics()
+        self.prepare_resources_loss()
         self.start_tick = self.world.age
         self.save_to_db()
         # todo: изменить логику оплодотворения после введения полового размножения
@@ -410,8 +411,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         return layers
 
     def get_children_positions(self) -> list[tuple[float, float]]:
-        # чтобы снизить нагрузку, можно изменить сдвиг до 1.2,
-        # тогда существо будет появляться рядом и не будут рассчитываться столкновения
         offset_coef = 0.5
         children_positions = []
         children_layers = self.get_children_layers()
@@ -439,12 +438,12 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         """Симулирует размножение существа."""
 
         # трата ресурсов на тела потомков
-        self.storage.remove_resources(self.returned_resources)
+        self.storage.remove_resources(self.reproduction_resources)
 
         # подготовка потомков
         for child, child_resources, child_position in \
                 zip(self.children, self.get_children_sharing_resources(), self.get_children_positions()):
-            child.physics_body.position = child_position
+            child.position = child_position
             # изымание ресурсов для потомка у родителя
             self.storage.remove_resources(child_resources)
             # передача потомку части ресурсов родителя
