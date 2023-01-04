@@ -1,4 +1,4 @@
-from typing import Dict, Self, TypeVar, Union
+from typing import Dict, TypeVar
 
 
 class BaseWorldResource:
@@ -41,19 +41,21 @@ HYDROGEN = BaseWorldResource("Hydrogen", "H")
 
 RESOURCES_LIST = [ENERGY, OXYGEN, CARBON, HYDROGEN]
 VT = TypeVar("VT", int, float)
+KT = TypeVar("KT", bound = BaseWorldResource)
 
 
-class Resources(Dict[BaseWorldResource, VT]):
+class Resources(Dict[KT, VT]):
     """Обертка для удобной работы с ресурсами."""
 
-    def __init__(self):
-        super().__init__()
-        self._storage: dict[BaseWorldResource, VT] = {resource: 0 for resource in RESOURCES_LIST}
+    def __init__(self, *args, **kwargs):
+        for resource in RESOURCES_LIST:
+            self[resource] = 0
+        super().__init__(*args, **kwargs)
 
     def __repr__(self) -> str:
         string = f"{self.__class__.__name__}: "
         if len(self) > 0:
-            for resource, amount in self._storage.items():
+            for resource, amount in self.items():
                 string += f"{resource.formula}: {amount}, "
             if string[-2:] == ", ":
                 string = string[:-2]
@@ -61,126 +63,38 @@ class Resources(Dict[BaseWorldResource, VT]):
             string += "empty"
         return string
 
-    def __setitem__(self, resource: BaseWorldResource, amount: VT):
-        self._storage[resource] = amount
-
-    def __getitem__(self, resource: BaseWorldResource) -> VT:
-        return self._storage[resource]
-
-    def __iadd__(self, other: Union["Resources", dict[BaseWorldResource, int | float]]) -> Self:
-        other = self.get_resources(other)
+    def __iadd__(self, other: "Resources") -> "Resources":
         for resource, amount in self.items():
             self[resource] += other[resource]
         return self
 
-    def __add__(self, other: Union["Resources", dict[BaseWorldResource, int | float]]) -> Self:
-        other = self.get_resources(other)
-        resources = self.__class__()
-        for resource, amount in self.items():
-            resources[resource] = self[resource] + other[resource]
-        return resources
+    def __add__(self, other: "Resources") -> "Resources":
+        return self.__class__({resource: self[resource] + other[resource] for resource in RESOURCES_LIST})
 
-    def __isub__(self, other: Union["Resources", dict[BaseWorldResource, int | float]]) -> Self:
-        other = self.get_resources(other)
+    def __isub__(self, other: "Resources") -> "Resources":
         for resource, amount in self.items():
             self[resource] -= other[resource]
         return self
 
-    def __sub__(self, other: Union["Resources", dict[BaseWorldResource, int | float]]) -> Self:
-        other = self.get_resources(other)
-        resources = self.__class__()
+    def __sub__(self, other: "Resources") -> "Resources":
+        return self.__class__({resource: self[resource] - other[resource] for resource in RESOURCES_LIST})
+
+    def __mul__(self, multiplier: int | float) -> "Resources":
+        return self.__class__({resource: self[resource] * multiplier for resource in RESOURCES_LIST})
+
+    def __imul__(self, multiplier: int | float) -> "Resources":
         for resource, amount in self.items():
-            resources[resource] = self[resource] - other[resource]
-        return resources
-
-    def __mul__(self, multiplier: Union["Resources", int, float]) -> Self:
-        if isinstance(multiplier, Resources):
-            resources = self.resources_multiplication(multiplier)
-        else:
-            resources = self.number_multiplication(multiplier)
-        return resources
-
-    def __truediv__(self, divisor: Union["Resources", int, float]) -> Self:
-        if isinstance(divisor, Resources):
-            resources = self.resources_division(divisor)
-        else:
-            resources = self.number_division(divisor)
-        return resources
-
-    def __floordiv__(self, divisor: Union["Resources", int, float]) -> Self:
-        return (self / divisor).round_ip()
-
-    def __iter__(self):
-        return iter(self._storage)
-
-    def __len__(self) -> int:
-        length = 0
-        for amount in self._storage.values():
-            if amount != 0:
-                length += 1
-        return length
-
-    def sum(self) -> VT:
-        total = 0
-        for amount in self._storage.values():
-            total += amount
-        return total
-
-    @classmethod
-    def get_resources(cls, other: Union["Resources", dict[BaseWorldResource, int | float]]) -> Self:
-        if isinstance(other, cls):
-            resources = other
-        else:
-            resources = cls.from_dict(other)
-        return resources
-
-    def number_division(self, divisor: int | float) -> Self:
-        resources = self.__class__()
-        for resource, amount in self.items():
-            resources[resource] = self[resource] / divisor
-        return resources
-
-    def resources_division(self, divisor: "Resources") -> Self:
-        resources = self.__class__()
-        for resource, amount in self.items():
-            resources[resource] = self[resource] / divisor[resource]
-        return resources
-
-    def number_multiplication(self, multiplier: int | float) -> Self:
-        resources = self.__class__()
-        for resource, amount in self.items():
-            resources[resource] = self[resource] * multiplier
-        return resources
-
-    def resources_multiplication(self, multiplier: "Resources") -> Self:
-        resources = self.__class__()
-        for resource, amount in self.items():
-            resources[resource] = self[resource] * multiplier[resource]
-        return resources
-
-    def items(self):
-        return self._storage.items()
-
-    def keys(self):
-        return self._storage.keys()
-
-    def values(self):
-        return self._storage.values()
-
-    def round(self) -> "Resources[int]":
-        resources = self.__class__()
-        for resource, amount in self._storage.items():
-            resources[resource] = int(amount)
-        return resources
-
-    def round_ip(self) -> "Resources[int]":
-        self._storage = self.round()._storage
+            self[resource] *= multiplier
         return self
 
-    @classmethod
-    def from_dict(cls, dictionary: dict[BaseWorldResource, VT] = None) -> Self:
-        resources = cls()
-        if dictionary is not None:
-            for resource, amount in dictionary.items():
-                resources[resource] = amount
-        return resources
+    def __truediv__(self, divisor: int | float) -> "Resources":
+        return self.__class__({resource: self[resource] / divisor for resource in RESOURCES_LIST})
+
+    def __floordiv__(self, divisor: int | float) -> "Resources":
+        return (self / divisor).round()
+
+    def __len__(self) -> int:
+        return sum([amount != 0 for amount in self.values()])
+
+    def round(self) -> "Resources[BaseWorldResource, int]":
+        return self.__class__({resource: int(amount) for resource, amount in self.items()})

@@ -67,16 +67,16 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.parents = parents
         self.genome = genome
         self.children_number: int | None = None
-        self.children: list[BaseSimulationCreature] | None = None
+        self.next_children: list[BaseSimulationCreature] | None = None
         # ресурсы, необходимые для воспроизведения всех потомков
-        self.reproduction_resources: Resources[int] | None = None
+        self.reproduction_resources: Resources | None = None
         # todo: привязать к генам
         self.reproduction_lost_coef = 1.05
         # todo: привязать к генам
         self.reproduction_reserve_coef = 1.1
         # todo: привязать к генам
         self.reproduction_energy_lost = 20
-        self.consumption_amount: Resources[int] | None = None
+        self.consumption_amount: Resources | None = None
         self.apply_genes()
 
         # инициализация частей тела
@@ -92,21 +92,21 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
         # (забираются из хранилища, добавляются в returned_resources,
         # а потом (через returned_resources) возвращаются в мир)
-        self.resources_loss_accumulated: Resources[float] | None = None
-        self._resources_loss: Resources[int] | None = None
+        self.resources_loss_accumulated: Resources | None = None
+        self._resources_loss: Resources | None = None
         # todo: привязать к генам
         # отношение количества регенерируемых ресурсов и энергии
         self.energy_regenerate_cost = 1
         # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
-        self.returned_resources = Resources[int]()
+        self.returned_resources = Resources()
 
     def __repr__(self) -> str:
         return self.object_id
 
     def fertilize(self):
-        self.children = [self.__class__(self.world, [self]) for _ in range(self.children_number)]
-        self.reproduction_resources = Resources[int]()
-        for child in self.children:
+        self.next_children = [self.__class__(self.world, [self]) for _ in range(self.children_number)]
+        self.reproduction_resources = Resources()
+        for child in self.next_children:
             self.reproduction_resources += child.resources
         self.reproduction_resources[ENERGY] += int(
             self.reproduction_energy_lost * self.reproduction_lost_coef * self.children_number
@@ -129,11 +129,11 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.physics_body.mass = self.characteristics.mass
 
     def prepare_resources_loss(self):
-        self.resources_loss_accumulated = Resources[float]()
+        self.resources_loss_accumulated = Resources()
         self._resources_loss = None
 
     @property
-    def resources_loss(self) -> Resources[int]:
+    def resources_loss(self) -> Resources:
         if self._resources_loss is None:
             resources_loss = self.resources * self.genome.effects.resources_loss_coef + \
                              self.resources_loss_accumulated + self.genome.effects.resources_loss
@@ -233,7 +233,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         bodypart = self.get_regeneration_bodypart()
 
         if bodypart is not None:
-            regenerating_resources = Resources[int].from_dict(
+            regenerating_resources = Resources(
                 {resource: self.genome.effects.regeneration_amount for resource in self.storage.stored_resources}
             )
 
@@ -247,16 +247,15 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
             # проверяется доступное количество энергии
             if self.storage.stored_resources[ENERGY] < regenerating_resources[ENERGY] + \
-                    regenerating_resources.sum() * self.energy_regenerate_cost:
+                    sum(regenerating_resources.values()) * self.energy_regenerate_cost:
                 reduction_coef = self.storage.stored_resources[ENERGY] / \
                                  (regenerating_resources[ENERGY] +
-                                  regenerating_resources.sum() * self.energy_regenerate_cost)
-                regenerating_resources = regenerating_resources * reduction_coef
-                regenerating_resources.round_ip()
+                                  sum(regenerating_resources.values()) * self.energy_regenerate_cost)
+                regenerating_resources = (regenerating_resources * reduction_coef).round()
 
             extra_resources = bodypart.regenerate(regenerating_resources)
             spent_resources = regenerating_resources - extra_resources
-            spent_resources[ENERGY] += int(spent_resources.sum() * self.energy_regenerate_cost)
+            spent_resources[ENERGY] += int(sum(spent_resources.values()) * self.energy_regenerate_cost)
             self.storage.remove_resources(spent_resources)
 
     def get_regeneration_bodypart(self) -> BaseBodypart | None:
@@ -306,7 +305,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.storage.remove_resources(self.storage.extra_resources)
         self.returned_resources[ENERGY] = 0
         self.world.add_resources(self.position, self.returned_resources)
-        self.returned_resources = Resources[int]()
+        self.returned_resources = Resources()
 
     @property
     def present_bodyparts(self) -> list[BaseBodypart]:
@@ -364,34 +363,34 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self._resources_loss = None
 
     @property
-    def resources(self) -> Resources[int]:
-        resources = Resources[int]()
+    def resources(self) -> Resources:
+        resources = Resources()
         for bodypart in self.bodyparts:
             resources += bodypart.resources
         return resources
 
     @property
-    def damage(self) -> Resources[int]:
-        resources = Resources[int]()
+    def damage(self) -> Resources:
+        resources = Resources()
         for bodypart in self.bodyparts:
             resources += bodypart.damage
         return resources
 
     @property
-    def remaining_resources(self) -> Resources[int]:
-        resources = Resources[int]()
+    def remaining_resources(self) -> Resources:
+        resources = Resources()
         for bodypart in self.bodyparts:
             resources += bodypart.remaining_resources
         return resources
 
     @property
-    def extra_storage(self) -> Resources[int]:
-        extra_storage = Resources[int]()
+    def extra_storage(self) -> Resources:
+        extra_storage = Resources()
         for bodypart in self.bodyparts:
             extra_storage += bodypart.extra_storage
         return extra_storage
 
-    def get_children_sharing_resources(self) -> list[Resources[int]]:
+    def get_children_sharing_resources(self) -> list[Resources]:
         if self.children_number > 0:
             resources = self.storage.stored_resources // (self.children_number + 1)
             children_resources = [copy.deepcopy(resources) for _ in range(self.children_number)]
@@ -443,7 +442,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
         # подготовка потомков
         for child, child_resources, child_position in \
-                zip(self.children, self.get_children_sharing_resources(), self.get_children_positions()):
+                zip(self.next_children, self.get_children_sharing_resources(), self.get_children_positions()):
             child.position = child_position
             # изымание ресурсов для потомка у родителя
             self.storage.remove_resources(child_resources)
@@ -488,7 +487,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             else:
                 consumption_amount = available_amount
 
-            consumption_resources = {resource: consumption_amount}
+            consumption_resources = Resources({resource: consumption_amount})
             self.world.remove_resources(self.position, consumption_resources)
 
             # добавляет в свое хранилище

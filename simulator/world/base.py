@@ -6,7 +6,7 @@ from core import models
 from core.mixin import DatabaseSavableMixin, WorldObjectMixin
 from simulator.creature import BaseSimulationCreature
 from simulator.physic import BaseWorldCharacteristics
-from simulator.world_resource import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
+from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
 
 
 class Switch:
@@ -31,11 +31,11 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
     borders: arcade.SpriteList
     physics_engine: arcade.PymunkPhysicsEngine
     count_map_resources = Switch()
-    map_resources: Resources[int] = None
+    map_resources: Resources = None
     count_creatures_resources = Switch()
-    creatures_resources: Resources[int] = None
+    creatures_resources: Resources = None
     count_world_resources = Switch()
-    world_resources: Resources[int] = None
+    world_resources: Resources = None
 
     # width - минимальное значение ширины экрана - 120
     def __init__(self, width: int, height: int, center: tuple[int, int]):
@@ -176,13 +176,13 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
 
     def count_resources(self):
         if self.count_map_resources or self.count_world_resources:
-            self.map_resources = Resources[int]()
+            self.map_resources = Resources()
             for line in self.chunks:
                 for chunk in line:
                     self.map_resources += chunk.get_resources()
 
         if self.count_creatures_resources or self.count_world_resources:
-            self.creatures_resources = Resources[int]()
+            self.creatures_resources = Resources()
             for creature in self.creatures:
                 creature: BaseSimulationCreature
                 self.creatures_resources += creature.remaining_resources
@@ -191,25 +191,17 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         if self.count_world_resources:
             self.world_resources = self.map_resources + self.creatures_resources
 
-    def get_resources(self, position: tuple[float, float]) -> Resources[int]:
+    def get_resources(self, position: tuple[float, float]) -> Resources:
         """Возвращает ресурсы в чанке."""
 
         return self.position_to_chunk(position).get_resources()
 
-    def add_resources(
-            self,
-            position: tuple[float, float],
-            resources: Resources[int] | dict[BaseWorldResource, int]
-    ):
+    def add_resources(self, position: tuple[float, float], resources: Resources):
         """Добавляет ресурсы в чанк."""
 
         return self.position_to_chunk(position).add_resources(resources)
 
-    def remove_resources(
-            self,
-            position: tuple[float, float],
-            resources: Resources[int] | dict[BaseWorldResource, int]
-    ):
+    def remove_resources(self, position: tuple[float, float], resources: Resources):
         """Убирает ресурсы из чанка."""
 
         return self.position_to_chunk(position).remove_resources(resources)
@@ -250,7 +242,7 @@ class BaseSimulationWorldChunk:
         self.default_resource_amount = int(
             (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_coef
         )
-        self._resources = Resources[int].from_dict(
+        self._resources = Resources(
             {
                 ENERGY: self.default_resource_amount,
                 CARBON: self.default_resource_amount,
@@ -265,13 +257,13 @@ class BaseSimulationWorldChunk:
     def on_update(self):
         self._resources[ENERGY] = self.default_resource_amount
 
-    def get_resources(self) -> Resources[int]:
+    def get_resources(self) -> Resources:
         return self._resources
 
-    def add_resources(self, resources: Resources[int] | dict[BaseWorldResource, int]):
+    def add_resources(self, resources: Resources):
         self._resources += resources
 
-    def remove_resources(self, resources: Resources[int] | dict[BaseWorldResource, int]):
+    def remove_resources(self, resources: Resources):
         self._resources -= resources
         for resource, amount in self._resources.items():
             if amount < 0:

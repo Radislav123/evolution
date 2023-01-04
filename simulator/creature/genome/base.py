@@ -26,11 +26,11 @@ class GenomeEffects:
         # todo: настроить гены, чтобы эластичность принадлежала отрезку [0, 1),
         #  где 0 - абсолютно твердое тела, а 1 - абсолютно упругое тело
         self.elasticity = 0.0
-        self.consumption_amount = Resources[int]()
+        self.consumption_amount = Resources()
         self.bodyparts: list[BaseBodypart] = []
-        self.resource_storages = Resources[int]()
+        self.resource_storages = Resources()
         self.color: list[int] = [0, 0, 0]
-        self.resources_loss = Resources[float]()
+        self.resources_loss = Resources()
         # MetabolismGene
         self.metabolism = 0.0
         # ResourcesLossCoefGene

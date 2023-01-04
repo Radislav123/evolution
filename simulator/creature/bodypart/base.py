@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class BaseBodypart(abc.ABC):
     # https://ru.wikipedia.org/wiki/%D0%A5%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B0%D1%8F_%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F_%D0%BA%D0%BB%D0%B5%D1%82%D0%BA%D0%B8
     # ресурсы, из которых состоит часть тела (химический состав)
-    _composition: Resources[int]
+    _composition: Resources
     # уничтожена ли часть тела полностью
     destroyed = False
     required_bodypart_class: Type["BaseBodypart"] | None
@@ -24,7 +24,7 @@ class BaseBodypart(abc.ABC):
         self.required_bodypart: "BaseBodypart" = required_bodypart
         self.dependent_bodyparts: list["BaseBodypart"] = []
 
-        self.damage = Resources[int]()
+        self.damage = Resources()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
@@ -32,18 +32,18 @@ class BaseBodypart(abc.ABC):
     # если возвращаемые ресурсы != 0, значит часть тела уничтожена, а эти ресурсы являются ресурсами,
     # полученными после уничтожения части тела и всех зависимых частей
     # если возвращаемые ресурсы < 0, данная часть тела и все ее зависимые части не могут покрыть нанесенного урона
-    def make_damage(self, damaging_resources: Resources[int]) -> Resources[int]:
+    def make_damage(self, damaging_resources: Resources) -> Resources:
         self.damage += damaging_resources
         if not self._present:
             returned_resources = damaging_resources
             returned_resources += self.destroy()
         else:
-            returned_resources = Resources[int]()
+            returned_resources = Resources()
 
         return returned_resources
 
     # если возвращаемые ресурсы != 0, значит эти ресурсы не израсходованы при регенерации
-    def regenerate(self, resources: Resources[int]) -> Resources[int]:
+    def regenerate(self, resources: Resources) -> Resources:
         regenerating_resources = copy.deepcopy(resources)
         for resource, amount in resources.items():
             if self.damage[resource] < amount:
@@ -78,7 +78,7 @@ class BaseBodypart(abc.ABC):
                 break
         return present
 
-    def destroy(self) -> Resources[int]:
+    def destroy(self) -> Resources:
         """Уничтожает часть тела и все зависимые."""
 
         return_resources = self.remaining_resources
@@ -121,15 +121,14 @@ class BaseBodypart(abc.ABC):
             bodypart.construct(bodyparts, creature)
 
     @property
-    def resources(self) -> Resources[int]:
+    def resources(self) -> Resources:
         """Ресурсы, находящиеся в неповрежденной части тела."""
 
-        resources = self._composition * self.size
-        resources.round_ip()
+        resources = (self._composition * self.size).round()
         return resources
 
     @property
-    def remaining_resources(self) -> Resources[int]:
+    def remaining_resources(self) -> Resources:
         """Ресурсы, находящиеся в части тела сейчас."""
 
         return self.resources - self.damage
@@ -151,19 +150,18 @@ class BaseBodypart(abc.ABC):
         return mass
 
     @property
-    def extra_storage(self) -> Resources[int]:
+    def extra_storage(self) -> Resources:
         """Расширение хранилища существа, которое предоставляет часть тела."""
 
         if not self.destroyed:
-            extra_storage = self.resources * self.extra_storage_coef
-            extra_storage.round_ip()
+            extra_storage = (self.resources * self.extra_storage_coef).round()
         else:
-            extra_storage = Resources[int]()
+            extra_storage = Resources()
         return extra_storage
 
 
 class Body(BaseBodypart):
-    _composition = Resources[int].from_dict(
+    _composition = Resources(
         {
             OXYGEN: 70,
             CARBON: 20,
