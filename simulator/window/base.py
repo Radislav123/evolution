@@ -128,6 +128,17 @@ class WorldResourcesCounterTab(BaseTextTab):
         return f"Ресурсы в мире: {self.window.world.world_resources}"
 
 
+class FPSTab(BaseTextTab):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        arcade.enable_timings()
+
+    @property
+    def string(self) -> str:
+        # количество обрабатываемых тиков (frame_count=60) не влияет на производительность заметно
+        return f"fps: {int(arcade.get_fps(60))}"
+
+
 class BaseWindow(arcade.Window):
     def __init__(self, width: int, height: int):
         super().__init__(center_window = True)
@@ -151,7 +162,8 @@ class BaseWindow(arcade.Window):
             CreaturesCounterTab(self, 2, 1),
             WorldResourcesCounterTab(self, 1, 0),
             MapResourcesCounterTab(self, 1, 1),
-            CreaturesResourcesCounterTab(self, 1, 2)
+            CreaturesResourcesCounterTab(self, 1, 2),
+            FPSTab(self, 3, 1)
         ]
         self.tabs = tabs
         BaseTextTab.calculate_positions()
@@ -162,4 +174,8 @@ class BaseWindow(arcade.Window):
         BaseTextTab.draw_all()
 
     def on_update(self, delta_time: float):
-        self.world.on_update(delta_time)
+        try:
+            self.world.on_update(delta_time)
+        except Exception as error:
+            error.window = self
+            raise error

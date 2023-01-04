@@ -78,7 +78,7 @@ class SizeGene(BaseNumberGene):
     step = 0.1
     attribute_default = 1
     common_min_limit = 0.1
-    attribute_name = "size"
+    attribute_name = "size_coef"
 
 
 # todo: добавить трату специализированного ресурса, связанного с эластичностью

@@ -110,7 +110,7 @@ class BaseBodypart(abc.ABC):
         for bodypart_class in bodyparts_classes:
             if bodypart_class.required_bodypart_class is self.__class__:
                 self.dependent_bodyparts.append(
-                    bodypart_class(creature.genome.effects.size, self)
+                    bodypart_class(creature.genome.effects.size_coef, self)
                 )
 
         bodyparts = copy.copy(bodyparts_classes)
@@ -163,7 +163,7 @@ class BaseBodypart(abc.ABC):
 
 
 class Body(BaseBodypart):
-    _composition = Resources[int](
+    _composition = Resources[int].from_dict(
         {
             OXYGEN: 70,
             CARBON: 20,

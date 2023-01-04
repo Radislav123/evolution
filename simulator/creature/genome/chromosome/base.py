@@ -40,6 +40,10 @@ class BaseChromosome:
             disappear_chance = self._disappearance_chance * 2
         else:
             disappear_chance = self._disappearance_chance / len(self)
+            for gene in self.genes:
+                if gene.disappearance_chance >= 0:
+                    disappear_chance = 0
+                    break
         return disappear_chance
 
     @property
@@ -69,15 +73,12 @@ class BaseChromosome:
         # исчезновение генов
         # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
-        amount = min(amount, len(self))
         weights = [gene.disappearance_chance for gene in self.genes]
-        genes_numbers = set(random.choices(range(len(self)), weights, k = amount))
-        for number in genes_numbers:
-            if self.genes[number].disappear(genome):
-                del self.genes[number]
+        if sum(weights) > 0:
+            disappearing_genes = set(random.choices(self.genes, weights, k = amount))
+            self.genes = [gene for gene in self.genes if gene not in disappearing_genes]
 
         # мутации генов
-        # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
         amount = min(amount, len(self))
         weights = [gene.mutation_chance for gene in self.genes]

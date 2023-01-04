@@ -124,7 +124,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             # radius = self.characteristics.radius
         )
         self.physics_body = self.world.physics_engine.get_physics_object(self).body
-        self.physics_body.position = self.position
 
     def update_physics(self):
         self.physics_body.mass = self.characteristics.mass
@@ -152,7 +151,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         # находит класс тела
         for bodypart_class in self.genome.effects.bodyparts:
             if issubclass(bodypart_class, Body):
-                self.body = bodypart_class(self.genome.effects.size, None)
+                self.body = bodypart_class(self.genome.effects.size_coef, None)
                 break
 
         # собирается тело
@@ -169,7 +168,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         # собирается хранилище
         for resource, amount in self.genome.effects.resource_storages.items():
             if amount > 0:
-                self.storage.add_resource_storage(resource, self.genome.effects.size)
+                self.storage.add_resource_storage(resource, self.genome.effects.size_coef)
 
         # задаются емкости хранилищ ресурсов
         for resource, resource_storage in self.storage.items():
@@ -234,10 +233,8 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         bodypart = self.get_regeneration_bodypart()
 
         if bodypart is not None:
-            regenerating_resources = Resources[int](
-                {
-                    resource: self.genome.effects.regeneration_amount for resource in self.storage.stored_resources
-                }
+            regenerating_resources = Resources[int].from_dict(
+                {resource: self.genome.effects.regeneration_amount for resource in self.storage.stored_resources}
             )
 
             for resource in regenerating_resources:
@@ -288,17 +285,21 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
     def on_update(self, delta_time: float):
         """Симулирует жизнедеятельность за один тик."""
 
-        if self.can_consume():
-            self.consume()
-        if self.can_regenerate():
-            self.regenerate()
-        if self.can_reproduce():
-            self.reproduce()
+        try:
+            if self.can_consume():
+                self.consume()
+            if self.can_regenerate():
+                self.regenerate()
+            if self.can_reproduce():
+                self.reproduce()
 
-        self.metabolize()
-        self.return_resources()
+            self.metabolize()
+            self.return_resources()
 
-        self.update_physics()
+            self.update_physics()
+        except Exception as error:
+            error.creature = self
+            raise error
 
     def return_resources(self):
         self.returned_resources += self.storage.extra_resources

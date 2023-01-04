@@ -1,4 +1,4 @@
-from typing import Generic, Self, TypeVar, Union
+from typing import Dict, Self, TypeVar, Union
 
 
 class BaseWorldResource:
@@ -43,15 +43,12 @@ RESOURCES_LIST = [ENERGY, OXYGEN, CARBON, HYDROGEN]
 VT = TypeVar("VT", int, float)
 
 
-class Resources(Generic[VT]):
+class Resources(Dict[BaseWorldResource, VT]):
     """Обертка для удобной работы с ресурсами."""
 
-    def __init__(self, dictionary: dict[BaseWorldResource, VT] = None):
-        resources = {resource: 0 for resource in RESOURCES_LIST}
-        if dictionary is not None:
-            for resource, amount in dictionary.items():
-                resources[resource] = amount
-        self._storage: dict[BaseWorldResource, VT] = resources
+    def __init__(self):
+        super().__init__()
+        self._storage: dict[BaseWorldResource, VT] = {resource: 0 for resource in RESOURCES_LIST}
 
     def __repr__(self) -> str:
         string = f"{self.__class__.__name__}: "
@@ -134,7 +131,7 @@ class Resources(Generic[VT]):
         if isinstance(other, cls):
             resources = other
         else:
-            resources = cls(other)
+            resources = cls.from_dict(other)
         return resources
 
     def number_division(self, divisor: int | float) -> Self:
@@ -161,14 +158,14 @@ class Resources(Generic[VT]):
             resources[resource] = self[resource] * multiplier[resource]
         return resources
 
-    def items(self) -> tuple[tuple[BaseWorldResource, VT]]:
-        return tuple(zip(self.keys(), self.values()))
+    def items(self):
+        return self._storage.items()
 
-    def keys(self) -> tuple[BaseWorldResource]:
-        return tuple(self._storage.keys())
+    def keys(self):
+        return self._storage.keys()
 
-    def values(self) -> tuple[VT]:
-        return tuple(amount for amount in self._storage.values())
+    def values(self):
+        return self._storage.values()
 
     def round(self) -> "Resources[int]":
         resources = self.__class__()
@@ -179,3 +176,11 @@ class Resources(Generic[VT]):
     def round_ip(self) -> "Resources[int]":
         self._storage = self.round()._storage
         return self
+
+    @classmethod
+    def from_dict(cls, dictionary: dict[BaseWorldResource, VT] = None) -> Self:
+        resources = cls()
+        if dictionary is not None:
+            for resource, amount in dictionary.items():
+                resources[resource] = amount
+        return resources

@@ -54,6 +54,9 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         self.prepare_physics_engine()
         self.chunks = BaseSimulationWorldChunk.cut_world(self)
 
+    def __repr__(self) -> str:
+        return f"{self.object_id}"
+
     # левая, правая, нижняя, верхняя
     def get_borders_coordinates(self) -> tuple[int, int, int, int]:
         left_offset = self.width // 2
@@ -154,18 +157,22 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         self.creatures.remove(creature)
 
     def on_update(self, delta_time: float):
-        existing_creatures = copy.copy(self.creatures)
-        for creature in existing_creatures:
-            creature.on_update(delta_time)
+        try:
+            existing_creatures = copy.copy(self.creatures)
+            for creature in existing_creatures:
+                creature.on_update(delta_time)
 
-        for line in self.chunks:
-            for chunk in line:
-                chunk.on_update()
+            for line in self.chunks:
+                for chunk in line:
+                    chunk.on_update()
 
-        self.physics_engine.step()
+            self.physics_engine.step()
 
-        self.count_resources()
-        self.age += 1
+            self.count_resources()
+            self.age += 1
+        except Exception as error:
+            error.world = self
+            raise error
 
     def count_resources(self):
         if self.count_map_resources or self.count_world_resources:
@@ -243,7 +250,7 @@ class BaseSimulationWorldChunk:
         self.default_resource_amount = int(
             (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_coef
         )
-        self._resources = Resources[int](
+        self._resources = Resources[int].from_dict(
             {
                 ENERGY: self.default_resource_amount,
                 CARBON: self.default_resource_amount,

@@ -22,7 +22,7 @@ class GenomeEffects:
         # не переносить определения в тело класса,
         # иначе не простые типы (list, dict) используются всеми экземплярами совместно
         self.children_number = 0
-        self.size = 0.0
+        self.size_coef = 0.0
         # todo: настроить гены, чтобы эластичность принадлежала отрезку [0, 1),
         #  где 0 - абсолютно твердое тела, а 1 - абсолютно упругое тело
         self.elasticity = 0.0
@@ -151,15 +151,13 @@ class BaseGenome:
         # исчезновение хромосом
         # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
-        amount = min(amount, len(self))
         weights = [chromosome.disappearance_chance for chromosome in self.chromosomes]
-        chromosomes_numbers = set(random.choices(range(len(self)), weights, k = amount))
-        for number in chromosomes_numbers:
-            if self.chromosomes[number].disappear():
-                del self.chromosomes[number]
+        if sum(weights) > 0:
+            disappearing_chromosomes = set(random.choices(self.chromosomes, weights, k = amount))
+            self.chromosomes = [chromosome for chromosome in self.chromosomes
+                                if chromosome not in disappearing_chromosomes]
 
         # мутации хромосом
-        # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
         amount = min(amount, len(self))
         weights = [chromosome.mutation_chance for chromosome in self.chromosomes]

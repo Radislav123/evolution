@@ -3,7 +3,7 @@ from simulator.world_resource import BaseWorldResource, CARBON, HYDROGEN, OXYGEN
 
 
 class Storage(BaseBodypart):
-    _composition = Resources[int](
+    _composition = Resources[int].from_dict(
         {
             OXYGEN: 40,
             CARBON: 20,
@@ -99,7 +99,7 @@ class ResourceStorage(BaseBodypart):
     required_bodypart_class = Storage
     # показывает дополнительное увеличение объема части тела (хранилища), в зависимости от вместимости
     extra_volume_coef = 0.1
-    _composition = Resources[int](
+    _composition = Resources[int].from_dict(
         {
             OXYGEN: 10,
             CARBON: 5
@@ -129,7 +129,8 @@ class ResourceStorage(BaseBodypart):
         self.current = 0
 
     def destroy(self) -> Resources[int]:
-        return_resources = Resources[int]({self.world_resource: self.current})
+        return_resources = Resources[int]()
+        return_resources[self.world_resource] = self.current
         self.reset()
         return_resources += super(ResourceStorage, self).destroy()
         return return_resources
