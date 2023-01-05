@@ -140,7 +140,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
     def prepare_resources_loss(self):
         self.resources_loss_accumulated = Resources()
-        self._resources_loss = None
 
     @property
     def resources_loss(self) -> Resources:

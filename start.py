@@ -82,8 +82,8 @@ def log_error_info(error: Exception):
 
 # https://www.b-list.org/weblog/2007/sep/22/standalone-django-scripts/
 def simulate():
-    width = 100
-    height = 100
+    width = 400
+    height = 400
 
     window = BaseWindow(width, height)
     try:

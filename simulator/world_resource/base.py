@@ -48,10 +48,12 @@ KT = TypeVar("KT", bound = BaseWorldResource)
 class Resources(Dict[KT, VT]):
     """Обертка для удобной работы с ресурсами."""
 
-    def __init__(self, *args, **kwargs):
-        for resource in RESOURCES_LIST:
-            self[resource] = 0
-        super().__init__(*args, **kwargs)
+    def __init__(self, dictionary: dict[KT, VT] = None):
+        if dictionary is None:
+            resources = {resource: 0 for resource in RESOURCES_LIST}
+        else:
+            resources = {resource: dictionary[resource] if resource in dictionary else 0 for resource in RESOURCES_LIST}
+        super().__init__(resources)
 
     def __repr__(self) -> str:
         string = f"{self.__class__.__name__}: "
