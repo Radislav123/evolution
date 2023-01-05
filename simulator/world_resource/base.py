@@ -39,21 +39,19 @@ OXYGEN = BaseWorldResource("Oxygen", "O")
 CARBON = BaseWorldResource("Carbon", "C")
 HYDROGEN = BaseWorldResource("Hydrogen", "H")
 
-RESOURCES_LIST = [ENERGY, OXYGEN, CARBON, HYDROGEN]
+RESOURCE_LIST = [ENERGY, OXYGEN, CARBON, HYDROGEN]
 VT = TypeVar("VT", int, float)
 KT = TypeVar("KT", bound = BaseWorldResource)
 
 
-# todo: добавить кэширование используемых ресурсов (world, creature, storage...)
+# todo: добавить кэширование используемых ресурсов (world, creature, storage, bodyparts...)
 class Resources(Dict[KT, VT]):
     """Обертка для удобной работы с ресурсами."""
 
-    def __init__(self, dictionary: dict[KT, VT] = None):
-        if dictionary is None:
-            resources = {resource: 0 for resource in RESOURCES_LIST}
-        else:
-            resources = {resource: dictionary[resource] if resource in dictionary else 0 for resource in RESOURCES_LIST}
-        super().__init__(resources)
+    def __init__(self, *args, **kwargs):
+        for resource in RESOURCE_LIST:
+            self[resource] = 0
+        super().__init__(*args, **kwargs)
 
     def __repr__(self) -> str:
         string = f"{self.__class__.__name__}: "
@@ -72,7 +70,7 @@ class Resources(Dict[KT, VT]):
         return self
 
     def __add__(self, other: "Resources") -> "Resources":
-        return self.__class__({resource: self[resource] + other[resource] for resource in RESOURCES_LIST})
+        return self.__class__({resource: self[resource] + other[resource] for resource in RESOURCE_LIST})
 
     def __isub__(self, other: "Resources") -> "Resources":
         for resource, amount in self.items():
@@ -80,10 +78,10 @@ class Resources(Dict[KT, VT]):
         return self
 
     def __sub__(self, other: "Resources") -> "Resources":
-        return self.__class__({resource: self[resource] - other[resource] for resource in RESOURCES_LIST})
+        return self.__class__({resource: self[resource] - other[resource] for resource in RESOURCE_LIST})
 
     def __mul__(self, multiplier: int | float) -> "Resources":
-        return self.__class__({resource: self[resource] * multiplier for resource in RESOURCES_LIST})
+        return self.__class__({resource: self[resource] * multiplier for resource in RESOURCE_LIST})
 
     def __imul__(self, multiplier: int | float) -> "Resources":
         for resource, amount in self.items():
@@ -91,7 +89,7 @@ class Resources(Dict[KT, VT]):
         return self
 
     def __truediv__(self, divisor: int | float) -> "Resources":
-        return self.__class__({resource: self[resource] / divisor for resource in RESOURCES_LIST})
+        return self.__class__({resource: self[resource] / divisor for resource in RESOURCE_LIST})
 
     def __floordiv__(self, divisor: int | float) -> "Resources":
         return (self / divisor).round()
