@@ -16,6 +16,10 @@ class BaseColorGene(StepGeneMixin, BaseGene, abc.ABC):
     def apply(self, genome):
         genome.effects.color[self.color_number] += self.current
 
+    @classmethod
+    def correct(cls, genome):
+        pass
+
     def mutate(self, genome):
         self.current += self.make_step()
         if self.current < 0:

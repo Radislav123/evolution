@@ -14,7 +14,7 @@ class BaseChromosome:
         self.genes = genes
 
     def __repr__(self) -> str:
-        return repr(self.genes)
+        return f"{self.__class__.__name__}: {self.genes}"
 
     def __len__(self) -> int:
         return len(self.genes)

@@ -27,7 +27,7 @@ class GenomeEffects:
         #  где 0 - абсолютно твердое тела, а 1 - абсолютно упругое тело
         self.elasticity = 0.0
         self.consumption_amount = Resources()
-        self.bodyparts: list[BaseBodypart] = []
+        self.bodyparts: list[Type[BaseBodypart]] = []
         self.resource_storages = Resources()
         self.color: list[int] = [0, 0, 0]
         self.resources_loss = Resources()
@@ -46,6 +46,13 @@ class GenomeEffects:
             1: [0, 2],
             2: [0, 1]
         }
+
+        # исправление отрицательных цветов (пигмент/цвет не может вырабатываться в отрицательном количестве)
+        for i in range(len(self.color)):
+            if self.color[i] < 0:
+                self.color[i] = 0
+
+        # подготовка цвета к субтрактивному применению (так применяет arcade)
         if max(self.color) > 255:
             temp_color = [max(self.color)] * 3
         else:
@@ -54,11 +61,14 @@ class GenomeEffects:
             for other_number in other_color_numbers[number]:
                 temp_color[other_number] -= self.color[number]
         self.color = temp_color
+
+        # корректировка отрицательных цветов
         minimum = min(self.color)
         if minimum < 0:
             for number in range(len(self.color)):
                 self.color[number] -= minimum
 
+        # нормализация цвета
         if max(self.color) > 255:
             maximum = max(self.color)
             if maximum != 0:
@@ -168,8 +178,13 @@ class BaseGenome:
     def apply_genes(self):
         """Записывает эффекты генов в хранилище."""
 
+        gene_classes: set[Type[BaseGene]] = set()
         for chromosome in self.chromosomes:
             chromosome.apply_genes(self)
+            gene_classes.update([gene.__class__ for gene in chromosome.genes])
+
+        for gene_class in gene_classes:
+            gene_class.correct(self)
 
         self.effects.prepare()
 

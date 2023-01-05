@@ -1,6 +1,6 @@
 import abc
 import random
-from typing import Self, TYPE_CHECKING, Type, TypeVar, Literal
+from typing import Literal, Self, TYPE_CHECKING, Type, TypeVar
 
 from core.mixin import GetSubclassesMixin
 from simulator.world_resource import BaseWorldResource
@@ -42,6 +42,13 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
     @abc.abstractmethod
     def apply(self, genome: "BaseGenome"):
         """Записывает эффекты гена в хранилище."""
+
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def correct(cls, genome: "BaseGenome"):
+        """Корректирует суммарный эффект генов данного типа после применения каждого по отдельности."""
 
         raise NotImplementedError()
 

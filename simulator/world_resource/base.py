@@ -44,6 +44,7 @@ VT = TypeVar("VT", int, float)
 KT = TypeVar("KT", bound = BaseWorldResource)
 
 
+# todo: добавить кэширование используемых ресурсов (world, creature, storage...)
 class Resources(Dict[KT, VT]):
     """Обертка для удобной работы с ресурсами."""
 

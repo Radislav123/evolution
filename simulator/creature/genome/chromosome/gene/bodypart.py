@@ -38,6 +38,10 @@ class BodyGene(BaseBodyPartGene):
             EnergyStorageGene
         ]
 
+    @classmethod
+    def correct(cls, genome):
+        pass
+
     def mutate(self, genome):
         # mutation_chance = 0 (никогда не мутирует)
         raise NotImplementedError()
@@ -53,6 +57,10 @@ class StorageGene(BaseBodyPartGene):
     mutation_chance = 0
     required_genes = [BodyGene]
 
+    @classmethod
+    def correct(cls, genome):
+        pass
+
     def mutate(self, genome):
         # mutation_chance = 0 (никогда не мутирует)
         raise NotImplementedError()
@@ -63,6 +71,7 @@ class BaseResourceStorageGene(StepGeneMixin, BaseBodyPartGene, abc.ABC):
     # bodypart = ResourceStorage
     resource: BaseWorldResource
     step = 10
+    common_min_limit = 0
     default_capacity: int
     required_genes = [StorageGene]
 
@@ -79,6 +88,11 @@ class BaseResourceStorageGene(StepGeneMixin, BaseBodyPartGene, abc.ABC):
 
     def apply(self, genome):
         genome.effects.resource_storages[self.resource] += self.capacity
+
+    @classmethod
+    def correct(cls, genome):
+        if genome.effects.resource_storages[cls.resource] < cls.common_min_limit:
+            genome.effects.resource_storages[cls.resource] = cls.common_min_limit
 
     def mutate(self, genome):
         self.capacity += self.make_step()
@@ -121,6 +135,7 @@ class BaseResourceConsumptionGene(StepGeneMixin, BaseGene, abc.ABC):
     """Базовый класс для генов, позволяющих потреблять ресурсы."""
 
     step = 1
+    common_min_limit = 0
     default_consumption = 5
     resource: BaseWorldResource
 
@@ -137,6 +152,11 @@ class BaseResourceConsumptionGene(StepGeneMixin, BaseGene, abc.ABC):
 
     def apply(self, genome):
         genome.effects.consumption_amount[self.resource] += self.consumption
+
+    @classmethod
+    def correct(cls, genome):
+        if genome.effects.consumption_amount[cls.resource] < cls.common_min_limit:
+            genome.effects.consumption_amount[cls.resource] = cls.common_min_limit
 
     def mutate(self, genome):
         self.consumption += self.make_step()

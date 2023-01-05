@@ -175,6 +175,9 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             extra_amount = self.extra_storage[resource]
             resource_storage.capacity = self.genome.effects.resource_storages[resource] + extra_amount
 
+        for bodypart in self.bodyparts:
+            bodypart.constructed = True
+
     def apply_genes(self):
         """Применяет эффекты генов на существо."""
 
@@ -441,15 +444,20 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.storage.remove_resources(self.reproduction_resources)
 
         # подготовка потомков
-        for child, child_resources, child_position in \
-                zip(self.next_children, self.get_children_sharing_resources(), self.get_children_positions()):
-            child.position = child_position
-            # изымание ресурсов для потомка у родителя
-            self.storage.remove_resources(child_resources)
-            # передача потомку части ресурсов родителя
-            child.storage.add_resources(child_resources)
-            child.start()
-            # todo: сообщать потомку момент инерции
+        try:
+            for child, child_resources, child_position in \
+                    zip(self.next_children, self.get_children_sharing_resources(), self.get_children_positions()):
+                child.position = child_position
+                # изымание ресурсов для потомка у родителя
+                self.storage.remove_resources(child_resources)
+                # передача потомку части ресурсов родителя
+                child.storage.add_resources(child_resources)
+                child.start()
+                # todo: сообщать потомку момент инерции
+        except Exception as error:
+            # noinspection PyUnboundLocalVariable
+            error.child = child
+            raise error
 
         # подготовка новых потомков
         self.fertilize()

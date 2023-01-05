@@ -38,6 +38,11 @@ def log_creature(creature: BaseSimulationCreature, file: TextIO):
     file.write(f"{creature}\n")
 
 
+def log_child(child: BaseSimulationCreature, file: TextIO):
+    file.write("========== Child info ==========\n")
+    file.write(f"{child}\n")
+
+
 def log_error_info(error: Exception):
     with open("exception_info.txt", 'w') as file:
         log_error(error, file)
@@ -54,6 +59,10 @@ def log_error_info(error: Exception):
         if hasattr(error, "creature"):
             log_creature(error.creature, file)
             log_attributes(error.creature, file)
+            file.write(SECTION_DELIMITER)
+        if hasattr(error, "child"):
+            log_creature(error.child, file)
+            log_attributes(error.child, file)
             file.write(SECTION_DELIMITER)
 
 

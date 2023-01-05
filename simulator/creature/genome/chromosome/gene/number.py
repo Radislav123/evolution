@@ -32,17 +32,20 @@ class BaseNumberGene(StepGeneMixin, BaseGene, abc.ABC):
             self.attribute_name,
             getattr(genome.effects, self.attribute_name) + getattr(self, self.attribute_name)
         )
-        if hasattr(self, "common_min_limit") and getattr(genome.effects, self.attribute_name) < self.common_min_limit:
+
+    @classmethod
+    def correct(cls, genome):
+        if hasattr(cls, "common_min_limit") and getattr(genome.effects, cls.attribute_name) < cls.common_min_limit:
             setattr(
                 genome.effects,
-                self.attribute_name,
-                self.common_min_limit
+                cls.attribute_name,
+                cls.common_min_limit
             )
-        if hasattr(self, "common_max_limit") and getattr(genome.effects, self.attribute_name) > self.common_min_limit:
+        if hasattr(cls, "common_max_limit") and getattr(genome.effects, cls.attribute_name) > cls.common_min_limit:
             setattr(
                 genome.effects,
-                self.attribute_name,
-                self.common_max_limit
+                cls.attribute_name,
+                cls.common_max_limit
             )
 
     def mutate(self, genome):
