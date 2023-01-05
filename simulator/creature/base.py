@@ -39,78 +39,88 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             *args,
             **kwargs
     ):
-        super().__init__(
-            self.image_path,
-            *args,
-            **kwargs
-        )
-        # такая ситуация подразумевается только при генерации мира
-        if parents is None and world_generation:
-            parents = []
-        # такая ситуация подразумевается только при генерации мира
-        if world_generation:
-            genome = BaseGenome(None, world_generation = True)
-        else:
-            # noinspection PyUnresolvedReferences
-            genome = parents[0].genome.get_child_genome(parents)
+        try:
+            super().__init__(
+                self.image_path,
+                *args,
+                **kwargs
+            )
+            # такая ситуация подразумевается только при генерации мира
+            if parents is None and world_generation:
+                parents = []
+            # такая ситуация подразумевается только при генерации мира
+            if world_generation:
+                genome = BaseGenome(None, world_generation = True)
+            else:
+                # noinspection PyUnresolvedReferences
+                genome = parents[0].genome.get_child_genome(parents)
 
-        self.id = int(f"{world.id}{self.__class__.counter}")
-        self.__class__.counter += 1
+            self.id = int(f"{world.id}{self.__class__.counter}")
+            self.__class__.counter += 1
 
-        # общая инициализация
-        self.world = world
-        self.start_tick = self.world.age
-        self.stop_tick = self.world.age
-        self.alive = True
+            # общая инициализация
+            self.world = world
+            self.start_tick = self.world.age
+            self.stop_tick = self.world.age
+            self.alive = True
 
-        # инициализация генов
-        self.parents = parents
-        self.genome = genome
-        self.children_number: int | None = None
-        self.next_children: list[BaseSimulationCreature] | None = None
-        # ресурсы, необходимые для воспроизведения всех потомков
-        self.reproduction_resources: Resources | None = None
-        # todo: привязать к генам
-        self.reproduction_lost_coef = 1.05
-        # todo: привязать к генам
-        self.reproduction_reserve_coef = 1.1
-        # todo: привязать к генам
-        self.reproduction_energy_lost = 20
-        self.consumption_amount: Resources | None = None
-        self.apply_genes()
+            # инициализация генов
+            self.parents = parents
+            self.genome = genome
+            self.children_number: int | None = None
+            self.next_children: list[BaseSimulationCreature] | None = None
+            # ресурсы, необходимые для воспроизведения всех потомков
+            self._reproduction_resources: Resources | None = None
+            # todo: привязать к генам
+            self.reproduction_lost_coef = 1.05
+            # todo: привязать к генам
+            self.reproduction_reserve_coef = 1.1
+            # todo: привязать к генам
+            self.reproduction_energy_lost = 20
+            self.consumption_amount: Resources | None = None
+            self.apply_genes()
 
-        # инициализация частей тела
-        self.body: Body | None = None
-        self.storage: Storage | None = None
-        self.apply_bodyparts()
+            # инициализация частей тела
+            self.body: Body | None = None
+            self.storage: Storage | None = None
+            self.apply_bodyparts()
 
-        # инициализация физических характеристик
-        self.characteristics: BaseCreatureCharacteristics | None = None
-        self.physics_body: pymunk.Body | None = None
+            # инициализация физических характеристик
+            self.characteristics: BaseCreatureCharacteristics | None = None
+            self.physics_body: pymunk.Body | None = None
 
-        # инициализация ресурсов, которые будут тратиться каждый тик
-        # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
-        # (забираются из хранилища, добавляются в returned_resources,
-        # а потом (через returned_resources) возвращаются в мир)
-        self.resources_loss_accumulated: Resources | None = None
-        self._resources_loss: Resources | None = None
-        # todo: привязать к генам
-        # отношение количества регенерируемых ресурсов и энергии
-        self.energy_regenerate_cost = 1
-        # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
-        self.returned_resources = Resources()
+            # инициализация ресурсов, которые будут тратиться каждый тик
+            self._can_metabolize: bool | None = None
+            # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
+            # (забираются из хранилища, добавляются в returned_resources,
+            # а потом (через returned_resources) возвращаются в мир)
+            self.resources_loss_accumulated: Resources | None = None
+            self._resources_loss: Resources | None = None
+            # todo: привязать к генам
+            # отношение количества регенерируемых ресурсов и энергии
+            self.energy_regenerate_cost = 1
+            # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
+            self.returned_resources = Resources()
+        except Exception as error:
+            error.init_creature = self
+            raise error
 
     def __repr__(self) -> str:
         return self.object_id
 
+    @property
+    def reproduction_resources(self) -> Resources:
+        if self._reproduction_resources is None:
+            self._reproduction_resources = Resources()
+            for child in self.next_children:
+                self._reproduction_resources += child.resources
+            self.reproduction_resources[ENERGY] += int(
+                self.reproduction_energy_lost * self.reproduction_lost_coef * self.children_number
+            )
+        return self._reproduction_resources
+
     def fertilize(self):
         self.next_children = [self.__class__(self.world, [self]) for _ in range(self.children_number)]
-        self.reproduction_resources = Resources()
-        for child in self.next_children:
-            self.reproduction_resources += child.resources
-        self.reproduction_resources[ENERGY] += int(
-            self.reproduction_energy_lost * self.reproduction_lost_coef * self.children_number
-        )
 
     def prepare_physics(self):
         self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
@@ -229,7 +239,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.world.remove_creature(self)
 
     def can_regenerate(self) -> bool:
-        return not self.storage[ENERGY].empty
+        return ENERGY in self.storage and not self.storage[ENERGY].empty
 
     def regenerate(self):
         # выбирается часть тела для регенерации
@@ -283,22 +293,44 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
     def damaged_bodyparts(self) -> list[BaseBodypart]:
         return [bodypart for bodypart in self.bodyparts if bodypart.damaged]
 
+    def can_metabolize(self) -> bool:
+        if self._can_metabolize is None:
+            # проверяется, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
+            if sum([resource not in self.storage for resource in self.resources]) > 0:
+                self._can_metabolize = False
+            else:
+                self._can_metabolize = True
+        return self._can_metabolize
+
     # noinspection PyMethodOverriding
     def on_update(self, delta_time: float):
         """Симулирует жизнедеятельность за один тик."""
 
         try:
-            if self.can_consume():
-                self.consume()
-            if self.can_regenerate():
-                self.regenerate()
-            if self.can_reproduce():
-                self.reproduce()
+            # todo: remove if not (math.isnan(self.position[0]) or math.isnan(self.position[1]))...
+            if not (math.isnan(self.position[0]) or math.isnan(self.position[1])):
+                if self.can_consume():
+                    self.consume()
+                if self.can_regenerate():
+                    self.regenerate()
+                if self.can_reproduce():
+                    self.reproduce()
 
-            self.metabolize()
-            self.return_resources()
+                if self.can_metabolize():
+                    self.metabolize()
+                else:
+                    self.kill()
 
-            self.update_physics()
+                self.return_resources()
+
+                self.update_physics()
+            else:
+                # todo: remove print
+                print("------------------")
+                print(f"{self.world.age}")
+                print(self)
+                print(self.position)
+                print("------------------")
         except Exception as error:
             error.creature = self
             raise error
@@ -347,6 +379,8 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             # часть тела была уничтожена (доедена)
             if len(extra_resources) > 0:
                 self.storage.add_resources(extra_resources)
+                # чтобы проверилось, может ли существо дальше метаболизировать
+                self._can_metabolize = None
             # ресурсов части тела хватило, чтобы покрыть дефицит
             else:
                 self.storage.add_resources(damage)
@@ -395,11 +429,25 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
     def get_children_sharing_resources(self) -> list[Resources]:
         if self.children_number > 0:
-            resources = self.storage.stored_resources // (self.children_number + 1)
-            children_resources = [copy.deepcopy(resources) for _ in range(self.children_number)]
+            sharing_resources_map = {}
+            for resource in self.storage:
+                sharing_resources_map.update(
+                    {resource: [1 if resource in child.storage else 0 for child in self.next_children]}
+                )
+
+            sharing_resources = []
+            for child in self.next_children:
+                sharing_resources.append(
+                    Resources(
+                        {
+                            resource: self.storage.stored_resources[resource] // sum(sharing_resources_map[resource])
+                            if resource in child.storage else 0 for resource in self.storage
+                        }
+                    )
+                )
         else:
-            children_resources = []
-        return children_resources
+            sharing_resources = []
+        return sharing_resources
 
     def get_children_layers(self) -> list[int]:
         # максимально плотная упаковка кругов
@@ -430,11 +478,14 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         return children_positions
 
     def can_reproduce(self) -> bool:
-        can_reproduce = True
-        for resource, amount in self.reproduction_resources.items():
-            if self.storage[resource].current <= amount:
-                can_reproduce = False
-                break
+        if self.children_number > 0:
+            can_reproduce = True
+            for resource, amount in self.reproduction_resources.items():
+                if resource not in self.storage or self.storage[resource].current <= amount:
+                    can_reproduce = False
+                    break
+        else:
+            can_reproduce = False
         return can_reproduce
 
     def reproduce(self):
@@ -460,6 +511,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             raise error
 
         # подготовка новых потомков
+        self._reproduction_resources = None
         self.fertilize()
 
     def can_consume(self) -> bool:

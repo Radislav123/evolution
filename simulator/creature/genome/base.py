@@ -20,7 +20,7 @@ class GenomeEffects:
 
     def __init__(self):
         # не переносить определения в тело класса,
-        # иначе не простые типы (list, dict) используются всеми экземплярами совместно
+        # иначе не простые типы (list, dict...) используются всеми экземплярами совместно
         self.children_number = 0
         self.size_coef = 0.0
         # todo: настроить гены, чтобы эластичность принадлежала отрезку [0, 1),
@@ -156,12 +156,12 @@ class BaseGenome:
             new_chromosomes_number = 1 + random.choices(
                 range(self.max_new_chromosomes), [1 / 10**x for x in range(self.max_new_chromosomes)]
             )[0]
-            self.chromosomes.extend([BaseChromosome([])] * new_chromosomes_number)
+            self.chromosomes.extend([copy.deepcopy(BaseChromosome([])) for _ in range(new_chromosomes_number)])
 
         # исчезновение хромосом
         # noinspection DuplicatedCode
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
-        weights = [chromosome.disappearance_chance for chromosome in self.chromosomes]
+        weights = [chromosome.get_disappearance_chance(self) for chromosome in self.chromosomes]
         if sum(weights) > 0:
             disappearing_chromosomes = set(random.choices(self.chromosomes, weights, k = amount))
             self.chromosomes = [chromosome for chromosome in self.chromosomes

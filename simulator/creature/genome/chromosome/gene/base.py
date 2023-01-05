@@ -23,7 +23,7 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
     # список генов, необходимых для появления этого гена
     required_genes: list[Type["BaseGene"]] = []
     mutation_chance = 0.001
-    disappearance_chance = 0.001
+    _disappearance_chance = 0.001
     appearance_chance = 1
     resources_loss_effect_attribute_name: str
 
@@ -71,12 +71,17 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
             if not gene.abstract and genome.contains_all(gene.required_genes) and gene.appearance_chance > 0
         ]
 
-    def disappear(self, genome: "BaseGenome") -> bool:
-        can_disappear = False
-        if not self.required_for_creature or self.required_for_creature and genome.count_genes(self) > 1:
-            if random.random() < self.disappearance_chance:
-                can_disappear = True
-        return can_disappear
+    def can_disappear(self, genome: "BaseGenome") -> bool:
+        """Проверяет, может ли ген исчезнуть."""
+
+        return not self.required_for_creature or self.required_for_creature and genome.count_genes(self) > 1
+
+    def get_disappearance_chance(self, genome: "BaseGenome") -> float:
+        if not self.can_disappear(genome):
+            disappearance_chance = 0
+        else:
+            disappearance_chance = self._disappearance_chance
+        return disappearance_chance
 
 
 class StepGeneMixin:

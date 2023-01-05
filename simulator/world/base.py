@@ -155,6 +155,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         """Убирает существо из мира."""
 
         self.creatures.remove(creature)
+        self.physics_engine.remove_sprite(creature)
 
     def on_update(self, delta_time: float):
         try:
