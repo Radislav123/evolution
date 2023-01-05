@@ -31,6 +31,11 @@ class BaseBodypart(abc.ABC):
         self.constructed = False
 
         self.damage = Resources()
+        # ресурсы, находящиеся в неповрежденной части тела/необходимые для воспроизводства части тела
+        self.resources = (self._composition * self.size).round()
+        # расширение хранилища существа, которое предоставляет часть тела
+        self.extra_storage = (self.resources * self.extra_storage_coef).round()
+        self._remaining_resources: Resources | None = None
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
@@ -39,6 +44,7 @@ class BaseBodypart(abc.ABC):
     # полученными после уничтожения части тела и всех зависимых частей
     # если возвращаемые ресурсы < 0, данная часть тела и все ее зависимые части не могут покрыть нанесенного урона
     def make_damage(self, damaging_resources: Resources) -> Resources:
+        self._remaining_resources = None
         self.damage += damaging_resources
         if not self._present:
             returned_resources = damaging_resources
@@ -50,6 +56,7 @@ class BaseBodypart(abc.ABC):
 
     # если возвращаемые ресурсы != 0, значит эти ресурсы не израсходованы при регенерации
     def regenerate(self, resources: Resources) -> Resources:
+        self._remaining_resources = None
         regenerating_resources = copy.deepcopy(resources)
         for resource, amount in resources.items():
             if self.damage[resource] < amount:
@@ -88,10 +95,11 @@ class BaseBodypart(abc.ABC):
         """Уничтожает часть тела и все зависимые."""
 
         return_resources = self.remaining_resources
+        self._remaining_resources = None
         for dependent in self.dependent_bodyparts:
             return_resources += dependent.destroy()
         self.destroyed = True
-        self.damage = self.resources
+        self.damage = copy.deepcopy(self.resources)
         return return_resources
 
     @property
@@ -130,21 +138,17 @@ class BaseBodypart(abc.ABC):
             bodypart.construct(bodyparts, creature)
 
     @property
-    def resources(self) -> Resources:
-        """Ресурсы, находящиеся в неповрежденной части тела."""
-
-        resources = (self._composition * self.size).round()
-        return resources
-
-    @property
     def remaining_resources(self) -> Resources:
         """Ресурсы, находящиеся в части тела сейчас."""
 
-        return self.resources - self.damage
+        if self._remaining_resources is None:
+            self._remaining_resources = self.resources - self.damage
+        return self._remaining_resources
 
     @property
     def volume(self) -> int:
         if not self.destroyed:
+            # todo: можно добавить кэширование (аккуратнее с хранилищами)
             volume = int(sum([resource.volume * amount for resource, amount in self.resources.items()]))
         else:
             volume = 0
@@ -153,20 +157,11 @@ class BaseBodypart(abc.ABC):
     @property
     def mass(self) -> int:
         if not self.destroyed:
+            # todo: можно добавить кэширование (аккуратнее с хранилищами)
             mass = sum([resource.mass * amount for resource, amount in self.remaining_resources.items()])
         else:
             mass = 0
         return mass
-
-    @property
-    def extra_storage(self) -> Resources:
-        """Расширение хранилища существа, которое предоставляет часть тела."""
-
-        if not self.destroyed:
-            extra_storage = (self.resources * self.extra_storage_coef).round()
-        else:
-            extra_storage = Resources()
-        return extra_storage
 
 
 class Body(BaseBodypart):

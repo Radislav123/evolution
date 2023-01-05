@@ -15,6 +15,10 @@ class Storage(BaseBodypart):
     def __init__(self, size, required_bodypart):
         super().__init__(size, required_bodypart)
         self._storage: dict[BaseWorldResource, ResourceStorage] = {}
+        self._stored_resources: Resources | None = None
+        self._extra_resources: Resources | None = None
+        self._lack_resources: Resources | None = None
+        self._fullness: Resources | None = None
 
     def __getitem__(self, item):
         return self._storage[item]
@@ -33,6 +37,12 @@ class Storage(BaseBodypart):
             string = string[:-2]
         return string
 
+    def reset_cache(self):
+        self._stored_resources = None
+        self._extra_resources = None
+        self._lack_resources = None
+        self._fullness = None
+
     def items(self):
         return self._storage.items()
 
@@ -44,10 +54,11 @@ class Storage(BaseBodypart):
 
     @property
     def stored_resources(self) -> Resources:
-        resources = Resources()
-        for resource_storage in self._storage.values():
-            resources[resource_storage.world_resource] += resource_storage.current
-        return resources
+        if self._stored_resources is None:
+            self._stored_resources = Resources()
+            for resource_storage in self._storage.values():
+                self._stored_resources[resource_storage.world_resource] += resource_storage.current
+        return self._stored_resources
 
     def add_resource_storage(self, resource: BaseWorldResource, size: float):
         """Присоединяет хранилище ресурса к общему."""
@@ -57,6 +68,7 @@ class Storage(BaseBodypart):
         self.dependent_bodyparts.append(resource_storage)
 
     def add_resources(self, resources: Resources):
+        self.reset_cache()
         for resource, amount in resources.items():
             if amount > 0:
                 self._storage[resource].add(amount)
@@ -64,6 +76,7 @@ class Storage(BaseBodypart):
                 raise ValueError(f"Adding resource ({resource}) must be not negative ({amount}). {self}")
 
     def remove_resources(self, resources: Resources):
+        self.reset_cache()
         for resource, amount in resources.items():
             if amount > 0:
                 self._storage[resource].remove(amount)
@@ -72,24 +85,27 @@ class Storage(BaseBodypart):
 
     @property
     def extra_resources(self) -> Resources:
-        extra_resources = Resources()
-        for resource_storage in self._storage.values():
-            extra_resources[resource_storage.world_resource] = resource_storage.extra
-        return extra_resources
+        if self._extra_resources is None:
+            self._extra_resources = Resources()
+            for resource_storage in self._storage.values():
+                self._extra_resources[resource_storage.world_resource] = resource_storage.extra
+        return self._extra_resources
 
     @property
     def lack_resources(self) -> Resources:
-        lack_resources = Resources()
-        for resource_storage in self._storage.values():
-            lack_resources[resource_storage.world_resource] = resource_storage.lack
-        return lack_resources
+        if self._lack_resources is None:
+            self._lack_resources = Resources()
+            for resource_storage in self._storage.values():
+                self._lack_resources[resource_storage.world_resource] = resource_storage.lack
+        return self._lack_resources
 
     @property
     def fullness(self) -> Resources:
-        fullness = Resources()
-        for resource in self._storage.values():
-            fullness[resource.world_resource] = resource.fullness
-        return fullness
+        if self._fullness is None:
+            self._fullness = Resources()
+            for resource in self._storage.values():
+                self._fullness[resource.world_resource] = resource.fullness
+        return self._fullness
 
 
 class ResourceStorage(BaseBodypart):
@@ -128,10 +144,9 @@ class ResourceStorage(BaseBodypart):
         self.current = 0
 
     def destroy(self) -> Resources:
-        return_resources = Resources()
-        return_resources[self.world_resource] = self.current
+        return_resources = super(ResourceStorage, self).destroy()
+        return_resources[self.world_resource] += self.current
         self.reset()
-        return_resources += super(ResourceStorage, self).destroy()
         return return_resources
 
     @property

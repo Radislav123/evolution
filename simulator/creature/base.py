@@ -83,7 +83,9 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             # инициализация частей тела
             self.body: Body | None = None
             self.storage: Storage | None = None
+            self._bodyparts: list[BaseBodypart] | None = None
             self.apply_bodyparts()
+            self._resources: Resources | None = None
 
             # инициализация физических характеристик
             self.characteristics: BaseCreatureCharacteristics | None = None
@@ -94,7 +96,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
             # (забираются из хранилища, добавляются в returned_resources,
             # а потом (через returned_resources) возвращаются в мир)
-            self.resources_loss_accumulated: Resources | None = None
+            self.resources_loss_accumulated: Resources = Resources()
             self._resources_loss: Resources | None = None
             # todo: привязать к генам
             # отношение количества регенерируемых ресурсов и энергии
@@ -137,9 +139,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
     def update_physics(self):
         self.physics_body.mass = self.characteristics.mass
-
-    def prepare_resources_loss(self):
-        self.resources_loss_accumulated = Resources()
 
     @property
     def resources_loss(self) -> Resources:
@@ -184,6 +183,9 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             extra_amount = self.extra_storage[resource]
             resource_storage.capacity = self.genome.effects.resource_storages[resource] + extra_amount
 
+        # необходимо, чтобы список частей тела был пересобран, так как только в данной точке исполнения тело,
+        # со всеми частями, собрано
+        self._bodyparts = None
         for bodypart in self.bodyparts:
             bodypart.constructed = True
 
@@ -198,9 +200,10 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
     @property
     def bodyparts(self) -> list[BaseBodypart]:
-        bodyparts = [self.body]
-        bodyparts.extend(self.body.all_dependent)
-        return bodyparts
+        if self._bodyparts is None:
+            self._bodyparts = [self.body]
+            self._bodyparts.extend(self.body.all_dependent)
+        return self._bodyparts
 
     def start(self):
         self.__class__.birth_counter += 1
@@ -210,7 +213,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             self.world.characteristics,
         )
         self.prepare_physics()
-        self.prepare_resources_loss()
         self.start_tick = self.world.age
         self.save_to_db()
         # todo: изменить логику оплодотворения после введения полового размножения
@@ -400,10 +402,11 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
     @property
     def resources(self) -> Resources:
-        resources = Resources()
-        for bodypart in self.bodyparts:
-            resources += bodypart.resources
-        return resources
+        if self._resources is None:
+            self._resources = Resources()
+            for bodypart in self.bodyparts:
+                self._resources += bodypart.resources
+        return self._resources
 
     @property
     def damage(self) -> Resources:
