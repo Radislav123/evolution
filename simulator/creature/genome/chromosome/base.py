@@ -32,12 +32,9 @@ class BaseChromosome:
         genes_classes = [x.__class__ for x in self.genes]
         return gene_class in genes_classes
 
-    def apply_genes(self, genome):
-        """Записывает эффекты генов в хранилище."""
-
-        for gene in self.genes:
-            gene.apply(genome)
-            gene.apply_resources_loss(genome)
+    @property
+    def mutation_chance(self) -> float:
+        return self._mutation_chance + sum([gene.mutation_chance for gene in self.genes])
 
     def get_disappearance_chance(self, genome: "BaseGenome") -> float:
         if len(self) == 0:
@@ -49,10 +46,6 @@ class BaseChromosome:
                     disappearance_chance = 0
                     break
         return disappearance_chance
-
-    @property
-    def mutation_chance(self) -> float:
-        return self._mutation_chance + sum([gene.mutation_chance for gene in self.genes])
 
     # если возвращает True, хромосому необходимо удалить из генома
     def mutate(self, genome: "BaseGenome"):
@@ -87,3 +80,10 @@ class BaseChromosome:
                 genes_numbers = set(random.choices(range(len(self)), weights, k = amount))
                 for number in genes_numbers:
                     self.genes[number].mutate(genome)
+
+    def apply_genes(self, genome):
+        """Записывает эффекты генов в хранилище."""
+
+        for gene in self.genes:
+            gene.apply(genome)
+            gene.apply_resources_loss(genome)

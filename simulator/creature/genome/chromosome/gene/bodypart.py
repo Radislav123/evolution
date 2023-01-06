@@ -98,7 +98,6 @@ class BaseResourceStorageGene(StepGeneMixin, BaseBodyPartGene, abc.ABC):
         self.capacity += self.make_step()
 
 
-# noinspection DuplicatedCode
 class EnergyStorageGene(BaseResourceStorageGene):
     abstract = False
     required_for_creature = True
@@ -107,15 +106,6 @@ class EnergyStorageGene(BaseResourceStorageGene):
     default_capacity = 400
 
 
-# noinspection DuplicatedCode
-class CarbonStorageGene(BaseResourceStorageGene):
-    abstract = False
-    required_for_creature = True
-    resource = CARBON
-    default_capacity = 150
-
-
-# noinspection DuplicatedCode
 class OxygenStorageGene(BaseResourceStorageGene):
     abstract = False
     required_for_creature = True
@@ -123,7 +113,13 @@ class OxygenStorageGene(BaseResourceStorageGene):
     default_capacity = 350
 
 
-# noinspection DuplicatedCode
+class CarbonStorageGene(BaseResourceStorageGene):
+    abstract = False
+    required_for_creature = True
+    resource = CARBON
+    default_capacity = 200
+
+
 class HydrogenStorageGene(BaseResourceStorageGene):
     abstract = False
     required_for_creature = True
@@ -163,7 +159,6 @@ class BaseResourceConsumptionGene(StepGeneMixin, BaseGene, abc.ABC):
 
 
 # todo: изменить - сделать из EnergyConsumptionGene абстрактный
-# noinspection DuplicatedCode
 class EnergyConsumptionGene(BaseResourceConsumptionGene):
     abstract = False
     required_for_creature = True
@@ -171,15 +166,6 @@ class EnergyConsumptionGene(BaseResourceConsumptionGene):
     resource = ENERGY
 
 
-# noinspection DuplicatedCode
-class CarbonConsumptionGene(BaseResourceConsumptionGene):
-    abstract = False
-    required_for_creature = True
-    required_genes = [CarbonStorageGene]
-    resource = CARBON
-
-
-# noinspection DuplicatedCode
 class OxygenConsumptionGene(BaseResourceConsumptionGene):
     abstract = False
     required_for_creature = True
@@ -187,7 +173,13 @@ class OxygenConsumptionGene(BaseResourceConsumptionGene):
     resource = OXYGEN
 
 
-# noinspection DuplicatedCode
+class CarbonConsumptionGene(BaseResourceConsumptionGene):
+    abstract = False
+    required_for_creature = True
+    required_genes = [CarbonStorageGene]
+    resource = CARBON
+
+
 class HydrogenConsumptionGene(BaseResourceConsumptionGene):
     abstract = False
     required_for_creature = True

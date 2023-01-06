@@ -14,11 +14,11 @@ class BaseWorldResource:
         self.name = name
         self.formula = formula
 
-    def __hash__(self):
-        return self.hash
-
     def __repr__(self):
         return self.name
+
+    def __hash__(self):
+        return self.hash
 
     def __eq__(self, other: "BaseWorldResource") -> bool:
         return hash(self) == hash(other) and isinstance(other, self.__class__)
@@ -44,7 +44,6 @@ VT = TypeVar("VT", int, float)
 KT = TypeVar("KT", bound = BaseWorldResource)
 
 
-# todo: добавить кэширование используемых ресурсов (world, creature, storage, bodyparts...)
 class Resources(Dict[KT, VT]):
     """Обертка для удобной работы с ресурсами."""
 

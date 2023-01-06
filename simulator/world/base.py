@@ -6,7 +6,10 @@ from core import models
 from core.mixin import DatabaseSavableMixin, WorldObjectMixin
 from simulator.creature import BaseSimulationCreature
 from simulator.physic import BaseWorldCharacteristics
-from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
+from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, RESOURCE_LIST, Resources
+
+
+CREATURE_START_RESOURCES = Resources({resource: 20 for resource in RESOURCE_LIST})
 
 
 class Switch:
@@ -49,13 +52,23 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
 
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
-        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.4)
+        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.5)
         self.prepare_borders()
         self.prepare_physics_engine()
         self.chunks = BaseSimulationWorldChunk.cut_world(self)
 
     def __repr__(self) -> str:
         return f"{self.object_id}"
+
+    @property
+    def id(self) -> int:
+        if self._id is None:
+            self._id = self.db_model.objects.count()
+        return self._id
+
+    def save_to_db(self):
+        self.db_instance = self.db_model(id = self.id, stop_tick = self.age, width = self.width, height = self.height)
+        self.db_instance.save()
 
     # левая, правая, нижняя, верхняя
     def get_borders_coordinates(self) -> tuple[int, int, int, int]:
@@ -114,17 +127,9 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
             body_type = arcade.PymunkPhysicsEngine.STATIC
         )
 
-    @property
-    def id(self) -> int:
-        if self._id is None:
-            self._id = self.db_model.objects.count()
-        return self._id
-
-    def save_to_db(self):
-        self.db_instance = self.db_model(id = self.id, stop_tick = self.age, width = self.width, height = self.height)
-        self.db_instance.save()
-
     def start(self):
+        """Выполняет подготовительные действия при начале симуляции."""
+
         self.save_to_db()
         self.spawn_start_creature()
 
@@ -142,15 +147,17 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
             world_generation = True
         )
         creature.position = copy.deepcopy(self.center)
+        creature.storage.add_resources(CREATURE_START_RESOURCES)
         creature.start()
         self.remove_resources(creature.position, creature.remaining_resources)
+        self.remove_resources(creature.position, creature.storage.stored_resources)
 
     def add_creature(self, creature: BaseSimulationCreature):
         """Добавляет существо в мир."""
 
         self.creatures.append(creature)
 
-    # если существо необходимо убить, то это нужно сделать отдельно
+    # если существо необходимо убить, то это нужно сделать отдельно (creature.kill)
     def remove_creature(self, creature: BaseSimulationCreature):
         """Убирает существо из мира."""
 

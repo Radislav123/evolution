@@ -23,19 +23,15 @@ class GenomeEffects:
         # иначе не простые типы (list, dict...) используются всеми экземплярами совместно
         self.children_number = 0
         self.size_coef = 0.0
-        # todo: настроить гены, чтобы эластичность принадлежала отрезку [0, 1),
-        #  где 0 - абсолютно твердое тела, а 1 - абсолютно упругое тело
         self.elasticity = 0.0
+        self.metabolism = 0.0
+        self.resources_loss_coef = 0.0
+        self.regeneration_amount = 0
         self.consumption_amount = Resources()
+        self.resources_loss = Resources()
         self.bodyparts: list[Type[BaseBodypart]] = []
         self.resource_storages = Resources()
         self.color: list[int] = [0, 0, 0]
-        self.resources_loss = Resources()
-        # MetabolismGene
-        self.metabolism = 0.0
-        # ResourcesLossCoefGene
-        self.resources_loss_coef = 0.0
-        self.regeneration_amount = 0
 
     def prepare(self):
         self.prepare_color()
@@ -128,6 +124,14 @@ class BaseGenome:
                 break
         return contains
 
+    @property
+    def mutation_chance(self) -> float:
+        # todo: добавить возможность влияния внешних факторов на шанс мутации
+        return self._mutation_chance + sum([chromosome.mutation_chance for chromosome in self.chromosomes])
+
+    def count_genes(self, gene: BaseGene | Type[BaseGene]) -> int:
+        return len(self.get_genes(gene))
+
     def get_genes(self, gene: Type[GENE_CLASS] | GENE_CLASS) -> list[GENE_CLASS]:
         """Ищет запрошенные гены и все дочерние."""
 
@@ -140,14 +144,6 @@ class BaseGenome:
         for chromosome in self.chromosomes:
             genes.extend([x for x in chromosome.genes if isinstance(x, gene_class)])
         return genes
-
-    def count_genes(self, gene: BaseGene | Type[BaseGene]) -> int:
-        return len(self.get_genes(gene))
-
-    @property
-    def mutation_chance(self) -> float:
-        # todo: добавить возможность влияния внешних факторов на шанс мутации
-        return self._mutation_chance + sum([chromosome.mutation_chance for chromosome in self.chromosomes])
 
     def mutate(self):
         # добавляются новые хромосомы

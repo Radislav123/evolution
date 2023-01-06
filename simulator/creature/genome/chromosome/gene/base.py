@@ -34,10 +34,21 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
 
-    def apply_resources_loss(self, genome: "BaseGenome"):
-        for resource in self.resources_loss_coeffs:
-            genome.effects.resources_loss[resource] += getattr(self, self.resources_loss_effect_attribute_name) * \
-                                                       self.resources_loss_coeffs[resource]
+    def get_disappearance_chance(self, genome: "BaseGenome") -> float:
+        if not self.can_disappear(genome):
+            disappearance_chance = 0
+        else:
+            disappearance_chance = self._disappearance_chance
+        return disappearance_chance
+
+    def can_disappear(self, genome: "BaseGenome") -> bool:
+        """Проверяет, может ли ген исчезнуть."""
+
+        return not self.required_for_creature or self.required_for_creature and genome.count_genes(self) > 1
+
+    @abc.abstractmethod
+    def mutate(self, genome: "BaseGenome"):
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def apply(self, genome: "BaseGenome"):
@@ -45,15 +56,16 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
 
         raise NotImplementedError()
 
+    def apply_resources_loss(self, genome: "BaseGenome"):
+        for resource in self.resources_loss_coeffs:
+            genome.effects.resources_loss[resource] += getattr(self, self.resources_loss_effect_attribute_name) * \
+                                                       self.resources_loss_coeffs[resource]
+
     @classmethod
     @abc.abstractmethod
     def correct(cls, genome: "BaseGenome"):
         """Корректирует суммарный эффект генов данного типа после применения каждого по отдельности."""
 
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def mutate(self, genome: "BaseGenome"):
         raise NotImplementedError()
 
     @classmethod
@@ -70,18 +82,6 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
             gene(False) for gene in cls.get_all_subclasses()
             if not gene.abstract and genome.contains_all(gene.required_genes) and gene.appearance_chance > 0
         ]
-
-    def can_disappear(self, genome: "BaseGenome") -> bool:
-        """Проверяет, может ли ген исчезнуть."""
-
-        return not self.required_for_creature or self.required_for_creature and genome.count_genes(self) > 1
-
-    def get_disappearance_chance(self, genome: "BaseGenome") -> float:
-        if not self.can_disappear(genome):
-            disappearance_chance = 0
-        else:
-            disappearance_chance = self._disappearance_chance
-        return disappearance_chance
 
 
 class StepGeneMixin:

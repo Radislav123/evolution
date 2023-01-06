@@ -10,7 +10,7 @@ import pymunk
 from core import models
 from core.mixin import DatabaseSavableMixin, WorldObjectMixin
 from evolution import settings
-from simulator.creature.bodypart import BaseBodypart, Body, Storage
+from simulator.creature.bodypart import AddToNonExistentStoragesException, BaseBodypart, Body, Storage
 from simulator.creature.genome import BaseGenome
 from simulator.physic import BaseCreatureCharacteristics
 from simulator.world_resource import BaseWorldResource, ENERGY, Resources
@@ -69,13 +69,15 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             self.genome = genome
             self.children_number: int | None = None
             self.next_children: list[BaseSimulationCreature] | None = None
-            # ресурсы, необходимые для воспроизведения всех потомков
             self._reproduction_resources: Resources | None = None
             # todo: привязать к генам
-            self.reproduction_lost_coef = 1.05
+            # коэффициент ресурсов, теряемых, при воспроизведении потомков
+            self.reproduction_lost_coef = 1.1
             # todo: привязать к генам
-            self.reproduction_reserve_coef = 1.1
+            # коэффициент ресурсов, необходимых для разрешения воспроизведения (не расходуются)
+            self.reproduction_reserve_coef = 1.5
             # todo: привязать к генам
+            # количество энергии, затрачиваемой на каждого потомка, при воспроизведении
             self.reproduction_energy_lost = 20
             self.consumption_amount: Resources | None = None
             self.apply_genes()
@@ -85,7 +87,10 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             self.storage: Storage | None = None
             self._bodyparts: list[BaseBodypart] | None = None
             self.apply_bodyparts()
-            self._resources: Resources | None = None
+            # ресурсы, необходимые для воспроизводства существа
+            self.resources = Resources()
+            for bodypart in self.bodyparts:
+                self.resources += bodypart.resources
 
             # инициализация физических характеристик
             self.characteristics: BaseCreatureCharacteristics | None = None
@@ -112,33 +117,14 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
 
     @property
     def reproduction_resources(self) -> Resources:
+        """Ресурсы, необходимые для воспроизведения всех потомков, без учета коэффициентов."""
+
         if self._reproduction_resources is None:
             self._reproduction_resources = Resources()
             for child in self.next_children:
                 self._reproduction_resources += child.resources
-            self.reproduction_resources[ENERGY] += int(
-                self.reproduction_energy_lost * self.reproduction_lost_coef * self.children_number
-            )
+            self.reproduction_resources[ENERGY] += int(self.reproduction_energy_lost * self.children_number)
         return self._reproduction_resources
-
-    def fertilize(self):
-        self.next_children = [self.__class__(self.world, [self]) for _ in range(self.children_number)]
-
-    def prepare_physics(self):
-        self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
-        self.world.physics_engine.add_sprite(
-            self,
-            mass = self.characteristics.mass,
-            # todo: добавить friction (шероховатость поверхности существа) в гены
-            friction = 0.5,
-            elasticity = self.characteristics.elasticity,
-            # сюда передается радиус скругления углов для хитбокса, поэтому его передавать не надо
-            # radius = self.characteristics.radius
-        )
-        self.physics_body = self.world.physics_engine.get_physics_object(self).body
-
-    def update_physics(self):
-        self.physics_body.mass = self.characteristics.mass
 
     @property
     def resources_loss(self) -> Resources:
@@ -152,6 +138,65 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             self.resources_loss_accumulated = resources_loss - resources_loss.round()
             self._resources_loss = resources_loss.round()
         return self._resources_loss
+
+    @property
+    def damage(self) -> Resources:
+        resources = Resources()
+        for bodypart in self.bodyparts:
+            resources += bodypart.damage
+        return resources
+
+    @property
+    def remaining_resources(self) -> Resources:
+        resources = Resources()
+        for bodypart in self.bodyparts:
+            resources += bodypart.remaining_resources
+        return resources
+
+    @property
+    def extra_storage(self) -> Resources:
+        extra_storage = Resources()
+        for bodypart in self.bodyparts:
+            extra_storage += bodypart.extra_storage
+        return extra_storage
+
+    @property
+    def bodyparts(self) -> list[BaseBodypart]:
+        """Все части тела существа."""
+
+        if self._bodyparts is None:
+            self._bodyparts = [self.body]
+            self._bodyparts.extend(self.body.all_dependent)
+        return self._bodyparts
+
+    @property
+    def damaged_bodyparts(self) -> list[BaseBodypart]:
+        """Части тела, получившие урон."""
+
+        return [bodypart for bodypart in self.bodyparts if bodypart.damaged]
+
+    @property
+    def present_bodyparts(self) -> list[BaseBodypart]:
+        """Присутствующие, не полностью уничтоженные, части тела."""
+
+        return [bodypart for bodypart in self.bodyparts if not bodypart.destroyed]
+
+    def save_to_db(self):
+        self.db_instance = self.db_model(
+            world = self.world.db_instance,
+            start_tick = self.start_tick,
+            stop_tick = self.stop_tick
+        )
+        self.db_instance.save()
+
+    def apply_genes(self):
+        """Применяет эффекты генов на существо."""
+
+        self.genome.apply_genes()
+
+        self.children_number = self.genome.effects.children_number
+        self.consumption_amount = self.genome.effects.consumption_amount
+        self.color = self.genome.effects.color
 
     def apply_bodyparts(self):
         """Применяет эффекты частей тела на существо."""
@@ -189,22 +234,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         for bodypart in self.bodyparts:
             bodypart.constructed = True
 
-    def apply_genes(self):
-        """Применяет эффекты генов на существо."""
-
-        self.genome.apply_genes()
-
-        self.children_number = self.genome.effects.children_number
-        self.consumption_amount = self.genome.effects.consumption_amount
-        self.color = self.genome.effects.color
-
-    @property
-    def bodyparts(self) -> list[BaseBodypart]:
-        if self._bodyparts is None:
-            self._bodyparts = [self.body]
-            self._bodyparts.extend(self.body.all_dependent)
-        return self._bodyparts
-
     def start(self):
         self.__class__.birth_counter += 1
         self.characteristics = BaseCreatureCharacteristics(
@@ -223,14 +252,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.stop_tick = self.world.age
         self.save_to_db()
 
-    def save_to_db(self):
-        self.db_instance = self.db_model(
-            world = self.world.db_instance,
-            start_tick = self.start_tick,
-            stop_tick = self.stop_tick
-        )
-        self.db_instance.save()
-
     def kill(self):
         self.__class__.death_counter += 1
         self.returned_resources += self.body.destroy()
@@ -238,6 +259,88 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.alive = False
         self.stop()
         self.world.remove_creature(self)
+
+    def prepare_physics(self):
+        self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
+        self.world.physics_engine.add_sprite(
+            self,
+            mass = self.characteristics.mass,
+            # todo: добавить friction (шероховатость поверхности существа) в гены
+            friction = 0.5,
+            elasticity = self.characteristics.elasticity,
+            # сюда передается радиус скругления углов для хитбокса, поэтому его передавать не надо
+            # radius = self.characteristics.radius
+        )
+        self.physics_body = self.world.physics_engine.get_physics_object(self).body
+
+    def fertilize(self):
+        self.next_children = [self.__class__(self.world, [self]) for _ in range(self.children_number)]
+
+    # noinspection PyMethodOverriding
+    def on_update(self, delta_time: float):
+        """Симулирует жизнедеятельность за один тик."""
+
+        try:
+            if self.can_consume():
+                self.consume()
+            if self.can_regenerate():
+                self.regenerate()
+            if self.can_reproduce():
+                self.reproduce()
+
+            if self.can_metabolize():
+                self.metabolize()
+            if not self.can_metabolize():
+                self.kill()
+
+            self.return_resources()
+            self.update_physics()
+        except Exception as error:
+            error.creature = self
+            raise error
+
+    def can_consume(self) -> bool:
+        can_consume = False
+        for resource, amount in self.storage.fullness.items():
+            if amount < 1:
+                can_consume = True
+                break
+        return can_consume
+
+    def consume(self):
+        """Симулирует потребление веществ существом."""
+
+        resource = self.get_consumption_resource()
+        if resource is not None:
+            # забирает из мира ресурс
+            available_amount = self.world.get_resources(self.position)[resource]
+            if available_amount >= self.consumption_amount[resource]:
+                consumption_amount = self.consumption_amount[resource]
+            else:
+                consumption_amount = available_amount
+
+            consumption_resources = Resources({resource: consumption_amount})
+            self.world.remove_resources(self.position, consumption_resources)
+
+            # добавляет в свое хранилище
+            self.storage.add_resources(consumption_resources)
+
+            # тратит энергию за потребление ресурса
+            self.resources_loss_accumulated[ENERGY] += consumption_amount * 0.01
+
+    def get_consumption_resource(self) -> BaseWorldResource | None:
+        resources = []
+        weights = []
+        for resource in self.storage:
+            if not self.storage[resource].destroyed and 0 <= self.storage.fullness[resource] < 1 \
+                    and self.world.get_resources(self.position)[resource] > 0:
+                resources.append(resource)
+                weights.append(1 - self.storage.fullness[resource])
+        if len(resources) > 0:
+            resource = random.choices(resources, weights)[0]
+        else:
+            resource = None
+        return resource
 
     def can_regenerate(self) -> bool:
         return ENERGY in self.storage and not self.storage[ENERGY].empty
@@ -290,200 +393,13 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             bodypart = None
         return bodypart
 
-    @property
-    def damaged_bodyparts(self) -> list[BaseBodypart]:
-        return [bodypart for bodypart in self.bodyparts if bodypart.damaged]
-
-    def can_metabolize(self) -> bool:
-        if self._can_metabolize is None:
-            # проверяется, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
-            if sum([resource not in self.storage for resource in self.resources]) > 0:
-                self._can_metabolize = False
-            else:
-                self._can_metabolize = True
-        return self._can_metabolize
-
-    # noinspection PyMethodOverriding
-    def on_update(self, delta_time: float):
-        """Симулирует жизнедеятельность за один тик."""
-
-        try:
-            # todo: remove if not (math.isnan(self.position[0]) or math.isnan(self.position[1]))...
-            if not (math.isnan(self.position[0]) or math.isnan(self.position[1])):
-                if self.can_consume():
-                    self.consume()
-                if self.can_regenerate():
-                    self.regenerate()
-                if self.can_reproduce():
-                    self.reproduce()
-
-                if self.can_metabolize():
-                    self.metabolize()
-                else:
-                    self.kill()
-
-                self.return_resources()
-
-                self.update_physics()
-            else:
-                # todo: remove print
-                print("------------------")
-                print(f"{self.world.age}")
-                print(self)
-                print(self.position)
-                print("------------------")
-        except Exception as error:
-            error.creature = self
-            raise error
-
-    def return_resources(self):
-        self.returned_resources += self.storage.extra_resources
-        self.storage.remove_resources(self.storage.extra_resources)
-        self.returned_resources[ENERGY] = 0
-        self.world.add_resources(self.position, self.returned_resources)
-        self.returned_resources = Resources()
-
-    @property
-    def present_bodyparts(self) -> list[BaseBodypart]:
-        return [bodypart for bodypart in self.bodyparts if not bodypart.destroyed]
-
-    def get_autophagic_bodypart(self) -> BaseBodypart:
-        bodyparts = []
-        for bodypart in self.present_bodyparts:
-            append = True
-            for resource, amount in self.storage.lack_resources.items():
-                if amount > 0 >= bodypart.resources[resource]:
-                    append = False
-                    break
-            if append:
-                bodyparts.append(bodypart)
-
-        random.shuffle(bodyparts)
-        bodypart = bodyparts[0]
-        return bodypart
-
-    # https://ru.wikipedia.org/wiki/%D0%90%D1%83%D1%82%D0%BE%D1%84%D0%B0%D0%B3%D0%B8%D1%8F
-    # если возвращается отрицательное количество ресурса, значит существу не хватает ресурсов частей тела,
-    # чтобы восполнить потерю -> оно должно умереть
-    def autophage(self):
-        """Существо попытается восполнить недостаток ресурсов в хранилище за счет частей тела."""
-
-        # todo: заменить len(self.storage.lack) > 0, когда уберу ENERGY из Body там (len(self.storage.lack))
-        #  будет учитываться еще и ENERGY, дефицит которой должен будет обрабатываться иначе
-        while not self.body.destroyed and len(self.storage.lack_resources) > 0:
-            bodypart = self.get_autophagic_bodypart()
-            damage = self.storage.lack_resources
-            for resource, amount in bodypart.remaining_resources.items():
-                if amount < damage[resource]:
-                    damage[resource] = amount
-            extra_resources = bodypart.make_damage(damage)
-            # часть тела была уничтожена (доедена)
-            if len(extra_resources) > 0:
-                self.storage.add_resources(extra_resources)
-                # чтобы проверилось, может ли существо дальше метаболизировать
-                self._can_metabolize = None
-            # ресурсов части тела хватило, чтобы покрыть дефицит
-            else:
-                self.storage.add_resources(damage)
-
-    def metabolize(self):
-        self.storage.remove_resources(self.resources_loss)
-        self.returned_resources += self.resources_loss
-
-        if len(self.storage.lack_resources) > 0:
-            self.autophage()
-
-        # todo: заменить len(self.storage.lack) > 0, когда уберу ENERGY из Body там (len(self.storage.lack))
-        #  будет учитываться еще и ENERGY, дефицит которой должен будет обрабатываться иначе
-        if len(self.storage.lack_resources) > 0 or self.body.destroyed:
-            self.kill()
-
-        self._resources_loss = None
-
-    @property
-    def resources(self) -> Resources:
-        if self._resources is None:
-            self._resources = Resources()
-            for bodypart in self.bodyparts:
-                self._resources += bodypart.resources
-        return self._resources
-
-    @property
-    def damage(self) -> Resources:
-        resources = Resources()
-        for bodypart in self.bodyparts:
-            resources += bodypart.damage
-        return resources
-
-    @property
-    def remaining_resources(self) -> Resources:
-        resources = Resources()
-        for bodypart in self.bodyparts:
-            resources += bodypart.remaining_resources
-        return resources
-
-    @property
-    def extra_storage(self) -> Resources:
-        extra_storage = Resources()
-        for bodypart in self.bodyparts:
-            extra_storage += bodypart.extra_storage
-        return extra_storage
-
-    def get_children_sharing_resources(self) -> list[Resources]:
-        if self.children_number > 0:
-            sharing_resources_map = {}
-            for resource in self.storage:
-                sharing_resources_map.update(
-                    {resource: [1 if resource in child.storage else 0 for child in self.next_children]}
-                )
-
-            sharing_resources = []
-            for child in self.next_children:
-                sharing_resources.append(
-                    Resources(
-                        {
-                            resource: self.storage.stored_resources[resource] // sum(sharing_resources_map[resource])
-                            if resource in child.storage else 0 for resource in self.storage
-                        }
-                    )
-                )
-        else:
-            sharing_resources = []
-        return sharing_resources
-
-    def get_children_layers(self) -> list[int]:
-        # максимально плотная упаковка кругов
-        # https://ru.wikipedia.org/wiki/%D0%A3%D0%BF%D0%B0%D0%BA%D0%BE%D0%B2%D0%BA%D0%B0_%D0%BA%D1%80%D1%83%D0%B3%D0%BE%D0%B2
-        children_in_layer = 6
-        layers = []
-        while sum(layers) < self.children_number:
-            layers.append(len(layers) * children_in_layer)
-        layers = layers[1:-1]
-        if sum(layers) != self.children_number:
-            layers.append(self.children_number - sum(layers))
-        return layers
-
-    def get_children_positions(self) -> list[tuple[float, float]]:
-        offset_coef = 0.5
-        children_positions = []
-        children_layers = self.get_children_layers()
-        # располагает потомков равномерно по слоям
-        for layer_number, children_in_layer in enumerate(children_layers):
-            child_sector = math.pi * 2 / children_in_layer
-            for number in range(children_in_layer):
-                offset_x = self.characteristics.radius * 2 * math.cos(child_sector * number) \
-                           * offset_coef * (layer_number + 1)
-                offset_y = self.characteristics.radius * 2 * math.sin(child_sector * number) \
-                           * offset_coef * (layer_number + 1)
-
-                children_positions.append((self.position[0] + offset_x, self.position[1] + offset_y))
-        return children_positions
-
     def can_reproduce(self) -> bool:
         if self.children_number > 0:
             can_reproduce = True
             for resource, amount in self.reproduction_resources.items():
-                if resource not in self.storage or self.storage[resource].current <= amount:
+                if resource not in self.storage or \
+                        self.storage[resource].current <= amount * \
+                        self.reproduction_reserve_coef * self.reproduction_lost_coef:
                     can_reproduce = False
                     break
         else:
@@ -494,12 +410,15 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         """Симулирует размножение существа."""
 
         # трата ресурсов на тела потомков
-        self.storage.remove_resources(self.reproduction_resources)
+        reproduction_spending_resources = (self.reproduction_resources * self.reproduction_lost_coef).round()
+        self.storage.remove_resources(reproduction_spending_resources)
+        # ресурсы, возвращаемые в мир
+        self.returned_resources += reproduction_spending_resources - self.reproduction_resources
 
         # подготовка потомков
         try:
-            for child, child_resources, child_position in \
-                    zip(self.next_children, self.get_children_sharing_resources(), self.get_children_positions()):
+            for child, child_position, child_resources in \
+                    zip(self.next_children, self.get_children_positions(), self.get_children_sharing_resources()):
                 child.position = child_position
                 # изымание ресурсов для потомка у родителя
                 self.storage.remove_resources(child_resources)
@@ -516,44 +435,131 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self._reproduction_resources = None
         self.fertilize()
 
-    def can_consume(self) -> bool:
-        can_consume = False
-        for resource, amount in self.storage.fullness.items():
-            if amount < 1:
-                can_consume = True
-                break
-        return can_consume
+    def get_children_positions(self) -> list[tuple[float, float]]:
+        offset_coef = 0.5
+        children_positions = []
+        children_layers = self.get_children_layers()
+        # располагает потомков равномерно по слоям
+        for layer_number, children_in_layer in enumerate(children_layers):
+            child_sector = math.pi * 2 / children_in_layer
+            # сдвиг расположения первого/единственного потомка в слое,
+            # чтобы первый/единственный потомок был не строго справа, а случайно на окружности
+            first_layer_child_offset = random.random() * math.pi * 2
+            for number in range(children_in_layer):
+                offset_x = self.characteristics.radius * 2 * \
+                           math.cos(child_sector * number + first_layer_child_offset) * offset_coef * (layer_number + 1)
+                offset_y = self.characteristics.radius * 2 * \
+                           math.sin(child_sector * number + first_layer_child_offset) * offset_coef * (layer_number + 1)
 
-    def get_consumption_resource(self) -> BaseWorldResource | None:
-        resources = []
-        weights = []
-        for resource in self.storage:
-            if 0 <= self.storage.fullness[resource] < 1 and self.world.get_resources(self.position)[resource] > 0:
-                resources.append(resource)
-                weights.append(1 - self.storage.fullness[resource])
-        if len(resources) > 0:
-            resource = random.choices(resources, weights)[0]
+                children_positions.append((self.position[0] + offset_x, self.position[1] + offset_y))
+        return children_positions
+
+    def get_children_layers(self) -> list[int]:
+        # максимально плотная упаковка кругов
+        # https://ru.wikipedia.org/wiki/%D0%A3%D0%BF%D0%B0%D0%BA%D0%BE%D0%B2%D0%BA%D0%B0_%D0%BA%D1%80%D1%83%D0%B3%D0%BE%D0%B2
+        children_in_layer = 6
+        layers = []
+        while sum(layers) < self.children_number:
+            layers.append(len(layers) * children_in_layer)
+        layers = layers[1:-1]
+        if sum(layers) != self.children_number:
+            layers.append(self.children_number - sum(layers))
+        return layers
+
+    def get_children_sharing_resources(self) -> list[Resources]:
+        if self.children_number > 0:
+            sharing_resources_map = {}
+            for resource in self.storage:
+                sharing_resources_map.update(
+                    {resource: [1 if resource in child.storage else 0 for child in self.next_children]}
+                )
+
+            sharing_resources = []
+            for child in self.next_children:
+                sharing_resources.append(
+                    Resources(
+                        {
+                            resource: self.storage.stored_resources[resource] // sum(sharing_resources_map[resource], 1)
+                            if resource in child.storage else 0 for resource in self.storage
+                        }
+                    )
+                )
         else:
-            resource = None
-        return resource
+            sharing_resources = []
+        return sharing_resources
 
-    def consume(self):
-        """Симулирует потребление веществ существом."""
-
-        resource = self.get_consumption_resource()
-        if resource is not None:
-            # забирает из мира ресурс
-            available_amount = self.world.get_resources(self.position)[resource]
-            if available_amount >= self.consumption_amount[resource]:
-                consumption_amount = self.consumption_amount[resource]
+    def can_metabolize(self) -> bool:
+        if self._can_metabolize is None:
+            # проверяется, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
+            if sum([resource not in self.storage or self.storage[resource].destroyed for resource in self.resources]) \
+                    > 0:
+                self._can_metabolize = False
             else:
-                consumption_amount = available_amount
+                self._can_metabolize = True
+        return self._can_metabolize
 
-            consumption_resources = Resources({resource: consumption_amount})
-            self.world.remove_resources(self.position, consumption_resources)
+    def metabolize(self):
+        self.storage.remove_resources(self.resources_loss)
+        self.returned_resources += self.resources_loss
 
-            # добавляет в свое хранилище
-            self.storage.add_resources(consumption_resources)
+        if len(self.storage.lack_resources) > 0:
+            self.autophage()
 
-            # тратит энергию за потребление ресурса
-            self.resources_loss_accumulated[ENERGY] += consumption_amount * 0.01
+        # todo: заменить len(self.storage.lack) > 0, когда уберу ENERGY из Body там (len(self.storage.lack))
+        #  будет учитываться еще и ENERGY, дефицит которой должен будет обрабатываться иначе
+        if len(self.storage.lack_resources) > 0 or self.body.destroyed:
+            self.kill()
+
+        self._resources_loss = None
+
+    # https://ru.wikipedia.org/wiki/%D0%90%D1%83%D1%82%D0%BE%D1%84%D0%B0%D0%B3%D0%B8%D1%8F
+    # если возвращается отрицательное количество ресурса, значит существу не хватает ресурсов частей тела,
+    # чтобы восполнить потерю -> оно должно умереть
+    def autophage(self):
+        """Существо попытается восполнить недостаток ресурсов в хранилище за счет частей тела."""
+
+        # todo: заменить len(self.storage.lack) > 0, когда уберу ENERGY из Body там (len(self.storage.lack))
+        #  будет учитываться еще и ENERGY, дефицит которой должен будет обрабатываться иначе
+        while not self.body.destroyed and len(self.storage.lack_resources) > 0:
+            bodypart = self.get_autophagic_bodypart()
+            damage = self.storage.lack_resources
+            for resource, amount in bodypart.remaining_resources.items():
+                if amount < damage[resource]:
+                    damage[resource] = amount
+            extra_resources = bodypart.make_damage(damage)
+            # часть тела была уничтожена (доедена), но ресурсов не хватило
+            if len(extra_resources) > 0:
+                try:
+                    self.storage.add_resources(extra_resources)
+                except AddToNonExistentStoragesException as exception:
+                    self.returned_resources += exception.resources
+                # чтобы проверилось, может ли существо дальше метаболизировать
+                self._can_metabolize = None
+            # ресурсов части тела хватило, чтобы покрыть дефицит (возможно, она уничтожена)
+            else:
+                self.storage.add_resources(damage)
+
+    def get_autophagic_bodypart(self) -> BaseBodypart:
+        bodyparts = []
+        for bodypart in self.present_bodyparts:
+            append = True
+            for resource, amount in self.storage.lack_resources.items():
+                if amount > 0 >= bodypart.resources[resource]:
+                    append = False
+                    break
+            if append:
+                bodyparts.append(bodypart)
+
+        random.shuffle(bodyparts)
+        bodypart = bodyparts[0]
+        return bodypart
+
+    def return_resources(self):
+        self.returned_resources += self.storage.extra_resources
+        self.storage.remove_resources(self.storage.extra_resources)
+        self.returned_resources[ENERGY] = 0
+        self.world.add_resources(self.position, self.returned_resources)
+        self.returned_resources = Resources()
+
+    def update_physics(self):
+        self.physics_body.mass = self.characteristics.mass

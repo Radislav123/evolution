@@ -40,33 +40,17 @@ class BaseBodypart(abc.ABC):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
 
-    # если возвращаемые ресурсы != 0, значит часть тела уничтожена, а эти ресурсы являются ресурсами,
-    # полученными после уничтожения части тела и всех зависимых частей
-    # если возвращаемые ресурсы < 0, данная часть тела и все ее зависимые части не могут покрыть нанесенного урона
-    def make_damage(self, damaging_resources: Resources) -> Resources:
-        self._remaining_resources = None
-        self.damage += damaging_resources
-        if not self._present:
-            returned_resources = damaging_resources
-            returned_resources += self.destroy()
-        else:
-            returned_resources = Resources()
+    @property
+    # должно использоваться только в make_damage(), для всех остальных случаев есть destroyed
+    def _present(self) -> bool:
+        """Показывает, присутствует ли часть тела относительно нанесенного ей урона."""
 
-        return returned_resources
-
-    # если возвращаемые ресурсы != 0, значит эти ресурсы не израсходованы при регенерации
-    def regenerate(self, resources: Resources) -> Resources:
-        self._remaining_resources = None
-        regenerating_resources = copy.deepcopy(resources)
-        for resource, amount in resources.items():
-            if self.damage[resource] < amount:
-                regenerating_resources[resource] = self.damage[resource]
-
-        self.damage -= regenerating_resources
-        if self._present:
-            self.destroyed = False
-
-        return resources - regenerating_resources
+        present = True
+        for resource, amount in self.resources.items():
+            if amount <= self.damage[resource]:
+                present = False
+                break
+        return present
 
     @property
     def damaged(self) -> bool:
@@ -80,36 +64,12 @@ class BaseBodypart(abc.ABC):
         return damaged
 
     @property
-    # должно использоваться только в make_damage(), для всех остальных случаев есть destroyed
-    def _present(self) -> bool:
-        """Показывает, присутствует ли часть тела относительно нанесенного ей урона."""
+    def remaining_resources(self) -> Resources:
+        """Ресурсы, находящиеся в части тела сейчас."""
 
-        present = True
-        for resource, amount in self.resources.items():
-            if amount <= self.damage[resource]:
-                present = False
-                break
-        return present
-
-    def destroy(self) -> Resources:
-        """Уничтожает часть тела и все зависимые."""
-
-        return_resources = self.remaining_resources
-        self._remaining_resources = None
-        for dependent in self.dependent_bodyparts:
-            return_resources += dependent.destroy()
-        self.destroyed = True
-        self.damage = copy.deepcopy(self.resources)
-        return return_resources
-
-    @property
-    def all_dependent(self) -> list["BaseBodypart"]:
-        if self._all_dependent is None or not self.constructed:
-            self._all_dependent = copy.copy(self.dependent_bodyparts)
-            if len(self.dependent_bodyparts) > 0:
-                for bodypart in self.dependent_bodyparts:
-                    self._all_dependent.extend(bodypart.all_dependent)
-        return self._all_dependent
+        if self._remaining_resources is None:
+            self._remaining_resources = self.resources - self.damage
+        return self._remaining_resources
 
     @property
     def all_required(self) -> list["BaseBodypart"]:
@@ -121,29 +81,14 @@ class BaseBodypart(abc.ABC):
                 self._all_required.extend(self.required_bodypart.all_required)
         return self._all_required
 
-    def construct(self, bodypart_classes: list[Type["BaseBodypart"]], creature: "BaseSimulationCreature"):
-        """Собирает тело, устанавливая ссылки на зависимые и необходимые части тела."""
-
-        for bodypart_class in bodypart_classes:
-            if bodypart_class.required_bodypart_class is self.__class__:
-                self.dependent_bodyparts.append(
-                    bodypart_class(creature.genome.effects.size_coef, self)
-                )
-
-        bodyparts = copy.copy(bodypart_classes)
-        for bodypart in self.dependent_bodyparts:
-            bodyparts.remove(bodypart.__class__)
-
-        for bodypart in self.dependent_bodyparts:
-            bodypart.construct(bodyparts, creature)
-
     @property
-    def remaining_resources(self) -> Resources:
-        """Ресурсы, находящиеся в части тела сейчас."""
-
-        if self._remaining_resources is None:
-            self._remaining_resources = self.resources - self.damage
-        return self._remaining_resources
+    def all_dependent(self) -> list["BaseBodypart"]:
+        if self._all_dependent is None or not self.constructed:
+            self._all_dependent = copy.copy(self.dependent_bodyparts)
+            if len(self.dependent_bodyparts) > 0:
+                for bodypart in self.dependent_bodyparts:
+                    self._all_dependent.extend(bodypart.all_dependent)
+        return self._all_dependent
 
     @property
     def volume(self) -> int:
@@ -162,6 +107,60 @@ class BaseBodypart(abc.ABC):
         else:
             mass = 0
         return mass
+
+    def construct(self, bodypart_classes: list[Type["BaseBodypart"]], creature: "BaseSimulationCreature"):
+        """Собирает тело, устанавливая ссылки на зависимые и необходимые части тела."""
+
+        for bodypart_class in bodypart_classes:
+            if bodypart_class.required_bodypart_class is self.__class__:
+                self.dependent_bodyparts.append(
+                    bodypart_class(creature.genome.effects.size_coef, self)
+                )
+
+        bodyparts = copy.copy(bodypart_classes)
+        for bodypart in self.dependent_bodyparts:
+            bodyparts.remove(bodypart.__class__)
+
+        for bodypart in self.dependent_bodyparts:
+            bodypart.construct(bodyparts, creature)
+
+    def destroy(self) -> Resources:
+        """Уничтожает часть тела и все зависимые."""
+
+        return_resources = self.remaining_resources
+        self._remaining_resources = None
+        for dependent in self.dependent_bodyparts:
+            return_resources += dependent.destroy()
+        self.destroyed = True
+        self.damage = copy.copy(self.resources)
+        return return_resources
+
+    # если возвращаемые ресурсы != 0, значит часть тела уничтожена, а эти ресурсы являются ресурсами,
+    # полученными после уничтожения части тела и всех зависимых частей
+    # если возвращаемые ресурсы < 0, данная часть тела и все ее зависимые части не могут покрыть нанесенного урона
+    def make_damage(self, damaging_resources: Resources) -> Resources:
+        self._remaining_resources = None
+        self.damage += damaging_resources
+        if not self._present:
+            return_resources = copy.copy(damaging_resources)
+            return_resources += self.destroy()
+        else:
+            return_resources = Resources()
+        return return_resources
+
+    # если возвращаемые ресурсы != 0, значит эти ресурсы не израсходованы при регенерации
+    def regenerate(self, resources: Resources) -> Resources:
+        self._remaining_resources = None
+        regenerating_resources = copy.copy(resources)
+        for resource, amount in resources.items():
+            if self.damage[resource] < amount:
+                regenerating_resources[resource] = self.damage[resource]
+
+        self.damage -= regenerating_resources
+        if self._present:
+            self.destroyed = False
+
+        return resources - regenerating_resources
 
 
 class Body(BaseBodypart):
