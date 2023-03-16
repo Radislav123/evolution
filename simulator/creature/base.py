@@ -419,13 +419,19 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         try:
             for child, child_position, child_resources in \
                     zip(self.next_children, self.get_children_positions(), self.get_children_sharing_resources()):
-                child.position = child_position
+                # todo: проверить, появляется ли сейчас
+                #  (ValueError: cannot convert float NaN to integer / _position: Vec2d(nan, nan))
+                # child.position = child_position
+                # todo: использовать set_position при создании первого существа при генерации мира
+                child.set_position(*child_position)
+
                 # изымание ресурсов для потомка у родителя
                 self.storage.remove_resources(child_resources)
                 # передача потомку части ресурсов родителя
                 child.storage.add_resources(child_resources)
                 child.start()
                 # todo: сообщать потомку момент инерции
+                # todo: найти форму для более быстрых расчетов pymunk
         except Exception as error:
             # noinspection PyUnboundLocalVariable
             error.child = child

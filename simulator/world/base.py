@@ -52,7 +52,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
 
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
-        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.5)
+        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.6)
         self.prepare_borders()
         self.prepare_physics_engine()
         self.chunks = BaseSimulationWorldChunk.cut_world(self)
