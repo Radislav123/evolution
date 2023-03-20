@@ -74,7 +74,7 @@ class GenomeEffects:
 
 class BaseGenome:
     # [0, 1]
-    # todo: вернуть 0.05
+    # todo: вернуть 0.05?
     _mutation_chance = 1
     # максимальное количество новых хромосом, которые могут появиться за одну мутацию
     max_new_chromosomes = 3

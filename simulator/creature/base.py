@@ -105,6 +105,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             self._resources_loss: Resources | None = None
             # todo: привязать к генам
             # отношение количества регенерируемых ресурсов и энергии
+            # (сколько энергии стоит восстановление единицы ресурса)
             self.energy_regenerate_cost = 1
             # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
             self.returned_resources = Resources()
@@ -422,7 +423,6 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
                 # todo: проверить, появляется ли сейчас
                 #  (ValueError: cannot convert float NaN to integer / _position: Vec2d(nan, nan))
                 # child.position = child_position
-                # todo: использовать set_position при создании первого существа при генерации мира
                 child.set_position(*child_position)
 
                 # изымание ресурсов для потомка у родителя
