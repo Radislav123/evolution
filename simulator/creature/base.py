@@ -422,8 +422,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
                     zip(self.next_children, self.get_children_positions(), self.get_children_sharing_resources()):
                 # todo: проверить, появляется ли сейчас
                 #  (ValueError: cannot convert float NaN to integer / _position: Vec2d(nan, nan))
-                # child.position = child_position
-                child.set_position(*child_position)
+                child.position = child_position
 
                 # изымание ресурсов для потомка у родителя
                 self.storage.remove_resources(child_resources)
@@ -543,7 +542,12 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
                 self._can_metabolize = None
             # ресурсов части тела хватило, чтобы покрыть дефицит (возможно, она уничтожена)
             else:
-                self.storage.add_resources(damage)
+                try:
+                    self.storage.add_resources(damage)
+                # ресурсы, которые не могут быть добавлены в хранилища существа, так как они были уничтожены,
+                # возвращаются в мир
+                except AddToNonExistentStoragesException as error:
+                    self.returned_resources += error.resources
 
     def get_autophagic_bodypart(self) -> BaseBodypart:
         bodyparts = []

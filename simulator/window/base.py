@@ -17,7 +17,8 @@ class BaseTextTab(abc.ABC):
     tabs: list[dict[int, "BaseTextTab"]] = [{level: None for level in range(5)} for _ in range(4)]
     level_gap = 10
     window_border_gap = 10
-    default_font_size = 12
+    # todo: исправить наложение строк с ресурсами на карте и fps
+    default_font_size = 14
 
     # corner - смотреть offset класса
     # level - номер плашки, считая от выбранного угла
@@ -133,13 +134,15 @@ class FPSTab(BaseTextTab):
         super().__init__(*args, **kwargs)
         arcade.enable_timings()
 
-    @property
-    def string(self) -> str:
-        # количество обрабатываемых тиков (frame_count=60) не влияет на производительность заметно
-        return f"fps: {int(arcade.get_fps(60))}"
+    string = "not implemented"
 
 
 class BaseWindow(arcade.Window):
+    # desired_fps = int(1 / update_rate)
+    # update_rate = 1 / fps
+    desired_fps: int
+    fps_tab: FPSTab
+
     def __init__(self, width: int, height: int):
         super().__init__(center_window = True)
 
@@ -150,12 +153,14 @@ class BaseWindow(arcade.Window):
         self.world_height = height
         self.world: BaseSimulationWorld | None = None
         self.tabs: list[BaseTextTab] | None = None
+        self.set_fps(1000)
 
     def start(self):
         center = (self.width // 2, self.height // 2)
         self.world = BaseSimulationWorld(self.world_width, self.world_height, center)
         self.world.start()
 
+        self.fps_tab = FPSTab(self, 3, 1)
         tabs = [
             WorldAgeTab(self, 3, 0),
             CreaturesBirthDeathCounterTab(self, 2, 0),
@@ -163,7 +168,7 @@ class BaseWindow(arcade.Window):
             WorldResourcesCounterTab(self, 1, 0),
             MapResourcesCounterTab(self, 1, 1),
             CreaturesResourcesCounterTab(self, 1, 2),
-            FPSTab(self, 3, 1)
+            self.fps_tab
         ]
         self.tabs = tabs
         BaseTextTab.calculate_positions()
@@ -179,3 +184,16 @@ class BaseWindow(arcade.Window):
         except Exception as error:
             error.window = self
             raise error
+        finally:
+            if self.world.age % 10 == 0:
+                timings = arcade.get_timings()
+                # за 100 последних тиков
+                execution_time_100 = 0
+                for i in timings:
+                    execution_time_100 += sum(timings[i])
+                average_execution_time = execution_time_100 / 100
+                self.fps_tab.string = f"fps/желаемые fps: {int(1 / average_execution_time)} / {self.desired_fps}"
+
+    def set_fps(self, fps: int):
+        self.desired_fps = fps
+        self.set_update_rate(1 / fps)

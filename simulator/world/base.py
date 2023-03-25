@@ -7,30 +7,15 @@ from core.mixin import DatabaseSavableMixin, WorldObjectMixin
 from simulator.creature import BaseSimulationCreature
 from simulator.physic import BaseWorldCharacteristics
 from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, RESOURCE_LIST, Resources
+from core.service import Switch
 
 
 CREATURE_START_RESOURCES = Resources({resource: 20 for resource in RESOURCE_LIST})
 
 
-class Switch:
-    value: bool
-
-    def __init__(self):
-        self.value = False
-
-    def __bool__(self) -> bool:
-        return self.value
-
-    def set(self):
-        self.value = True
-
-    def reset(self):
-        self.value = False
-
-
 class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
     db_model = models.World
-    db_instance: models.World
+    db_instance: db_model
     borders: arcade.SpriteList
     physics_engine: arcade.PymunkPhysicsEngine
     count_map_resources = Switch()
@@ -92,17 +77,17 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         left_border = arcade.SpriteSolidColor(
             self.characteristics.borders_thickness,
             self.height + self.characteristics.borders_thickness * 2,
-            color
+            color = color
         )
         right_border = copy.deepcopy(left_border)
         bottom_border = arcade.SpriteSolidColor(
             self.width + self.characteristics.borders_thickness * 2,
             self.characteristics.borders_thickness,
-            color
+            color = color
         )
+        top_border = copy.deepcopy(bottom_border)
 
         # размещение спрайтов границ
-        top_border = copy.deepcopy(bottom_border)
         left_border.right = left
         left_border.bottom = bottom - self.characteristics.borders_thickness
         right_border.left = right
@@ -146,7 +131,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
             None,
             world_generation = True
         )
-        creature.set_position(*self.center)
+        creature.position = self.center
         creature.storage.add_resources(CREATURE_START_RESOURCES)
         creature.start()
         self.remove_resources(creature.position, creature.remaining_resources)

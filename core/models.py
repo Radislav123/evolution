@@ -20,16 +20,8 @@ class Creature(EvolutionModel):
     stop_tick = models.IntegerField()
 
 
-class CreatureSurface(EvolutionModel):
-    creature = models.OneToOneField(Creature, models.RESTRICT, primary_key = True)
-    # изображение сохраняется последовательностью байтов (pygame.image.tobytes)
-    image = models.BinaryField()
-    width = models.IntegerField()
-    height = models.IntegerField()
-
-
 class CreatureParent(EvolutionModel):
-    creature = models.ForeignKey(Creature, models.RESTRICT, related_name = "creature_itself")
+    creature = models.ForeignKey(Creature, models.RESTRICT, related_name = "creature_itself", primary_key = True)
     parent = models.ForeignKey(Creature, models.RESTRICT, related_name = "creature_parent")
 
 
