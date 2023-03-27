@@ -3,17 +3,17 @@ import copy
 import arcade
 
 from core import models
-from core.mixin import DatabaseSavableMixin, WorldObjectMixin
-from simulator.creature import BaseSimulationCreature
-from simulator.physic import BaseWorldCharacteristics
-from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, RESOURCE_LIST, Resources
+from core.mixin import WorldObjectMixin
+from core.physic import BaseWorldCharacteristics
 from core.service import Switch
+from simulator.creature import BaseSimulationCreature
+from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, RESOURCE_LIST, Resources
 
 
 CREATURE_START_RESOURCES = Resources({resource: 20 for resource in RESOURCE_LIST})
 
 
-class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
+class BaseSimulationWorld(WorldObjectMixin):
     db_model = models.World
     db_instance: db_model
     borders: arcade.SpriteList
@@ -31,6 +31,7 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         self.age = 0
         self.width = width
         self.height = height
+        # соотносится с центром окна
         self.center = center
         self.chunk_width = 50
         self.chunk_height = 50
@@ -52,8 +53,18 @@ class BaseSimulationWorld(DatabaseSavableMixin, WorldObjectMixin):
         return self._id
 
     def save_to_db(self):
-        self.db_instance = self.db_model(id = self.id, stop_tick = self.age, width = self.width, height = self.height)
+        self.db_instance = self.db_model(
+            id = self.id,
+            stop_tick = self.age,
+            width = self.width,
+            height = self.height,
+            center_x = self.center[0],
+            center_y = self.center[1],
+            chunk_width = self.chunk_width,
+            chunk_height = self.chunk_height
+        )
         self.db_instance.save()
+        self.characteristics.save_to_db(self)
 
     # левая, правая, нижняя, верхняя
     def get_borders_coordinates(self) -> tuple[int, int, int, int]:

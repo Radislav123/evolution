@@ -4,6 +4,7 @@ import arcade
 
 from simulator.creature import BaseSimulationCreature
 from simulator.world import BaseSimulationWorld
+from evolution import settings
 
 
 class BaseTextTab(abc.ABC):
@@ -15,14 +16,19 @@ class BaseTextTab(abc.ABC):
     # 00 10
     # tabs[n] = {level: tab,..}
     tabs: list[dict[int, "BaseTextTab"]] = [{level: None for level in range(5)} for _ in range(4)]
+    # расстояние между плашками
     level_gap = 10
+    # расстояние от края окна
     window_border_gap = 10
-    # todo: исправить наложение строк с ресурсами на карте и fps
+    # todo: исправить наложение строк с ресурсами на карте и tps
     default_font_size = 14
 
     # corner - смотреть offset класса
     # level - номер плашки, считая от выбранного угла
-    def __init__(self, window: "BaseWindow", corner: int, level: int, font_size: int = default_font_size, show = True):
+    def __init__(
+            self, window: "BaseSimulationWindow", corner: int, level: int, font_size: int = default_font_size,
+            show = True
+    ):
         self.window = window
         self.corner = corner
         self.level = level
@@ -129,7 +135,7 @@ class WorldResourcesCounterTab(BaseTextTab):
         return f"Ресурсы в мире: {self.window.world.world_resources}"
 
 
-class FPSTab(BaseTextTab):
+class TPSTab(BaseTextTab):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         arcade.enable_timings()
@@ -137,30 +143,30 @@ class FPSTab(BaseTextTab):
     string = "not implemented"
 
 
-class BaseWindow(arcade.Window):
-    # desired_fps = int(1 / update_rate)
-    # update_rate = 1 / fps
-    desired_fps: int
-    fps_tab: FPSTab
+class BaseSimulationWindow(arcade.Window):
+    # desired_tps = int(1 / update_rate)
+    # update_rate = 1 / tps
+    desired_tps: int
+    tps_tab: TPSTab
 
     def __init__(self, width: int, height: int):
-        super().__init__(center_window = True)
+        super().__init__(width, height, center_window = True)
+
+        self.world: BaseSimulationWorld | None = None
+        self.tabs: list[BaseTextTab] | None = None
+        self.set_tps(settings.MAX_TPS)
 
         background_color = (255, 255, 255)
         arcade.set_background_color(background_color)
 
-        self.world_width = width
-        self.world_height = height
-        self.world: BaseSimulationWorld | None = None
-        self.tabs: list[BaseTextTab] | None = None
-        self.set_fps(1000)
-
-    def start(self):
+    def start(self, world_width: int, world_height: int):
         center = (self.width // 2, self.height // 2)
-        self.world = BaseSimulationWorld(self.world_width, self.world_height, center)
+        self.world = BaseSimulationWorld(world_width, world_height, center)
         self.world.start()
 
-        self.fps_tab = FPSTab(self, 3, 1)
+        # плашки используют объект world
+        self.tps_tab = TPSTab(self, 3, 1)
+        # todo: добавить возможность выключать расчеты и вывод информации на плашках (сделать их кнопками?)
         tabs = [
             WorldAgeTab(self, 3, 0),
             CreaturesBirthDeathCounterTab(self, 2, 0),
@@ -168,7 +174,7 @@ class BaseWindow(arcade.Window):
             WorldResourcesCounterTab(self, 1, 0),
             MapResourcesCounterTab(self, 1, 1),
             CreaturesResourcesCounterTab(self, 1, 2),
-            self.fps_tab
+            self.tps_tab
         ]
         self.tabs = tabs
         BaseTextTab.calculate_positions()
@@ -192,8 +198,12 @@ class BaseWindow(arcade.Window):
                 for i in timings:
                     execution_time_100 += sum(timings[i])
                 average_execution_time = execution_time_100 / 100
-                self.fps_tab.string = f"fps/желаемые fps: {int(1 / average_execution_time)} / {self.desired_fps}"
+                self.tps_tab.string = f"tps/желаемые tps: {int(1 / average_execution_time)} / {self.desired_tps}"
 
-    def set_fps(self, fps: int):
-        self.desired_fps = fps
-        self.set_update_rate(1 / fps)
+    def set_tps(self, tps: int):
+        self.desired_tps = tps
+        self.set_update_rate(1 / tps)
+
+    # todo: remove this method
+    def on_mouse_press(self, x, y, button, modifiers):
+        print(f"x: {x}, y: {y}")

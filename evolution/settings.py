@@ -23,7 +23,12 @@ RESOURCES_PATH = Path(f"{BASE_DIR}/resources")
 SIMULATION_RESOURCES_PATH = Path(f"{RESOURCES_PATH}/simulation")
 SIMULATION_IMAGES_PATH = Path(f"{SIMULATION_RESOURCES_PATH}/images")
 
+CREATURE_IMAGE_PATH = f"{SIMULATION_IMAGES_PATH}/BaseCreature.png"
+
 IMAGES_STORE_FORMAT = "RGBA"
+
+# tps - tick per second
+MAX_TPS = 1000
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/

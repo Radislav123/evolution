@@ -8,11 +8,11 @@ import imagesize
 import pymunk
 
 from core import models
-from core.mixin import DatabaseSavableMixin, WorldObjectMixin
+from core.mixin import WorldObjectMixin
+from core.physic import BaseCreatureCharacteristics
 from evolution import settings
 from simulator.creature.bodypart import AddToNonExistentStoragesException, BaseBodypart, Body, Storage
 from simulator.creature.genome import BaseGenome
-from simulator.physic import BaseCreatureCharacteristics
 from simulator.world_resource import BaseWorldResource, ENERGY, Resources
 
 
@@ -21,30 +21,24 @@ if TYPE_CHECKING:
     from simulator.world import BaseSimulationWorld
 
 
-class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Sprite):
+class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
     db_model = models.Creature
+    db_instance: db_model
     counter = 0
     birth_counter = 0
     death_counter = 0
-    image_path = f"{settings.SIMULATION_IMAGES_PATH}/BaseCreature.png"
+    image_path = settings.CREATURE_IMAGE_PATH
     image_size = imagesize.get(image_path)
 
-    # todo: структурировать код, упорядочить методы классов
     # position - центр существа
     def __init__(
             self,
             world: "BaseSimulationWorld",
             parents: list["BaseSimulationCreature"] | None,
-            world_generation: bool = False,
-            *args,
-            **kwargs
+            world_generation: bool = False
     ):
         try:
-            super().__init__(
-                self.image_path,
-                *args,
-                **kwargs
-            )
+            super().__init__(self.image_path)
             # такая ситуация подразумевается только при генерации мира
             if parents is None and world_generation:
                 parents = []
@@ -61,7 +55,10 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
             # общая инициализация
             self.world = world
             self.start_tick = self.world.age
-            self.stop_tick = self.world.age
+            # -1 == существо не остановлено (stop()) в симуляции
+            self.stop_tick = -1
+            # -1 == существо не умирало в симуляции
+            self.death_tick = -1
             self.alive = True
 
             # инициализация генов
@@ -186,7 +183,8 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.db_instance = self.db_model(
             world = self.world.db_instance,
             start_tick = self.start_tick,
-            stop_tick = self.stop_tick
+            stop_tick = self.stop_tick,
+            death_tick = self.death_tick
         )
         self.db_instance.save()
 
@@ -258,6 +256,7 @@ class BaseSimulationCreature(WorldObjectMixin, DatabaseSavableMixin, arcade.Spri
         self.returned_resources += self.body.destroy()
 
         self.alive = False
+        self.death_tick = self.world.age
         self.stop()
         self.world.remove_creature(self)
 

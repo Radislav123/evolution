@@ -1,14 +1,22 @@
 import math
 from typing import TYPE_CHECKING
 
+from core import models
+
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
     from simulator.creature.bodypart import BaseBodypart
     from simulator.creature.genome import GenomeEffects
+    from simulator.world import BaseSimulationWorld
 
 
 class BaseWorldCharacteristics:
+    """Физические характеристики мира."""
+
+    db_model = models.WorldCharacteristics
+    db_instance: db_model
+
     def __init__(self, viscosity: float, borders_friction: float, borders_thickness: int, resource_coef: float):
         # вязкость
         # 1 - объекты теряют всю скорость после каждого тика
@@ -24,6 +32,16 @@ class BaseWorldCharacteristics:
         string = f"viscosity: {self.viscosity}, borders friction: {self.borders_friction}, "
         string += f"borders thickness: {self.borders_thickness}, resources coef: {self.resource_coef}"
         return string
+
+    def save_to_db(self, world: "BaseSimulationWorld"):
+        self.db_instance = self.db_model(
+            world = world.db_instance,
+            viscosity = self.viscosity,
+            borders_friction = self.borders_friction,
+            borders_thickness = self.borders_thickness,
+            resource_coef = self.resource_coef
+        )
+        self.db_instance.save()
 
 
 class BaseCreatureCharacteristics:

@@ -1,1 +1,1 @@
-from simulator.window.base import BaseWindow
+from simulator.window.base import BaseSimulationWindow

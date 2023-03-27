@@ -4,8 +4,9 @@ import arcade
 
 # noinspection PyUnresolvedReferences
 import configure_django
+from player.window import BasePlaybackWindow
 from simulator.creature import BaseSimulationCreature
-from simulator.window import BaseWindow
+from simulator.window import BaseSimulationWindow
 from simulator.world import BaseSimulationWorld
 
 
@@ -22,7 +23,7 @@ def log_error(error: Exception, file: TextIO):
     file.write(f"{error.__class__.__name__}: {error}\n")
 
 
-def log_window(window: BaseWindow, file: TextIO):
+def log_window(window: BaseSimulationWindow | BasePlaybackWindow, file: TextIO):
     file.write(f"{window}\n")
 
 
@@ -82,12 +83,14 @@ def log_error_info(error: Exception):
 
 # https://www.b-list.org/weblog/2007/sep/22/standalone-django-scripts/
 def simulate():
-    width = 400
-    height = 400
+    window_width = 800
+    window_height = 600
+    world_width = 400
+    world_height = 400
 
-    window = BaseWindow(width, height)
+    window = BaseSimulationWindow(window_width, window_height)
     try:
-        window.start()
+        window.start(world_width, world_height)
         arcade.run()
     except Exception as error:
         log_error_info(error)
@@ -97,5 +100,24 @@ def simulate():
     print(f"Симуляция окончена. World id: {window.world.id}.")
 
 
+def play():
+    window_width = 800
+    window_height = 600
+    world_id = 3
+
+    window = BasePlaybackWindow(window_width, window_height)
+    try:
+        window.start(world_id)
+        arcade.run()
+    except Exception as error:
+        log_error_info(error)
+        raise error
+    print(f"Воспроизведение окончено. World id: {window.world.id}.")
+
+
 if __name__ == "__main__":
-    simulate()
+    simulation = False
+    if simulation:
+        simulate()
+    else:
+        play()

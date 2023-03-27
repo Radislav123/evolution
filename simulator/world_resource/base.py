@@ -5,6 +5,7 @@ class BaseWorldResource:
     counter = [0]
     # если будет принято решение сделать mass или volume не целым, решить,
     # что делать с атрибутами BaseBodypart.mass и BaseBodypart.volume
+    # объем
     volume = 1
     mass = 1
 
