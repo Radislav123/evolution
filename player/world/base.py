@@ -9,6 +9,10 @@ from player.creature import BasePlaybackCreature
 from simulator.world import BaseSimulationWorld
 
 
+class WorldHistoryEndException(Exception):
+    """Сигнализирует о том, что история мира дальше не написана и воспроизводить более нечего/"""
+
+
 # todo: добавить историю перемещений существам
 # todo: добавить воспроизведение перемещений существ
 class BasePlaybackWorld:
@@ -30,6 +34,9 @@ class BasePlaybackWorld:
         # {creature.object_id: creature}
         creature_db_instances = models.Creature.objects.filter(world_id = self.id)
         self.creatures = arcade.SpriteList(capacity = len(creature_db_instances))
+        self.creatures_before_live = arcade.SpriteList(capacity = len(creature_db_instances))
+        self.creatures_living = arcade.SpriteList()
+        self.creatures_dead = arcade.SpriteList()
         self.load_creatures(creature_db_instances)
 
         characteristics = models.WorldCharacteristics.objects.get(world_id = self.id)
@@ -52,13 +59,13 @@ class BasePlaybackWorld:
         for creature in creature_db_instances:
             if len(creature_parent.filter(creature = creature)) == 0:
                 not_instantiated_creatures.remove(creature)
-                self.creatures.append(
-                    BasePlaybackCreature(
-                        creature.id,
-                        None,
-                        self
-                    )
+                instance = BasePlaybackCreature(
+                    creature.id,
+                    None,
+                    self
                 )
+                self.creatures.append(instance)
+                self.creatures_before_live.append(instance)
 
         # все остальные существа
         # todo: переделать для случаев с несколькими родителями
@@ -74,3 +81,18 @@ class BasePlaybackWorld:
                             self
                         )
                     )
+
+    def on_update(self, delta_time: float):
+        try:
+            for creature in self.creatures:
+                creature.on_update(delta_time)
+
+            self.age += 1
+            if self.age >= self.stop_tick:
+                raise WorldHistoryEndException()
+        except Exception as error:
+            error.world = self
+            raise error
+
+    def draw(self):
+        self.creatures_living.draw()

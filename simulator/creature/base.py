@@ -54,7 +54,8 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
 
             # общая инициализация
             self.world = world
-            self.start_tick = self.world.age
+            # -1 == существо не стартовало (start()) в симуляции
+            self.start_tick = -1
             # -1 == существо не остановлено (stop()) в симуляции
             self.stop_tick = -1
             # -1 == существо не умирало в симуляции
@@ -106,6 +107,11 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.energy_regenerate_cost = 1
             # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
             self.returned_resources = Resources()
+
+            # соотносится с models.CreaturePositionHistory
+            self.position_history: dict[int, tuple[float, float]] = {}
+            # тик, на котором последний раз было движение/перемещение - для сохранения position.history
+            self.last_movement_age = -1
         except Exception as error:
             error.init_creature = self
             raise error
@@ -181,12 +187,24 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
 
     def save_to_db(self):
         self.db_instance = self.db_model(
+            id = self.id,
             world = self.world.db_instance,
             start_tick = self.start_tick,
             stop_tick = self.stop_tick,
             death_tick = self.death_tick
         )
         self.db_instance.save()
+
+    def save_position_history_to_db(self):
+        # todo: записывать историю перемещений периодически
+        #  - раз в некоторое количество тиков (и при остановке симуляции)
+        for tick in self.position_history:
+            models.CreaturePositionHistory(
+                creature = self.db_instance,
+                age = tick,
+                position_x = self.position_history[tick][0],
+                position_y = self.position_history[tick][1]
+            ).save()
 
     def apply_genes(self):
         """Применяет эффекты генов на существо."""
@@ -240,6 +258,9 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.genome.effects,
             self.world.characteristics,
         )
+        self.position_history[self.world.age] = self.position
+        self.last_movement_age = self.world.age
+
         self.prepare_physics()
         self.start_tick = self.world.age
         self.save_to_db()
@@ -250,6 +271,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
     def stop(self):
         self.stop_tick = self.world.age
         self.save_to_db()
+        self.save_position_history_to_db()
 
     def kill(self):
         self.__class__.death_counter += 1
@@ -281,6 +303,8 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         """Симулирует жизнедеятельность за один тик."""
 
         try:
+            self.update_position_history()
+
             if self.can_consume():
                 self.consume()
             if self.can_regenerate():
@@ -298,6 +322,14 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         except Exception as error:
             error.creature = self
             raise error
+
+    def update_position_history(self):
+        precision = 0.1
+        difference_x = abs(self.position_history[self.last_movement_age][0] - self.position[0])
+        difference_y = abs(self.position_history[self.last_movement_age][1] - self.position[1])
+        if difference_x > precision and difference_y > precision:
+            self.position_history[self.world.age] = self.position
+            self.last_movement_age = self.world.age
 
     def can_consume(self) -> bool:
         can_consume = False

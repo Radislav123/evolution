@@ -2,6 +2,15 @@ from django.db import models
 
 
 class EvolutionModel(models.Model):
+    """Базовый класс для всех моделей проекта."""
+
+    class Meta:
+        abstract = True
+
+
+class HistoryModel(EvolutionModel):
+    """Базовый класс для моделей представляющих историю изменений."""
+
     class Meta:
         abstract = True
 
@@ -51,6 +60,13 @@ class CreatureParent(EvolutionModel):
     world = models.ForeignKey(World, models.RESTRICT)
     creature = models.ForeignKey(Creature, models.RESTRICT, related_name = "creature_itself", primary_key = True)
     parent = models.ForeignKey(Creature, models.RESTRICT, related_name = "creature_parent")
+
+
+class CreaturePositionHistory(HistoryModel):
+    creature = models.ForeignKey(Creature, models.RESTRICT)
+    age = models.PositiveIntegerField()
+    position_x = models.FloatField()
+    position_y = models.FloatField()
 
 
 # todo: исправить эту модель (history)

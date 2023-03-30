@@ -1,0 +1,145 @@
+Существо появилось и тут же умерло, не успев попасть в список существ мира.
+
+
+
+========== Error info ==========
+ValueError: Sprite is not in the SpriteList
+---------- Attributes info ----------
+creature: BaseSimulationCreature152162
+world: BaseSimulationWorld15
+window: BaseSimulationWindow=(width=800, height=600)
+
+========== Window info ==========
+BaseSimulationWindow=(width=800, height=600)
+---------- Attributes info ----------
+headless: False
+_event_handlers: {261: <bound method Win32Window._event_key of BaseSimulationWindow=(width=800, height=600)>, 260: <bound method Win32Window._event_key of BaseSimulationWindow=(width=800, height=600)>, 257: <bound method Win32Window._event_key of BaseSimulationWindow=(width=800, height=600)>, 256: <bound method Win32Window._event_key of BaseSimulationWindow=(width=800, height=600)>, 3: <bound method Win32Window._event_move of BaseSimulationWindow=(width=800, height=600)>, 5: <bound method Win32Window._event_size of BaseSimulationWindow=(width=800, height=600)>, 20: <bound method Win32Window._event_erasebkgnd of BaseSimulationWindow=(width=800, height=600)>, 532: <bound method Win32Window._event_sizing of BaseSimulationWindow=(width=800, height=600)>, 562: <bound method Win32Window._event_exitsizemove of BaseSimulationWindow=(width=800, height=600)>, 274: <bound method Win32Window._event_syscommand of BaseSimulationWindow=(width=800, height=600)>, 32: <bound method Win32Window._event_setcursor of BaseSimulationWindow=(width=800, height=600)>, 36: <bound method Win32Window._event_getminmaxinfo of BaseSimulationWindow=(width=800, height=600)>, 7: <bound method Win32Window._event_setfocus of BaseSimulationWindow=(width=800, height=600)>, 522: <bound method Win32Window._event_mousewheel of BaseSimulationWindow=(width=800, height=600)>, 255: <bound method Win32Window._event_raw_input of BaseSimulationWindow=(width=800, height=600)>, 161: <bound method Win32Window._event_ncl_button_down of BaseSimulationWindow=(width=800, height=600)>, 533: <bound method Win32Window._event_capture_changed of BaseSimulationWindow=(width=800, height=600)>, 561: <bound method Win32Window._event_entersizemove of BaseSimulationWindow=(width=800, height=600)>, 563: <bound method Win32Window._event_drop_files of BaseSimulationWindow=(width=800, height=600)>, 8: <bound method Win32Window._event_killfocus of BaseSimulationWindow=(width=800, height=600)>, 258: <bound method Win32Window._event_char of BaseSimulationWindow=(width=800, height=600)>, 16: <bound method Win32Window._event_close of BaseSimulationWindow=(width=800, height=600)>}
+_view_event_handlers: {516: <bound method Win32Window._event_rbuttondown of BaseSimulationWindow=(width=800, height=600)>, 520: <bound method Win32Window._event_mbuttonup of BaseSimulationWindow=(width=800, height=600)>, 517: <bound method Win32Window._event_rbuttonup of BaseSimulationWindow=(width=800, height=600)>, 512: <bound method Win32Window._event_mousemove of BaseSimulationWindow=(width=800, height=600)>, 15: <bound method Win32Window._event_paint of BaseSimulationWindow=(width=800, height=600)>, 523: <bound method Win32Window._event_xbuttondown of BaseSimulationWindow=(width=800, height=600)>, 514: <bound method Win32Window._event_lbuttonup of BaseSimulationWindow=(width=800, height=600)>, 519: <bound method Win32Window._event_mbuttondown of BaseSimulationWindow=(width=800, height=600)>, 524: <bound method Win32Window._event_xbuttonup of BaseSimulationWindow=(width=800, height=600)>, 513: <bound method Win32Window._event_lbuttondown of BaseSimulationWindow=(width=800, height=600)>, 20: <bound method Win32Window._event_erasebkgnd_view of BaseSimulationWindow=(width=800, height=600)>, 675: <bound method Win32Window._event_mouseleave of BaseSimulationWindow=(width=800, height=600)>}
+_always_dwm: True
+_interval: False
+_event_queue: []
+_context: Win32ARBContext(id=2073154757840, share=Win32Context(id=2073007921552, share=None))
+_config: Win32CanvasConfigARB([('double_buffer', 1), ('stereo', 0), ('buffer_size', 32), ('aux_buffers', 0), ('sample_buffers', 1), ('samples', 4), ('red_size', 8), ('green_size', 8), ('blue_size', 8), ('alpha_size', 8), ('depth_size', 0), ('stencil_size', 0), ('accum_red_size', 16), ('accum_green_size', 16), ('accum_blue_size', 16), ('accum_alpha_size', 16), ('major_version', 3), ('minor_version', 3), ('forward_compatible', None), ('opengl_api', 'gl'), ('debug', None)])
+_screen: Win32Screen(x=0, y=0, width=1920, height=1080)
+_display: <pyglet.canvas.win32.Win32Display object at 0x000001E2A8C36650>
+_width: 800
+_height: 600
+_resizable: False
+_fullscreen: False
+_style: None
+_vsync: False
+_file_drops: False
+_caption: Arcade Window
+_ws_style: 13238272
+_ex_ws_style: 0
+_window_class: <pyglet.libs.win32.types.WNDCLASS object at 0x000001E2B1A5D2D0>
+_view_window_class: <pyglet.libs.win32.types.WNDCLASS object at 0x000001E2B1A5D0D0>
+_hwnd: 10683078
+_view_hwnd: 21302258
+_dc: <pyglet.libs.win32.types.LP_c_void object at 0x000001E2B1A5CFD0>
+canvas: <pyglet.canvas.win32.Win32Canvas object at 0x000001E2B1A72550>
+_wgl_context: 65537
+_default_program: ShaderProgram(id=3)
+ubo: UniformBufferObject(id=1)
+_viewport: (0, 0, 800, 600)
+_view_matrix: Mat4(1.0, 0.0, 0.0, 0.0)
+    (0.0, 1.0, 0.0, 0.0)
+    (0.0, 0.0, 1.0, 0.0)
+    (0.0, 0.0, 0.0, 1.0)
+_projection_matrix: Mat4(0.0025, 0.0, 0.0, 0.0)
+    (0.0, 0.0033333333333333335, 0.0, 0.0)
+    (0.0, 0.0, -0.01, 0.0)
+    (-1.0, -1.0, 0.0, 1.0)
+_visible: True
+_draw_rate: 0.016666666666666666
+_update_rate: 0.001
+_current_view: None
+current_camera: None
+textbox_time: 0.0
+key: None
+flip_count: 0
+static_display: False
+_ctx: <arcade.context.ArcadeContext object at 0x000001E2B1A72490>
+_background_color: (255, 255, 255)
+keyboard: <pyglet.window.key.KeyStateHandler object at 0x000001E2B1601050>
+mouse: <pyglet.window.mouse.MouseStateHandler object at 0x000001E2B1A9E510>
+_event_stack: [{'on_deactivate': <weakref at 0x000001E2B1AA43C0; to 'MouseStateHandler' at 0x000001E2B1A9E510>, 'on_key_press': <weakref at 0x000001E2B19E3D80; to 'KeyStateHandler' at 0x000001E2B1601050>, 'on_key_release': <weakref at 0x000001E2B19E3A70; to 'KeyStateHandler' at 0x000001E2B1601050>, 'on_mouse_drag': <weakref at 0x000001E2B19E3E60; to 'MouseStateHandler' at 0x000001E2B1A9E510>, 'on_mouse_motion': <weakref at 0x000001E2B1AA4430; to 'MouseStateHandler' at 0x000001E2B1A9E510>, 'on_mouse_press': <weakref at 0x000001E2B1AA44A0; to 'MouseStateHandler' at 0x000001E2B1A9E510>, 'on_mouse_release': <weakref at 0x000001E2B1AA4510; to 'MouseStateHandler' at 0x000001E2B1A9E510>}]
+world: BaseSimulationWorld15
+tabs: [<simulator.window.base.WorldAgeTab object at 0x000001E2B37FE110>, <simulator.window.base.CreaturesBirthDeathCounterTab object at 0x000001E2B380C890>, <simulator.window.base.CreaturesCounterTab object at 0x000001E2B37FFB10>, <simulator.window.base.WorldResourcesCounterTab object at 0x000001E2B37FF290>, <simulator.window.base.MapResourcesCounterTab object at 0x000001E2B37FF150>, <simulator.window.base.CreaturesResourcesCounterTab object at 0x000001E2B380D190>, <simulator.window.base.TPSTab object at 0x000001E2B374B010>]
+desired_tps: 1000
+tps_tab: <simulator.window.base.TPSTab object at 0x000001E2B374B010>
+_has_focus: True
+_mouse_in_window: True
+_tracking: True
+_mouse_x: 82
+_mouse_y: 204
+
+========== World info ==========
+BaseSimulationWorld15
+---------- Attributes info ----------
+_id: 15
+age: 18606
+width: 400
+height: 400
+center: (400, 300)
+chunk_width: 50
+chunk_height: 50
+creatures: <arcade.sprite_list.sprite_list.SpriteList object at 0x000001E2B1A9E7D0>
+characteristics: viscosity: 0.1, borders friction: 0, borders thickness: 1000, resources coef: 0.6
+borders: <arcade.sprite_list.sprite_list.SpriteList object at 0x000001E2B3708CD0>
+physics_engine: <arcade.pymunk_physics_engine.PymunkPhysicsEngine object at 0x000001E2B371B1D0>
+chunks: [[(150, 50, 199, 99), (150, 100, 199, 149), (150, 150, 199, 199), (150, 200, 199, 249), (150, 250, 199, 299), (150, 300, 199, 349), (150, 350, 199, 399), (150, 400, 199, 449), (150, 450, 199, 499), (150, 500, 199, 549)], [(200, 50, 249, 99), (200, 100, 249, 149), (200, 150, 249, 199), (200, 200, 249, 249), (200, 250, 249, 299), (200, 300, 249, 349), (200, 350, 249, 399), (200, 400, 249, 449), (200, 450, 249, 499), (200, 500, 249, 549)], [(250, 50, 299, 99), (250, 100, 299, 149), (250, 150, 299, 199), (250, 200, 299, 249), (250, 250, 299, 299), (250, 300, 299, 349), (250, 350, 299, 399), (250, 400, 299, 449), (250, 450, 299, 499), (250, 500, 299, 549)], [(300, 50, 349, 99), (300, 100, 349, 149), (300, 150, 349, 199), (300, 200, 349, 249), (300, 250, 349, 299), (300, 300, 349, 349), (300, 350, 349, 399), (300, 400, 349, 449), (300, 450, 349, 499), (300, 500, 349, 549)], [(350, 50, 399, 99), (350, 100, 399, 149), (350, 150, 399, 199), (350, 200, 399, 249), (350, 250, 399, 299), (350, 300, 399, 349), (350, 350, 399, 399), (350, 400, 399, 449), (350, 450, 399, 499), (350, 500, 399, 549)], [(400, 50, 449, 99), (400, 100, 449, 149), (400, 150, 449, 199), (400, 200, 449, 249), (400, 250, 449, 299), (400, 300, 449, 349), (400, 350, 449, 399), (400, 400, 449, 449), (400, 450, 449, 499), (400, 500, 449, 549)], [(450, 50, 499, 99), (450, 100, 499, 149), (450, 150, 499, 199), (450, 200, 499, 249), (450, 250, 499, 299), (450, 300, 499, 349), (450, 350, 499, 399), (450, 400, 499, 449), (450, 450, 499, 499), (450, 500, 499, 549)], [(500, 50, 549, 99), (500, 100, 549, 149), (500, 150, 549, 199), (500, 200, 549, 249), (500, 250, 549, 299), (500, 300, 549, 349), (500, 350, 549, 399), (500, 400, 549, 449), (500, 450, 549, 499), (500, 500, 549, 549)], [(550, 50, 599, 99), (550, 100, 599, 149), (550, 150, 599, 199), (550, 200, 599, 249), (550, 250, 599, 299), (550, 300, 599, 349), (550, 350, 599, 399), (550, 400, 599, 449), (550, 450, 599, 499), (550, 500, 599, 549)], [(600, 50, 649, 99), (600, 100, 649, 149), (600, 150, 649, 199), (600, 200, 649, 249), (600, 250, 649, 299), (600, 300, 649, 349), (600, 350, 649, 399), (600, 400, 649, 449), (600, 450, 649, 499), (600, 500, 649, 549)]]
+db_instance: World object (15)
+map_resources: Resources: energy: 150000, O: 54055, C: 59902, H: 92426
+creatures_resources: Resources: energy: 294209, O: 95945, C: 90098, H: 57574
+world_resources: Resources: energy: 444209, O: 150000, C: 150000, H: 150000
+
+========== Creature info ==========
+BaseSimulationCreature152162
+bodyparts: [Body, Storage: energy: destroyed, O: destroyed, C: destroyed, H: destroyed, EnergyStorage: destroyed, OxygenStorage: destroyed, CarbonStorage: destroyed, HydrogenStorage: destroyed]
+---------- Attributes info ----------
+pymunk: <arcade.sprite.mixins.PyMunk object at 0x000001E2B8DBEFC0>
+id: 152162
+world: BaseSimulationWorld15
+start_tick: 18006
+stop_tick: 18606
+death_tick: 18606
+alive: False
+parents: [BaseSimulationCreature152127]
+genome: BaseGenome:
+BaseChromosome: [BodyGene, StorageGene, EnergyStorageGene: 400, OxygenStorageGene: 350, CarbonStorageGene: 200, HydrogenStorageGene: 100, EnergyConsumptionGene: Energy, OxygenConsumptionGene: Oxygen, CarbonConsumptionGene: Carbon, HydrogenConsumptionGene: Hydrogen, ChildrenNumberGene: 1, ElasticityGene: 0.5, MetabolismGene: 0.005, ResourcesLossCoefGene: 0.005, RegenerateAmountGene: 5, CarbonConsumptionGene: Carbon, SizeGene: -0.1]
+BaseChromosome: []
+children_number: 1
+next_children: [BaseSimulationCreature152757]
+_reproduction_resources: Resources: energy: 30, O: 15, C: 4, H: 2
+reproduction_lost_coef: 1.1
+reproduction_reserve_coef: 1.5
+reproduction_energy_lost: 20
+consumption_amount: Resources: energy: 5, O: 5, C: 6, H: 5
+body: Body
+storage: Storage: energy: destroyed, O: destroyed, C: destroyed, H: destroyed
+_bodyparts: [Body, Storage: energy: destroyed, O: destroyed, C: destroyed, H: destroyed, EnergyStorage: destroyed, OxygenStorage: destroyed, CarbonStorage: destroyed, HydrogenStorage: destroyed]
+resources: Resources: energy: 10, O: 15, C: 4, H: 2
+characteristics: elasticity: 1, size coef: 0.1, radius: 4.54864184146723, volume: 65, mass: 0
+physics_body: Body(36.0, 1660.7287795162304, Body.DYNAMIC)
+_can_metabolize: False
+resources_loss_accumulated: Resources: energy: 0.43, O: 0.9999999999999932, C: 5.329070518200751e-15, H: 3.9968028886505635e-15
+_resources_loss: None
+energy_regenerate_cost: 1
+returned_resources: Resources: energy: 411, O: 21, C: 13, H: 2
+position_history: {18006: (459.7256822311748, 373.3731576950652), 18009: Vec2d(459.55822838759934, 372.7570988732596), 18018: Vec2d(459.05482385161724, 372.88473368762203), 18027: Vec2d(458.91387969674946, 374.00783409294354), 18038: Vec2d(459.1211653615422, 374.3166370120946), 18040: Vec2d(459.402283851446, 374.4983159589561), 18042: Vec2d(459.5474819631658, 374.6373869640633), 18055: Vec2d(459.64932469914714, 375.29629529885824), 18057: Vec2d(459.9037094184614, 374.98816837291145), 18058: Vec2d(460.1288436411682, 374.64682187283387), 18059: Vec2d(460.33848019340707, 374.5033178708905), 18060: Vec2d(460.56115886082495, 374.3400808119071), 18061: Vec2d(460.78171168562284, 374.19613745044757), 18062: Vec2d(460.9081911216461, 374.0506025322215), 18063: Vec2d(461.0791962421347, 373.94262006692895), 18064: Vec2d(461.2255406552374, 373.841516506598), 18066: Vec2d(461.48863013375444, 373.7083898682901), 18069: Vec2d(461.7255377453719, 373.8474517346046), 18072: Vec2d(461.841877743003, 374.0976692365978), 18075: Vec2d(461.9704413010195, 374.2312870502066), 18077: Vec2d(462.1478110180303, 374.0207694837205), 18079: Vec2d(462.3491751742506, 373.89024956512196), 18082: Vec2d(462.62802422626316, 373.72651950688623), 18084: Vec2d(462.7790701873725, 373.62189766851617), 18086: Vec2d(462.89691307778924, 373.5033553013058), 18088: Vec2d(463.0110558975995, 373.3870685319992), 18090: Vec2d(462.6556187269399, 372.9981039962366), 18093: Vec2d(462.86527551777976, 372.82416146168214), 18099: Vec2d(463.3302076443813, 372.71323371843096), 18117: Vec2d(463.8759925745411, 372.5924813644829), 18126: Vec2d(463.49283972775623, 372.6986694251936), 18130: Vec2d(463.94214529676293, 372.5963060278819), 18135: Vec2d(464.99576210611576, 372.8628071552828), 18136: Vec2d(465.270172128345, 373.042344390537), 18137: Vec2d(465.5641233906918, 373.21776459856375), 18139: Vec2d(465.9634821179579, 373.6393585837565), 18140: Vec2d(466.1468459005036, 373.9637507359471), 18141: Vec2d(466.32611695758084, 374.2581348901723), 18142: Vec2d(466.5762283656747, 374.48316241479495), 18144: Vec2d(466.79980791164763, 374.7226926094898), 18147: Vec2d(466.94827006413635, 374.9463961666118), 18148: Vec2d(467.1279010117812, 375.1363821153056), 18149: Vec2d(467.3050287301618, 375.30808408193764), 18150: Vec2d(467.43637617752375, 375.46106363717763), 18151: Vec2d(467.6494856537702, 375.6290284751153), 18152: Vec2d(467.8477221500571, 375.7756957827988), 18153: Vec2d(468.018059873736, 375.8935360173453), 18154: Vec2d(468.1848640227378, 376.01765237797264), 18157: Vec2d(468.2895448045353, 376.34093604025287), 18159: Vec2d(468.172448682288, 376.1301049620353), 18162: Vec2d(468.2792334208666, 375.9382463672353), 18164: Vec2d(468.4302829582586, 375.74659425655716), 18166: Vec2d(468.5467725263552, 375.6381056743067), 18170: Vec2d(468.65260633877836, 375.2025571365524), 18175: Vec2d(468.8017625541101, 374.6351969965504), 18178: Vec2d(468.90430968129914, 374.43622016817704), 18183: Vec2d(469.1432703456375, 374.53834865239025), 18188: Vec2d(469.42825470667907, 374.64760768883673), 18194: Vec2d(469.6212559991874, 375.1323358022156), 18196: Vec2d(469.7510398299478, 375.2942147430908), 18202: Vec2d(469.8557048289429, 376.08957152295227), 18223: Vec2d(469.69942111622345, 377.6756851233712), 18229: Vec2d(469.8031874463683, 378.9970072945769), 18233: Vec2d(469.9584831273595, 379.57648481570175), 18236: Vec2d(470.1627276319384, 379.98201322055394), 18238: Vec2d(470.27187015965666, 380.3107346274624), 18242: Vec2d(470.38342229762395, 380.7319976624795), 18244: Vec2d(470.51157178167136, 380.85753586875785), 18246: Vec2d(470.69981402903784, 381.04683179074544), 18251: Vec2d(470.83944628454134, 381.5950539929139), 18256: Vec2d(470.9936587177254, 382.37800490885417), 18258: Vec2d(471.10695257438357, 382.6603202783856), 18271: Vec2d(470.8704135571982, 384.8021172179811), 18274: Vec2d(470.74389200355904, 385.15777670614995), 18278: Vec2d(470.53121344519826, 385.4317509459139), 18279: Vec2d(470.37231818642005, 385.5670895035303), 18282: Vec2d(470.2475096865418, 386.01764067980343), 18286: Vec2d(470.35399686906595, 386.6399630497398), 18289: Vec2d(470.479358069541, 386.96218980658625), 18294: Vec2d(470.59941969570986, 387.26904715713545), 18302: Vec2d(471.0059979617427, 387.39161937808564), 18308: Vec2d(471.3695050396517, 387.50943034418515), 18314: Vec2d(470.189234503191, 387.684294022094), 18316: Vec2d(469.81484973960454, 387.84984593009733), 18321: Vec2d(469.3059393603695, 387.74641042606135), 18324: Vec2d(469.06266771774756, 387.62066670637824), 18327: Vec2d(468.6997574290075, 387.7435524518507), 18335: Vec2d(468.271936922375, 387.8520445467898), 18338: Vec2d(468.1556176315467, 388.17901637622913), 18340: Vec2d(468.05339657301636, 388.470719641994), 18345: Vec2d(467.9512906454407, 388.58351315806925), 18350: Vec2d(467.7789569924879, 388.7203706197996), 18355: Vec2d(467.28307613556416, 388.61253008600994), 18365: Vec2d(467.3963505318499, 388.4556174256356), 18396: Vec2d(467.5324575036538, 388.6868968575701), 18402: Vec2d(467.3841158257951, 389.0349505927846), 18403: Vec2d(467.20800276023493, 389.2746422075254), 18404: Vec2d(467.0172941769756, 389.40574884668274), 18405: Vec2d(466.86365083368906, 389.55743942195727), 18407: Vec2d(466.6648369392132, 389.6968382841459), 18409: Vec2d(466.47776379341974, 389.95688737475297), 18428: Vec2d(466.20367827284076, 389.70505906737037), 18433: Vec2d(465.98846708483717, 389.5657491911516), 18439: Vec2d(465.7610257689484, 389.408285262682), 18443: Vec2d(465.65804299792256, 389.1676557220027), 18446: Vec2d(465.4800703243638, 389.06173079980016), 18451: Vec2d(465.1188499635568, 388.94379104735566), 18455: Vec2d(464.9531737318935, 388.75048936948144), 18459: Vec2d(464.7957744688947, 388.5540567154781), 18467: Vec2d(465.10586050816954, 387.9127809941685), 18475: Vec2d(465.3874519921499, 386.14740294311923), 18476: Vec2d(465.63337052662973, 386.01241884879175), 18478: Vec2d(465.842348942785, 385.81629460459897), 18481: Vec2d(466.0118766528645, 385.57009148274784), 18482: Vec2d(466.2614420548414, 385.2308318105711), 18484: Vec2d(466.5795663476453, 384.19775616824734), 18492: Vec2d(466.74368740105115, 382.53846589113164), 18493: Vec2d(466.85938142079385, 382.3189615992139), 18494: Vec2d(466.9721840463765, 382.02417268925365), 18498: Vec2d(466.775632460052, 381.4311738753863), 18500: Vec2d(466.5847871149394, 381.1527193038967), 18505: Vec2d(466.811458979117, 381.29753652916617), 18506: Vec2d(467.2105847515378, 380.88006033762815), 18508: Vec2d(467.4157615864047, 380.73631123171157), 18509: Vec2d(467.91064123603917, 380.27987326247256), 18511: Vec2d(467.7309222814448, 380.040151332934), 18513: Vec2d(467.8855499500061, 379.7871692620385), 18516: Vec2d(468.02728696394695, 379.5798230659258), 18518: Vec2d(467.90968172995133, 379.1113524993804), 18520: Vec2d(468.14840142237114, 378.83530985986613), 18521: Vec2d(468.2769387157017, 378.56252055101993), 18522: Vec2d(468.41085534616695, 378.3161745422052), 18523: Vec2d(468.51840433086005, 378.03550442335876), 18525: Vec2d(468.7202647861024, 377.63600097343965), 18527: Vec2d(468.83070401363216, 377.1609646705858), 18529: Vec2d(468.70497958197103, 376.7971887275936), 18531: Vec2d(468.2329475453036, 376.90366155760967), 18532: Vec2d(468.1052616458548, 377.09103726112477), 18533: Vec2d(467.9657899938076, 377.34727258956895), 18534: Vec2d(467.8042225095296, 377.4996782153991), 18535: Vec2d(467.63510835569303, 377.65832653010926), 18538: Vec2d(467.762414719051, 377.1914761586492), 18541: Vec2d(467.9216009492982, 376.74666174331855), 18543: Vec2d(468.0283603304023, 376.5919703179057), 18545: Vec2d(468.1365529045784, 376.3528309179025), 18551: Vec2d(468.24293864550293, 376.20242283693256), 18553: Vec2d(468.36039193312587, 375.98760072254436), 18555: Vec2d(468.47752371707674, 375.8192359135903), 18558: Vec2d(468.3388331901817, 375.15877018832106), 18559: Vec2d(468.20356517895056, 374.878793022796), 18561: Vec2d(468.3474521847038, 374.50891053780117), 18564: Vec2d(468.52786494670045, 374.2610550623906), 18568: Vec2d(468.3141269976775, 374.15865234202244), 18584: Vec2d(468.6578770308997, 374.0052985508378), 18587: Vec2d(468.76661143730706, 373.88163606241295), 18592: Vec2d(468.8801327603173, 374.282199832654), 18594: Vec2d(469.0240869107232, 374.7504177022689), 18596: Vec2d(468.9023099808118, 375.06614678175737), 18598: Vec2d(468.68861393291814, 375.34627833354057)}
+last_movement_age: 18598
+db_instance: Creature object (152162)
+~~~~~~~~~~ Genome effects info ~~~~~~~~~~
+children_number: 1
+size_coef: 0.1
+elasticity: 1
+metabolism: 0.005
+resources_loss_coef: 0.005
+regeneration_amount: 5
+consumption_amount: Resources: energy: 5, O: 5, C: 6, H: 5
+resources_loss: Resources: empty
+bodyparts: [<class 'simulator.creature.bodypart.base.Body'>, <class 'simulator.creature.bodypart.storage.Storage'>]
+resource_storages: Resources: energy: 400, O: 350, C: 200, H: 100
+color: [255, 255, 255]
+

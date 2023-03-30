@@ -1,1 +1,1 @@
-from player.world.base import BasePlaybackWorld
+from player.world.base import BasePlaybackWorld, WorldHistoryEndException

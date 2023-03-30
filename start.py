@@ -103,7 +103,7 @@ def simulate():
 def play():
     window_width = 800
     window_height = 600
-    world_id = 3
+    world_id = 15
 
     window = BasePlaybackWindow(window_width, window_height)
     try:
