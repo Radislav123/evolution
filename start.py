@@ -97,13 +97,13 @@ def simulate():
         raise error
     finally:
         window.world.stop()
-    print(f"Симуляция окончена. World id: {window.world.id}.")
+        print(f"Симуляция окончена. World id: {window.world.id}.")
 
 
 def play():
     window_width = 800
     window_height = 600
-    world_id = 15
+    world_id = 20
 
     window = BasePlaybackWindow(window_width, window_height)
     try:
@@ -112,7 +112,8 @@ def play():
     except Exception as error:
         log_error_info(error)
         raise error
-    print(f"Воспроизведение окончено. World id: {window.world.id}.")
+    finally:
+        print(f"Воспроизведение окончено. World id: {window.world.id}.")
 
 
 if __name__ == "__main__":
