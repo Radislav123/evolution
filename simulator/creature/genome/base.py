@@ -22,10 +22,10 @@ class GenomeEffects:
         # не переносить определения в тело класса,
         # иначе не простые типы (list, dict...) используются всеми экземплярами совместно
         self.children_number = 0
-        self.size_coef = 0.0
+        self.size_coeff = 0.0
         self.elasticity = 0.0
         self.metabolism = 0.0
-        self.resources_loss_coef = 0.0
+        self.resources_loss_coeff = 0.0
         self.regeneration_amount = 0
         self.consumption_amount = Resources()
         self.resources_loss = Resources()

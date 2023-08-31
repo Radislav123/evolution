@@ -14,7 +14,7 @@ class BaseBodypart(abc.ABC):
     # ресурсы, из которых состоит часть тела (химический состав)
     _composition: Resources
     required_bodypart_class: Type["BaseBodypart"] | None
-    extra_storage_coef = 0.1
+    extra_storage_coeff = 0.1
 
     def __init__(self, size: float, required_bodypart: Optional["BaseBodypart"]):
         self.size = size
@@ -34,7 +34,7 @@ class BaseBodypart(abc.ABC):
         # ресурсы, находящиеся в неповрежденной части тела/необходимые для воспроизводства части тела
         self.resources = (self._composition * self.size).round()
         # расширение хранилища существа, которое предоставляет часть тела
-        self.extra_storage = (self.resources * self.extra_storage_coef).round()
+        self.extra_storage = (self.resources * self.extra_storage_coeff).round()
         self._remaining_resources: Resources | None = None
 
     def __repr__(self) -> str:
@@ -114,7 +114,7 @@ class BaseBodypart(abc.ABC):
         for bodypart_class in bodypart_classes:
             if bodypart_class.required_bodypart_class is self.__class__:
                 self.dependent_bodyparts.append(
-                    bodypart_class(creature.genome.effects.size_coef, self)
+                    bodypart_class(creature.genome.effects.size_coeff, self)
                 )
 
         bodyparts = copy.copy(bodypart_classes)

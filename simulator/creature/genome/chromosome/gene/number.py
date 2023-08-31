@@ -81,7 +81,7 @@ class SizeGene(BaseNumberGene):
     step = 0.1
     attribute_default = 1
     common_min_limit = 0.1
-    attribute_name = "size_coef"
+    attribute_name = "size_coeff"
 
 
 # todo: добавить трату специализированного ресурса, связанного с эластичностью
@@ -107,13 +107,13 @@ class MetabolismGene(BaseNumberGene):
 
 
 # todo: добавить бонусы за высокое значение потери ресурсов, возможно, связанные с другими генами
-class ResourcesLossCoefGene(BaseNumberGene):
+class ResourcesLossCoeffGene(BaseNumberGene):
     abstract = False
     required_for_creature = True
     step = 0.0005
     common_min_limit = 0.001
     attribute_default = 0.005
-    attribute_name = "resources_loss_coef"
+    attribute_name = "resources_loss_coeff"
 
 
 class RegenerateAmountGene(BaseNumberGene):

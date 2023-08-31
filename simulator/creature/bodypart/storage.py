@@ -141,7 +141,7 @@ class ResourceStorage(BaseBodypart):
     capacity: int
     required_bodypart_class = Storage
     # показывает дополнительное увеличение объема части тела (хранилища), в зависимости от вместимости
-    extra_volume_coef = 0.1
+    extra_volume_coeff = 0.1
     _composition = Resources(
         {
             OXYGEN: 10,
@@ -194,7 +194,7 @@ class ResourceStorage(BaseBodypart):
     @property
     def volume(self) -> int:
         volume = super().volume
-        volume += int(self.world_resource.volume * self.capacity * self.extra_volume_coef)
+        volume += int(self.world_resource.volume * self.capacity * self.extra_volume_coeff)
         return volume
 
     @property

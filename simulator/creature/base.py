@@ -70,10 +70,10 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             self._reproduction_resources: Resources | None = None
             # todo: привязать к генам
             # коэффициент ресурсов, теряемых, при воспроизведении потомков
-            self.reproduction_lost_coef = 1.1
+            self.reproduction_lost_coeff = 1.1
             # todo: привязать к генам
             # коэффициент ресурсов, необходимых для разрешения воспроизведения (не расходуются)
-            self.reproduction_reserve_coef = 1.5
+            self.reproduction_reserve_coeff = 1.5
             # todo: привязать к генам
             # количество энергии, затрачиваемой на каждого потомка, при воспроизведении
             self.reproduction_energy_lost = 20
@@ -133,7 +133,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
     @property
     def resources_loss(self) -> Resources:
         if self._resources_loss is None:
-            resources_loss = self.resources * self.genome.effects.resources_loss_coef + \
+            resources_loss = self.resources * self.genome.effects.resources_loss_coeff + \
                              self.resources_loss_accumulated + self.genome.effects.resources_loss
 
             resources_loss[ENERGY] = self.genome.effects.resources_loss[ENERGY] + \
@@ -221,7 +221,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         # находит класс тела
         for bodypart_class in self.genome.effects.bodyparts:
             if issubclass(bodypart_class, Body):
-                self.body = bodypart_class(self.genome.effects.size_coef, None)
+                self.body = bodypart_class(self.genome.effects.size_coeff, None)
                 break
 
         # собирается тело
@@ -238,7 +238,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         # собирается хранилище
         for resource, amount in self.genome.effects.resource_storages.items():
             if amount > 0:
-                self.storage.add_resource_storage(resource, self.genome.effects.size_coef)
+                self.storage.add_resource_storage(resource, self.genome.effects.size_coeff)
 
         # задаются емкости хранилищ ресурсов
         for resource, resource_storage in self.storage.items():
@@ -361,6 +361,8 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.resources_loss_accumulated[ENERGY] += consumption_amount * 0.01
 
     def get_consumption_resource(self) -> BaseWorldResource | None:
+        """Выбирает ресурс, который будет потреблен существом."""
+
         resources = []
         weights = []
         for resource in self.storage:
@@ -431,7 +433,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             for resource, amount in self.reproduction_resources.items():
                 if resource not in self.storage or \
                         self.storage[resource].current <= amount * \
-                        self.reproduction_reserve_coef * self.reproduction_lost_coef:
+                        self.reproduction_reserve_coeff * self.reproduction_lost_coeff:
                     can_reproduce = False
                     break
         else:
@@ -442,7 +444,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         """Симулирует размножение существа."""
 
         # трата ресурсов на тела потомков
-        reproduction_spending_resources = (self.reproduction_resources * self.reproduction_lost_coef).round()
+        reproduction_spending_resources = (self.reproduction_resources * self.reproduction_lost_coeff).round()
         self.storage.remove_resources(reproduction_spending_resources)
         # ресурсы, возвращаемые в мир
         self.returned_resources += reproduction_spending_resources - self.reproduction_resources
@@ -472,7 +474,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         self.fertilize()
 
     def get_children_positions(self) -> list[tuple[float, float]]:
-        offset_coef = 0.5
+        offset_coefа = 0.5
         children_positions = []
         children_layers = self.get_children_layers()
         # располагает потомков равномерно по слоям
@@ -483,9 +485,9 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             first_layer_child_offset = random.random() * math.pi * 2
             for number in range(children_in_layer):
                 offset_x = self.characteristics.radius * 2 * \
-                           math.cos(child_sector * number + first_layer_child_offset) * offset_coef * (layer_number + 1)
+                           math.cos(child_sector * number + first_layer_child_offset) * offset_coefа * (layer_number + 1)
                 offset_y = self.characteristics.radius * 2 * \
-                           math.sin(child_sector * number + first_layer_child_offset) * offset_coef * (layer_number + 1)
+                           math.sin(child_sector * number + first_layer_child_offset) * offset_coefа * (layer_number + 1)
 
                 children_positions.append((self.position[0] + offset_x, self.position[1] + offset_y))
         return children_positions

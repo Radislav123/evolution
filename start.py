@@ -117,7 +117,7 @@ def play():
 
 
 if __name__ == "__main__":
-    simulation = False
+    simulation = True
     if simulation:
         simulate()
     else:

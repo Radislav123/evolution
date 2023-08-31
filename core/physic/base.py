@@ -26,11 +26,11 @@ class BaseWorldCharacteristics:
         self.viscosity = viscosity
         self.borders_friction = borders_friction
         self.borders_thickness = borders_thickness
-        self.resource_coef = resource_coef
+        self.resource_coeff = resource_coef
 
     def __repr__(self) -> str:
         string = f"viscosity: {self.viscosity}, borders friction: {self.borders_friction}, "
-        string += f"borders thickness: {self.borders_thickness}, resources coef: {self.resource_coef}"
+        string += f"borders thickness: {self.borders_thickness}, resources coef: {self.resource_coeff}"
         return string
 
     def save_to_db(self, world: "BaseSimulationWorld"):
@@ -39,7 +39,7 @@ class BaseWorldCharacteristics:
             viscosity = self.viscosity,
             borders_friction = self.borders_friction,
             borders_thickness = self.borders_thickness,
-            resource_coef = self.resource_coef
+            resource_coeff = self.resource_coeff
         )
         self.db_instance.save()
 
@@ -56,11 +56,11 @@ class BaseCreatureCharacteristics:
         if not 0 <= genome_effects.elasticity <= 1:
             raise ValueError(f"Elasticity must belong to [0, 1], but {genome_effects.elasticity} was given")
         self.elasticity = genome_effects.elasticity
-        self.size_coef = self.genome_effects.size_coef
+        self.size_coeff = self.genome_effects.size_coeff
         self.world_characteristics = world_characteristics
 
     def __repr__(self) -> str:
-        string = f"elasticity: {self.elasticity}, size coef: {self.size_coef}, radius: {self.radius}, "
+        string = f"elasticity: {self.elasticity}, size coef: {self.size_coeff}, radius: {self.radius}, "
         string += f"volume: {self.volume}, mass: {self.mass}"
         return string
 

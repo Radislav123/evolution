@@ -27,11 +27,11 @@ class World(EvolutionModel):
 
 
 class WorldCharacteristics(EvolutionModel):
-    world = models.ForeignKey(World, models.RESTRICT, primary_key = True)
+    world = models.ForeignKey(World, models.PROTECT, primary_key = True)
     viscosity = models.FloatField()
     borders_friction = models.FloatField()
     borders_thickness = models.PositiveIntegerField()
-    resource_coef = models.FloatField()
+    resource_coeff = models.FloatField()
 
 
 class WorldChunk(EvolutionModel):
@@ -45,7 +45,7 @@ class WorldChunk(EvolutionModel):
 
 
 class Creature(EvolutionModel):
-    world = models.ForeignKey(World, models.RESTRICT)
+    world = models.ForeignKey(World, models.PROTECT)
     # существо появилось
     start_tick = models.PositiveIntegerField()
     # существо перестало существовать или симуляция приостановлена
@@ -57,13 +57,13 @@ class Creature(EvolutionModel):
 
 # родителей может быть разное количество
 class CreatureParent(EvolutionModel):
-    world = models.ForeignKey(World, models.RESTRICT)
-    creature = models.ForeignKey(Creature, models.RESTRICT, related_name = "creature_itself", primary_key = True)
-    parent = models.ForeignKey(Creature, models.RESTRICT, related_name = "creature_parent")
+    world = models.ForeignKey(World, models.PROTECT)
+    creature = models.ForeignKey(Creature, models.PROTECT, related_name = "creature_itself", primary_key = True)
+    parent = models.ForeignKey(Creature, models.PROTECT, related_name = "creature_parent")
 
 
 class CreaturePositionHistory(HistoryModel):
-    creature = models.ForeignKey(Creature, models.RESTRICT)
+    creature = models.ForeignKey(Creature, models.PROTECT)
     age = models.PositiveIntegerField()
     position_x = models.FloatField()
     position_y = models.FloatField()
@@ -71,12 +71,12 @@ class CreaturePositionHistory(HistoryModel):
 
 # todo: исправить эту модель (history)
 class CreatureStorage(EvolutionModel):
-    creature = models.OneToOneField(Creature, models.RESTRICT, primary_key = True)
+    creature = models.OneToOneField(Creature, models.PROTECT, primary_key = True)
 
 
 # todo: исправить эту модель (history)
 class StoredResource(EvolutionModel):
-    creature_storage = models.ForeignKey(CreatureStorage, models.RESTRICT)
+    creature_storage = models.ForeignKey(CreatureStorage, models.PROTECT)
     # формула ресурса
     # O/C/H/light
     resource = models.CharField(max_length = 10)

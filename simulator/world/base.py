@@ -244,7 +244,7 @@ class BaseSimulationWorldChunk:
         self.top = self.bottom + height - 1
         self.color = (100, 100, 100)
         self.default_resource_amount = int(
-            (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_coef
+            (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_coeff
         )
         self._resources = Resources(
             {
