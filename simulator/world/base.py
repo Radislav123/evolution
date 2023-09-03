@@ -26,7 +26,7 @@ class BaseSimulationWorld(WorldObjectMixin):
     world_resources: Resources = None
 
     # width - минимальное значение ширины экрана - 120
-    def __init__(self, width: int, height: int, center: tuple[int, int]):
+    def __init__(self, width: int, height: int, center: tuple[int, int]) -> None:
         self._id = None
         self.age = 0
         self.width = width
@@ -38,7 +38,7 @@ class BaseSimulationWorld(WorldObjectMixin):
 
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
-        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.6)
+        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.4)
         self.prepare_borders()
         self.prepare_physics_engine()
         self.chunks = BaseSimulationWorldChunk.cut_world(self)
@@ -52,7 +52,7 @@ class BaseSimulationWorld(WorldObjectMixin):
             self._id = self.db_model.objects.count()
         return self._id
 
-    def save_to_db(self):
+    def save_to_db(self) -> None:
         self.db_instance = self.db_model(
             id = self.id,
             stop_tick = self.age,
@@ -79,7 +79,7 @@ class BaseSimulationWorld(WorldObjectMixin):
 
         return left, right, bottom, top
 
-    def prepare_borders(self):
+    def prepare_borders(self) -> None:
         left, right, bottom, top = self.get_borders_coordinates()
 
         # инициализация спрайтов границ
@@ -115,7 +115,7 @@ class BaseSimulationWorld(WorldObjectMixin):
         self.borders.append(bottom_border)
         self.borders.append(top_border)
 
-    def prepare_physics_engine(self):
+    def prepare_physics_engine(self) -> None:
         self.physics_engine = arcade.PymunkPhysicsEngine(damping = 1 - self.characteristics.viscosity)
         self.physics_engine.add_sprite_list(
             self.borders,
@@ -123,20 +123,20 @@ class BaseSimulationWorld(WorldObjectMixin):
             body_type = arcade.PymunkPhysicsEngine.STATIC
         )
 
-    def start(self):
+    def start(self) -> None:
         """Выполняет подготовительные действия при начале симуляции."""
 
         self.save_to_db()
         self.spawn_start_creature()
 
-    def stop(self):
+    def stop(self) -> None:
         """Выполняет завершающие действия при окончании симуляции."""
 
         self.save_to_db()
         for creature in self.creatures:
             creature.stop()
 
-    def spawn_start_creature(self):
+    def spawn_start_creature(self) -> None:
         creature = BaseSimulationCreature(
             self,
             None,
@@ -148,19 +148,19 @@ class BaseSimulationWorld(WorldObjectMixin):
         self.remove_resources(creature.position, creature.remaining_resources)
         self.remove_resources(creature.position, creature.storage.stored_resources)
 
-    def add_creature(self, creature: BaseSimulationCreature):
+    def add_creature(self, creature: BaseSimulationCreature) -> None:
         """Добавляет существо в мир."""
 
         self.creatures.append(creature)
 
     # если существо необходимо убить, то это нужно сделать отдельно (creature.kill)
-    def remove_creature(self, creature: BaseSimulationCreature):
+    def remove_creature(self, creature: BaseSimulationCreature) -> None:
         """Убирает существо из мира."""
 
         self.creatures.remove(creature)
         self.physics_engine.remove_sprite(creature)
 
-    def on_update(self, delta_time: float):
+    def on_update(self, delta_time: float) -> None:
         try:
             existing_creatures = copy.copy(self.creatures)
             for creature in existing_creatures:
@@ -178,7 +178,7 @@ class BaseSimulationWorld(WorldObjectMixin):
             error.world = self
             raise error
 
-    def count_resources(self):
+    def count_resources(self) -> None:
         if self.count_map_resources or self.count_world_resources:
             self.map_resources = Resources()
             for line in self.chunks:
@@ -200,17 +200,17 @@ class BaseSimulationWorld(WorldObjectMixin):
 
         return self.position_to_chunk(position).get_resources()
 
-    def add_resources(self, position: tuple[float, float], resources: Resources):
+    def add_resources(self, position: tuple[float, float], resources: Resources) -> None:
         """Добавляет ресурсы в чанк."""
 
         return self.position_to_chunk(position).add_resources(resources)
 
-    def remove_resources(self, position: tuple[float, float], resources: Resources):
+    def remove_resources(self, position: tuple[float, float], resources: Resources) -> None:
         """Убирает ресурсы из чанка."""
 
         return self.position_to_chunk(position).remove_resources(resources)
 
-    def draw(self):
+    def draw(self) -> None:
         self.borders.draw()
         # можно отрисовывать всех существ по отдельности, итерируясь по self.creatures,
         # что позволит переопределить метод draw существа (иначе, переопределение этого метода не влияет на отрисовку)
@@ -237,7 +237,7 @@ class BaseSimulationWorld(WorldObjectMixin):
 
 
 class BaseSimulationWorldChunk:
-    def __init__(self, left_bottom: tuple[int, int], width: int, height: int, world: BaseSimulationWorld):
+    def __init__(self, left_bottom: tuple[int, int], width: int, height: int, world: BaseSimulationWorld) -> None:
         self.left = left_bottom[0]
         self.right = self.left + width - 1
         self.bottom = left_bottom[1]
@@ -258,22 +258,22 @@ class BaseSimulationWorldChunk:
     def __repr__(self) -> str:
         return f"{self.left, self.bottom, self.right, self.top}"
 
-    def on_update(self):
+    def on_update(self) -> None:
         self._resources[ENERGY] = self.default_resource_amount
 
     def get_resources(self) -> Resources:
         return self._resources
 
-    def add_resources(self, resources: Resources):
+    def add_resources(self, resources: Resources) -> None:
         self._resources += resources
 
-    def remove_resources(self, resources: Resources):
+    def remove_resources(self, resources: Resources) -> None:
         self._resources -= resources
         for resource, amount in self._resources.items():
             if amount < 0:
                 raise ValueError(f"{resource} in {self} can not be lower than 0, current is {amount}")
 
-    def draw(self):
+    def draw(self) -> None:
         arcade.draw_xywh_rectangle_outline(
             self.left,
             self.bottom,

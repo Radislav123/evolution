@@ -97,5 +97,6 @@ class Resources(Dict[KT, VT]):
     def __len__(self) -> int:
         return sum([amount != 0 for amount in self.values()])
 
+    # todo: заменить на __round__
     def round(self) -> "Resources[BaseWorldResource, int]":
         return self.__class__({resource: int(amount) for resource, amount in self.items()})

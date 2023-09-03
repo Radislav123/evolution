@@ -21,14 +21,14 @@ class BaseTextTab(abc.ABC):
     # расстояние от края окна
     window_border_gap = 10
     # todo: исправить наложение строк с ресурсами на карте и tps
-    default_font_size = 14
+    default_font_size = 12
 
     # corner - смотреть offset класса
     # level - номер плашки, считая от выбранного угла
     def __init__(
             self, window: "BaseSimulationWindow", corner: int, level: int, font_size: int = default_font_size,
             show = True
-    ):
+    ) -> None:
         self.window = window
         self.corner = corner
         self.level = level
@@ -45,7 +45,7 @@ class BaseTextTab(abc.ABC):
         raise NotImplementedError()
 
     @classmethod
-    def calculate_positions(cls):
+    def calculate_positions(cls) -> None:
         for corner in cls.tabs:
             offset_y = 0
             for tab in corner.values():
@@ -71,13 +71,13 @@ class BaseTextTab(abc.ABC):
                     tab.text.anchor_x = anchor_x
                     tab.text.anchor_y = anchor_y
 
-    def draw(self):
+    def draw(self) -> None:
         if self.show:
             self.text.text = self.string
             self.text.draw()
 
     @classmethod
-    def draw_all(cls):
+    def draw_all(cls) -> None:
         for corner in cls.tabs:
             for tab in corner.values():
                 if tab is not None:
@@ -103,7 +103,7 @@ class CreaturesBirthDeathCounterTab(BaseTextTab):
 
 
 class MapResourcesCounterTab(BaseTextTab):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if self.show:
             self.window.world.count_map_resources.set()
@@ -114,7 +114,7 @@ class MapResourcesCounterTab(BaseTextTab):
 
 
 class CreaturesResourcesCounterTab(BaseTextTab):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if self.show:
             self.window.world.count_creatures_resources.set()
@@ -125,7 +125,7 @@ class CreaturesResourcesCounterTab(BaseTextTab):
 
 
 class WorldResourcesCounterTab(BaseTextTab):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if self.show:
             self.window.world.count_world_resources.set()
@@ -136,7 +136,7 @@ class WorldResourcesCounterTab(BaseTextTab):
 
 
 class TPSTab(BaseTextTab):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         arcade.enable_timings()
 
@@ -149,7 +149,7 @@ class BaseSimulationWindow(arcade.Window):
     desired_tps: int
     tps_tab: TPSTab
 
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int, height: int) -> None:
         super().__init__(width, height, center_window = True)
 
         self.world: BaseSimulationWorld | None = None
@@ -159,7 +159,7 @@ class BaseSimulationWindow(arcade.Window):
         background_color = (255, 255, 255)
         arcade.set_background_color(background_color)
 
-    def start(self, world_width: int, world_height: int):
+    def start(self, world_width: int, world_height: int) -> None:
         center = (self.width // 2, self.height // 2)
         self.world = BaseSimulationWorld(world_width, world_height, center)
         self.world.start()
@@ -167,6 +167,7 @@ class BaseSimulationWindow(arcade.Window):
         # плашки используют объект world
         self.tps_tab = TPSTab(self, 3, 1)
         # todo: добавить возможность выключать расчеты и вывод информации на плашках (сделать их кнопками?)
+        # todo: заменить свои плашки на элементы UIWidget из arcade
         tabs = [
             WorldAgeTab(self, 3, 0),
             CreaturesBirthDeathCounterTab(self, 2, 0),
@@ -179,12 +180,12 @@ class BaseSimulationWindow(arcade.Window):
         self.tabs = tabs
         BaseTextTab.calculate_positions()
 
-    def on_draw(self):
+    def on_draw(self) -> None:
         self.clear()
         self.world.draw()
         BaseTextTab.draw_all()
 
-    def on_update(self, delta_time: float):
+    def on_update(self, delta_time: float) -> None:
         try:
             self.world.on_update(delta_time)
         except Exception as error:
@@ -200,10 +201,10 @@ class BaseSimulationWindow(arcade.Window):
                 average_execution_time = execution_time_100 / 100
                 self.tps_tab.string = f"tps/желаемые tps: {int(1 / average_execution_time)} / {self.desired_tps}"
 
-    def set_tps(self, tps: int):
+    def set_tps(self, tps: int) -> None:
         self.desired_tps = tps
         self.set_update_rate(1 / tps)
 
     # todo: remove this method
-    def on_mouse_press(self, x, y, button, modifiers):
+    def on_mouse_press(self, x, y, button, modifiers) -> None:
         print(f"x: {x}, y: {y}")

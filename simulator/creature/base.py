@@ -1,4 +1,5 @@
 import copy
+import enum
 import math
 import random
 from typing import TYPE_CHECKING
@@ -22,6 +23,10 @@ if TYPE_CHECKING:
 
 
 class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
+    class DeathCause(enum.Enum):
+        AGE = 0
+        STARVATION = 1
+
     db_model = models.Creature
     db_instance: db_model
     counter = 0
@@ -36,7 +41,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             world: "BaseSimulationWorld",
             parents: list["BaseSimulationCreature"] | None,
             world_generation: bool = False
-    ):
+    ) -> None:
         try:
             super().__init__(self.image_path)
             # такая ситуация подразумевается только при генерации мира
@@ -60,6 +65,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.stop_tick = -1
             # -1 == существо не умирало в симуляции
             self.death_tick = -1
+            self.death_cause: BaseSimulationCreature.DeathCause | None = None
             self.alive = True
 
             # инициализация генов
@@ -112,6 +118,11 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.position_history: dict[int, tuple[float, float]] = {}
             # тик, на котором последний раз было движение/перемещение - для сохранения position.history
             self.last_movement_age = -1
+
+            # todo: переделать систему возраста - не должно быть прямой смерти из-за превышения лимита
+            #  (болезни, увеличение расхода ресурсов, появление шанса умереть...)
+            # максимальный возраст
+            self.max_age = 1000
         except Exception as error:
             error.init_creature = self
             raise error
@@ -181,11 +192,11 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
 
     @property
     def present_bodyparts(self) -> list[BaseBodypart]:
-        """Присутствующие, не полностью уничтоженные, части тела."""
+        """Присутствующие, не уничтоженные полностью, части тела."""
 
         return [bodypart for bodypart in self.bodyparts if not bodypart.destroyed]
 
-    def save_to_db(self):
+    def save_to_db(self) -> None:
         self.db_instance = self.db_model(
             id = self.id,
             world = self.world.db_instance,
@@ -195,9 +206,9 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         )
         self.db_instance.save()
 
-    def save_position_history_to_db(self):
+    def save_position_history_to_db(self) -> None:
         # todo: записывать историю перемещений периодически
-        #  - раз в некоторое количество тиков (и при остановке симуляции)
+        #  - раз в некоторое количество тиков (и при остановке симуляции)?
         for tick in self.position_history:
             models.CreaturePositionHistory(
                 creature = self.db_instance,
@@ -206,7 +217,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
                 position_y = self.position_history[tick][1]
             ).save()
 
-    def apply_genes(self):
+    def apply_genes(self) -> None:
         """Применяет эффекты генов на существо."""
 
         self.genome.apply_genes()
@@ -215,7 +226,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         self.consumption_amount = self.genome.effects.consumption_amount
         self.color = self.genome.effects.color
 
-    def apply_bodyparts(self):
+    def apply_bodyparts(self) -> None:
         """Применяет эффекты частей тела на существо."""
 
         # находит класс тела
@@ -251,7 +262,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         for bodypart in self.bodyparts:
             bodypart.constructed = True
 
-    def start(self):
+    def start(self) -> None:
         self.__class__.birth_counter += 1
         self.characteristics = BaseCreatureCharacteristics(
             self.bodyparts,
@@ -268,21 +279,23 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         self.fertilize()
         self.world.add_creature(self)
 
-    def stop(self):
+    def stop(self) -> None:
         self.stop_tick = self.world.age
         self.save_to_db()
         self.save_position_history_to_db()
 
-    def kill(self):
+    # noinspection PyMethodOverriding
+    def kill(self, death_cause: DeathCause) -> None:
         self.__class__.death_counter += 1
         self.returned_resources += self.body.destroy()
 
         self.alive = False
+        self.death_cause = death_cause
         self.death_tick = self.world.age
         self.stop()
         self.world.remove_creature(self)
 
-    def prepare_physics(self):
+    def prepare_physics(self) -> None:
         self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
         self.world.physics_engine.add_sprite(
             self,
@@ -295,11 +308,11 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         )
         self.physics_body = self.world.physics_engine.get_physics_object(self).body
 
-    def fertilize(self):
+    def fertilize(self) -> None:
         self.next_children = [self.__class__(self.world, [self]) for _ in range(self.children_number)]
 
     # noinspection PyMethodOverriding
-    def on_update(self, delta_time: float):
+    def on_update(self, delta_time: float) -> None:
         """Симулирует жизнедеятельность за один тик."""
 
         try:
@@ -314,8 +327,11 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
 
             if self.can_metabolize():
                 self.metabolize()
-            if not self.can_metabolize():
-                self.kill()
+            else:
+                self.kill(self.DeathCause.STARVATION)
+
+            if self.alive and self.world.age - self.start_tick >= self.max_age:
+                self.kill(self.DeathCause.AGE)
 
             self.return_resources()
             self.update_physics()
@@ -323,7 +339,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             error.creature = self
             raise error
 
-    def update_position_history(self):
+    def update_position_history(self) -> None:
         precision = 0.1
         difference_x = abs(self.position_history[self.last_movement_age][0] - self.position[0])
         difference_y = abs(self.position_history[self.last_movement_age][1] - self.position[1])
@@ -339,7 +355,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
                 break
         return can_consume
 
-    def consume(self):
+    def consume(self) -> None:
         """Симулирует потребление веществ существом."""
 
         resource = self.get_consumption_resource()
@@ -379,7 +395,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
     def can_regenerate(self) -> bool:
         return ENERGY in self.storage and not self.storage[ENERGY].empty
 
-    def regenerate(self):
+    def regenerate(self) -> None:
         # выбирается часть тела для регенерации
         bodypart = self.get_regeneration_bodypart()
 
@@ -440,7 +456,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             can_reproduce = False
         return can_reproduce
 
-    def reproduce(self):
+    def reproduce(self) -> None:
         """Симулирует размножение существа."""
 
         # трата ресурсов на тела потомков
@@ -474,7 +490,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         self.fertilize()
 
     def get_children_positions(self) -> list[tuple[float, float]]:
-        offset_coefа = 0.5
+        offset_coeff = 0.5
         children_positions = []
         children_layers = self.get_children_layers()
         # располагает потомков равномерно по слоям
@@ -485,9 +501,11 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             first_layer_child_offset = random.random() * math.pi * 2
             for number in range(children_in_layer):
                 offset_x = self.characteristics.radius * 2 * \
-                           math.cos(child_sector * number + first_layer_child_offset) * offset_coefа * (layer_number + 1)
+                           math.cos(child_sector * number + first_layer_child_offset) * \
+                           offset_coeff * (layer_number + 1)
                 offset_y = self.characteristics.radius * 2 * \
-                           math.sin(child_sector * number + first_layer_child_offset) * offset_coefа * (layer_number + 1)
+                           math.sin(child_sector * number + first_layer_child_offset) * \
+                           offset_coeff * (layer_number + 1)
 
                 children_positions.append((self.position[0] + offset_x, self.position[1] + offset_y))
         return children_positions
@@ -536,7 +554,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
                 self._can_metabolize = True
         return self._can_metabolize
 
-    def metabolize(self):
+    def metabolize(self) -> None:
         self.storage.remove_resources(self.resources_loss)
         self.returned_resources += self.resources_loss
 
@@ -546,14 +564,14 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         # todo: заменить len(self.storage.lack) > 0, когда уберу ENERGY из Body там (len(self.storage.lack))
         #  будет учитываться еще и ENERGY, дефицит которой должен будет обрабатываться иначе
         if len(self.storage.lack_resources) > 0 or self.body.destroyed:
-            self.kill()
+            self.kill(self.DeathCause.STARVATION)
 
         self._resources_loss = None
 
     # https://ru.wikipedia.org/wiki/%D0%90%D1%83%D1%82%D0%BE%D1%84%D0%B0%D0%B3%D0%B8%D1%8F
     # если возвращается отрицательное количество ресурса, значит существу не хватает ресурсов частей тела,
     # чтобы восполнить потерю -> оно должно умереть
-    def autophage(self):
+    def autophage(self) -> None:
         """Существо попытается восполнить недостаток ресурсов в хранилище за счет частей тела."""
 
         # todo: заменить len(self.storage.lack) > 0, когда уберу ENERGY из Body там (len(self.storage.lack))
@@ -597,12 +615,12 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
         bodypart = bodyparts[0]
         return bodypart
 
-    def return_resources(self):
+    def return_resources(self) -> None:
         self.returned_resources += self.storage.extra_resources
         self.storage.remove_resources(self.storage.extra_resources)
         self.returned_resources[ENERGY] = 0
         self.world.add_resources(self.position, self.returned_resources)
         self.returned_resources = Resources()
 
-    def update_physics(self):
+    def update_physics(self) -> None:
         self.physics_body.mass = self.characteristics.mass
