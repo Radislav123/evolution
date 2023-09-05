@@ -547,8 +547,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
     def can_metabolize(self) -> bool:
         if self._can_metabolize is None:
             # проверяется, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
-            if sum([resource not in self.storage or self.storage[resource].destroyed for resource in self.resources]) \
-                    > 0:
+            if sum(resource not in self.storage or self.storage[resource].destroyed for resource in self.resources) > 0:
                 self._can_metabolize = False
             else:
                 self._can_metabolize = True

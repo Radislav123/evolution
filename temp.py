@@ -1,53 +1,45 @@
-import time
+import datetime
+import random
+import string
+from typing import Callable
 
 
-class A:
-    def __init__(self):
-        self.dict = {}
-
-    def __setitem__(self, key, value):
-        self.dict[key] = value
+def random_string() -> str:
+    string_length = (1, 100)
+    return "".join(random.choices(string.ascii_uppercase + string.digits, k = random.randint(*string_length)))
 
 
-a = A()
-b = {}
+TEST_DATA_LENGTH = 1000000
+TEST_DATA = tuple((random_string(), random_string()) for _ in range(TEST_DATA_LENGTH))
 
 
-def timer(dict_like) -> float:
-    repetitions = 1000000
-
-    start = time.time()
-    for i in range(repetitions):
-        dict_like[i] = (i, i)
-    stop = time.time()
-    return stop - start
+def timer(function: Callable) -> datetime.timedelta:
+    start = datetime.datetime.now()
+    for a, b in TEST_DATA:
+        function(a, b)
+    finish = datetime.datetime.now()
+    return finish - start
 
 
-print(timer(a))
-print(timer(b))
+def test_percent(a: str, b: str) -> str:
+    return "%s: %s" % (a, b)
 
 
-rep = 1000000
-dict_1 = {j: (j, j) for j in range(rep)}
-dict_2 = {j: (j, j) for j in range(rep)}
-dict_3 = {j: (j, j) for j in range(rep)}
+def test_format(a: str, b: str) -> str:
+    return "{}: {}".format(a, b)
 
-start_1 = time.time()
-for j in dict_1:
-    c_1 = dict_1[j]
-stop_1 = time.time()
 
-start_2 = time.time()
-for key_2, value_2 in dict_2.items():
-    c_2 = value_2
-stop_2 = time.time()
+def test_f_string(a: str, b: str) -> str:
+    return f"{a}: {b}"
 
-start_3 = time.time()
-for value_3 in dict_3.values():
-    c_3 = value_3
-stop_3 = time.time()
 
-print("-------------------")
-print(stop_1 - start_1)
-print(stop_2 - start_2)
-print(stop_3 - start_3)
+times = {
+    "percent": timer(test_percent),
+    "format": timer(test_format),
+    "f_string": timer(test_f_string)
+}
+
+print("--------------------------")
+print("time in microseconds")
+for k, v in times.items():
+    print(f"{k}: \t{v.microseconds}")

@@ -27,7 +27,7 @@ CREATURE_IMAGE_PATH = f"{SIMULATION_IMAGES_PATH}/BaseCreature.png"
 
 IMAGES_STORE_FORMAT = "RGBA"
 
-# tps - tick per second
+# tps - ticks per second
 MAX_TPS = 1000
 
 # Quick-start development settings - unsuitable for production

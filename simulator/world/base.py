@@ -5,7 +5,6 @@ import arcade
 from core import models
 from core.mixin import WorldObjectMixin
 from core.physic import BaseWorldCharacteristics
-from core.service import Switch
 from simulator.creature import BaseSimulationCreature
 from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, RESOURCE_LIST, Resources
 
@@ -18,12 +17,6 @@ class BaseSimulationWorld(WorldObjectMixin):
     db_instance: db_model
     borders: arcade.SpriteList
     physics_engine: arcade.PymunkPhysicsEngine
-    count_map_resources = Switch()
-    map_resources: Resources = None
-    count_creatures_resources = Switch()
-    creatures_resources: Resources = None
-    count_world_resources = Switch()
-    world_resources: Resources = None
 
     # width - минимальное значение ширины экрана - 120
     def __init__(self, width: int, height: int, center: tuple[int, int]) -> None:
@@ -171,29 +164,10 @@ class BaseSimulationWorld(WorldObjectMixin):
                     chunk.on_update()
 
             self.physics_engine.step()
-
-            self.count_resources()
             self.age += 1
         except Exception as error:
             error.world = self
             raise error
-
-    def count_resources(self) -> None:
-        if self.count_map_resources or self.count_world_resources:
-            self.map_resources = Resources()
-            for line in self.chunks:
-                for chunk in line:
-                    self.map_resources += chunk.get_resources()
-
-        if self.count_creatures_resources or self.count_world_resources:
-            self.creatures_resources = Resources()
-            for creature in self.creatures:
-                creature: BaseSimulationCreature
-                self.creatures_resources += creature.remaining_resources
-                self.creatures_resources += creature.storage.stored_resources
-
-        if self.count_world_resources:
-            self.world_resources = self.map_resources + self.creatures_resources
 
     def get_resources(self, position: tuple[float, float]) -> Resources:
         """Возвращает ресурсы в чанке."""

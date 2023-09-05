@@ -6,7 +6,7 @@ import arcade
 import configure_django
 from player.window import BasePlaybackWindow
 from simulator.creature import BaseSimulationCreature
-from simulator.window import BaseSimulationWindow
+from simulator.window import SimulationWindow
 from simulator.world import BaseSimulationWorld
 
 
@@ -23,7 +23,7 @@ def log_error(error: Exception, file: TextIO):
     file.write(f"{error.__class__.__name__}: {error}\n")
 
 
-def log_window(window: BaseSimulationWindow | BasePlaybackWindow, file: TextIO):
+def log_window(window: SimulationWindow | BasePlaybackWindow, file: TextIO):
     file.write(f"{window}\n")
 
 
@@ -88,7 +88,7 @@ def simulate():
     world_width = 400
     world_height = 400
 
-    window = BaseSimulationWindow(window_width, window_height)
+    window = SimulationWindow(window_width, window_height)
     try:
         window.start(world_width, world_height)
         arcade.run()

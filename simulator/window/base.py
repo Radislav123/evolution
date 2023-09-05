@@ -1,162 +1,229 @@
-import abc
+import enum
+from typing import Any, Callable, Iterator
 
 import arcade
+import arcade.gui
 
+from evolution import settings
 from simulator.creature import BaseSimulationCreature
 from simulator.world import BaseSimulationWorld
-from evolution import settings
+from simulator.world_resource import Resources
 
 
-class BaseTextTab(abc.ABC):
-    # 00 - левый нижний угол (tabs[0], corner 0)
-    # 01 - левый верхний угол (tabs[1], corner 1)
-    # 10 - правый нижний угол (tabs[2], corner 2)
-    # 11 - правый верхний угол (tabs[3], corner 3)
-    # 01 11
-    # 00 10
-    # tabs[n] = {level: tab,..}
-    tabs: list[dict[int, "BaseTextTab"]] = [{level: None for level in range(5)} for _ in range(4)]
-    # расстояние между плашками
-    level_gap = 10
-    # расстояние от края окна
-    window_border_gap = 10
-    # todo: исправить наложение строк с ресурсами на карте и tps
-    default_font_size = 12
+class TextTab(arcade.gui.UIFlatButton):
+    class State(enum.Enum):
+        NOT_PRESSED = 0
+        PRESSED = 1
 
-    # corner - смотреть offset класса
-    # level - номер плашки, считая от выбранного угла
+        @property
+        def next(self) -> "TextTab.State":
+            return self.__class__((self.value + 1) % len(self.__class__))
+
+        def __str__(self) -> str:
+            if self == self.NOT_PRESSED:
+                string = "[  ]"
+            elif self == self.PRESSED:
+                string = "[x]"
+            else:
+                raise ValueError()
+            return string
+
+    class Label(arcade.Text):
+        def __init__(self, tab: "TextTab", text: Callable[[], str], *args, **kwargs) -> None:
+            self.tab = tab
+            self._text = text
+
+            color = (0, 0, 0)
+            super().__init__(tab.text, 0, 0, color = color, *args, **kwargs)
+
+        def draw(self) -> None:
+            if self.tab.state == self.tab.State.PRESSED:
+                self.text = self._text()
+                super().draw()
+
+        def set_position(self) -> None:
+            offset_x = 5
+            offset_y = 8
+            if self.tab.corner.index in [0, 1]:
+                start_x = self.tab.rect.x + self.tab.width + offset_x
+                anchor_x = "left"
+            else:
+                start_x = self.tab.rect.x - offset_x
+                anchor_x = "right"
+            start_y = self.tab.rect.y + offset_y
+            anchor_y = "baseline"
+
+            self.x = start_x
+            self.y = start_y
+            self.anchor_x = anchor_x
+            self.anchor_y = anchor_y
+
+    font_size = 12
+
     def __init__(
-            self, window: "BaseSimulationWindow", corner: int, level: int, font_size: int = default_font_size,
-            show = True
+            self,
+            text: Callable[..., str] = None,
+            on_click: Callable[..., Any] | None = None,
+            on_click_args = None
     ) -> None:
-        self.window = window
-        self.corner = corner
-        self.level = level
-        self.font_size = font_size
-        self.show = show
-        self.tabs[corner][level] = self
+        super().__init__()
 
-        color = (0, 0, 0)
-        self.text = arcade.Text("", 0, 0, color, font_size)
+        self.state: TextTab.State | None = None
+        self.set()
+        self.corner: TextTabContainer.Corner | None = None
+        self.update_text()
+        border = 10
+        self.rect = self.rect.resize(round(self.ui_label.width) + border, round(self.ui_label.height) + border)
+        if text is None:
+            def text() -> None:
+                pass
+        self.tab_label = self.Label(self, text)
+        if on_click is None:
+            def on_click() -> None:
+                pass
+        if on_click_args is None:
+            on_click_args = []
+        self._on_click = on_click
+        self._on_click_args = on_click_args
 
-    @property
-    @abc.abstractmethod
-    def string(self) -> str:
-        raise NotImplementedError()
+    def __bool__(self) -> bool:
+        return self.state == self.State.PRESSED
 
-    @classmethod
-    def calculate_positions(cls) -> None:
-        for corner in cls.tabs:
-            offset_y = 0
-            for tab in corner.values():
-                if tab is None:
-                    offset_y += cls.level_gap + cls.default_font_size
-                else:
-                    if tab.corner in [0, 1]:
-                        start_x = tab.window_border_gap
-                        anchor_x = "left"
-                    else:
-                        start_x = tab.window.width - tab.window_border_gap
-                        anchor_x = "right"
-                    if tab.corner in [0, 2]:
-                        start_y = tab.window_border_gap + offset_y
-                        anchor_y = "baseline"
-                    else:
-                        start_y = tab.window.height - tab.window_border_gap - offset_y
-                        anchor_y = "top"
-                    offset_y += tab.level_gap + tab.font_size
+    def set(self) -> None:
+        self.state = self.State.PRESSED
+        self.update_text()
 
-                    tab.text.x = start_x
-                    tab.text.y = start_y
-                    tab.text.anchor_x = anchor_x
-                    tab.text.anchor_y = anchor_y
+    def reset(self) -> None:
+        self.state = self.State.NOT_PRESSED
+        self.update_text()
 
-    def draw(self) -> None:
-        if self.show:
-            self.text.text = self.string
-            self.text.draw()
+    def on_click(self, event: arcade.gui.UIOnClickEvent) -> None:
+        if self.state == self.State.PRESSED:
+            self.reset()
+        else:
+            self.set()
+        self.update_text()
 
-    @classmethod
-    def draw_all(cls) -> None:
-        for corner in cls.tabs:
-            for tab in corner.values():
-                if tab is not None:
-                    tab.draw()
+    def update_text(self) -> None:
+        self.text = str(self.state)
 
 
-class WorldAgeTab(BaseTextTab):
-    @property
-    def string(self) -> str:
-        return self.window.world.age
+class TPSTab(TextTab):
+    class Label(TextTab.Label):
+        def __init__(self, tab: "TextTab", text: Callable[[], str], *args, **kwargs):
+            super().__init__(tab, text, *args, **kwargs)
+            self.text = "0"
 
-
-class CreaturesCounterTab(BaseTextTab):
-    @property
-    def string(self) -> str:
-        return f"Сейчас существ: {BaseSimulationCreature.birth_counter - BaseSimulationCreature.death_counter}"
-
-
-class CreaturesBirthDeathCounterTab(BaseTextTab):
-    @property
-    def string(self) -> str:
-        return f"Появилось: {BaseSimulationCreature.birth_counter}, умерло: {BaseSimulationCreature.death_counter}"
-
-
-class MapResourcesCounterTab(BaseTextTab):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        if self.show:
-            self.window.world.count_map_resources.set()
-
-    @property
-    def string(self) -> str:
-        return f"Ресурсы на карте: {self.window.world.map_resources}"
-
-
-class CreaturesResourcesCounterTab(BaseTextTab):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        if self.show:
-            self.window.world.count_creatures_resources.set()
-
-    @property
-    def string(self) -> str:
-        return f"Ресурсы существ: {self.window.world.creatures_resources}"
-
-
-class WorldResourcesCounterTab(BaseTextTab):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        if self.show:
-            self.window.world.count_world_resources.set()
-
-    @property
-    def string(self) -> str:
-        return f"Ресурсы в мире: {self.window.world.world_resources}"
-
-
-class TPSTab(BaseTextTab):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def set(self) -> None:
+        super().set()
         arcade.enable_timings()
 
-    string = "not implemented"
+    def reset(self) -> None:
+        super().reset()
+        try:
+            arcade.disable_timings()
+        except ValueError:
+            # при отключении всегда выбрасывается исключение
+            pass
 
 
-class BaseSimulationWindow(arcade.Window):
+class TextTabContainer:
+    class Corner(arcade.gui.UIAnchorLayout):
+        children: list[TextTab]
+
+        def __init__(self, index: int, *args, **kwargs) -> None:
+            self.index = index
+            super().__init__(*args, **kwargs)
+
+        def add(self, child: TextTab, **kwargs) -> TextTab:
+            child.corner = self
+            child.corner_position = len(self.children)
+
+            if self.index in [0, 1]:
+                anchor_x = "left"
+            else:
+                anchor_x = "right"
+            if self.index in [0, 2]:
+                anchor_y = "bottom"
+                align_y = sum(map(lambda x: x.height, self.children))
+            else:
+                anchor_y = "top"
+                align_y = -sum(map(lambda x: x.height, self.children))
+
+            result = super().add(child, anchor_x = anchor_x, anchor_y = anchor_y, align_y = align_y, **kwargs)
+
+            return result
+
+    def __init__(self, window: "SimulationWindow") -> None:
+        self.window = window
+        # 00 - левый нижний угол (corners[0])
+        # 01 - левый верхний угол (corners[1])
+        # 10 - правый нижний угол (corners[2])
+        # 11 - правый верхний угол (corners[3])
+        # 01 11
+        # 00 10
+        # 1 3
+        # 0 2
+        # tabs[n] = [tab_0, tab_1,..]
+        self.corners: tuple[
+            TextTabContainer.Corner,
+            TextTabContainer.Corner,
+            TextTabContainer.Corner,
+            TextTabContainer.Corner
+        ] = (self.Corner(0), self.Corner(1), self.Corner(2), self.Corner(3))
+
+    def __iter__(self) -> Iterator[TextTab]:
+        tabs = []
+        for corner in self.corners:
+            tabs.extend(corner)
+        return iter(tabs)
+
+    def draw_all(self) -> None:
+        for corner in self.corners:
+            for tab in corner.children:
+                if tab is not None:
+                    tab.tab_label.draw()
+
+
+class UIManager(arcade.gui.UIManager):
+    def add_tabs(self, tabs: TextTabContainer) -> TextTabContainer:
+        for corner in tabs.corners:
+            self.add(corner)
+
+        return tabs
+
+    @staticmethod
+    def set_tab_label_positions(tabs: TextTabContainer) -> None:
+        for corner in tabs.corners:
+            for tab in corner.children:
+                tab.tab_label.set_position()
+
+
+class SimulationWindow(arcade.Window):
     # desired_tps = int(1 / update_rate)
     # update_rate = 1 / tps
     desired_tps: int
-    tps_tab: TPSTab
+    # все ресурсы = ресурсы у существ + ресурсы на карте
+    world_resources_tab: TextTab
+    # ресурсы на карте
+    map_resources_tab: TextTab
+    # ресурсы у существ = ресурсы в хранилищах существ + ресурсы в телах существ
+    creature_resources_tab: TextTab
 
     def __init__(self, width: int, height: int) -> None:
         super().__init__(width, height, center_window = True)
 
         self.world: BaseSimulationWorld | None = None
-        self.tabs: list[BaseTextTab] | None = None
+        self.tabs = TextTabContainer(self)
         self.set_tps(settings.MAX_TPS)
+        self.tps = settings.MAX_TPS
+        self.map_resources = Resources()
+        self.creature_resources = Resources()
+        self.world_resources = Resources()
 
-        background_color = (255, 255, 255)
+        self.ui_manager = UIManager(self)
+
+        background_color = (255, 255, 255, 255)
         arcade.set_background_color(background_color)
 
     def start(self, world_width: int, world_height: int) -> None:
@@ -164,26 +231,84 @@ class BaseSimulationWindow(arcade.Window):
         self.world = BaseSimulationWorld(world_width, world_height, center)
         self.world.start()
 
-        # плашки используют объект world
-        self.tps_tab = TPSTab(self, 3, 1)
-        # todo: добавить возможность выключать расчеты и вывод информации на плашках (сделать их кнопками?)
-        # todo: заменить свои плашки на элементы UIWidget из arcade
-        tabs = [
-            WorldAgeTab(self, 3, 0),
-            CreaturesBirthDeathCounterTab(self, 2, 0),
-            CreaturesCounterTab(self, 2, 1),
-            WorldResourcesCounterTab(self, 1, 0),
-            MapResourcesCounterTab(self, 1, 1),
-            CreaturesResourcesCounterTab(self, 1, 2),
-            self.tps_tab
-        ]
-        self.tabs = tabs
-        BaseTextTab.calculate_positions()
+        # todo: добавить возможность выключать РАСЧЕТЫ информации для плашек, при не нажатых кнопках
+        self.construct_tabs()
+
+        # необходимо, чтобы разместить плашки, так как элементы размещаются на экране только после первой отрисовки
+        self.on_draw()
+        self.ui_manager.set_tab_label_positions(self.tabs)
+
+        self.ui_manager.enable()
+
+    def construct_tabs(self) -> None:
+        # правый верхний угол
+        # возраст мира
+        self.tabs.corners[3].add(TextTab(lambda: self.world.age))
+        # счетчик tps
+        self.tabs.corners[3].add(TPSTab(lambda: f"{self.tps}"))
+
+        # правый нижний угол
+        self.tabs.corners[2].add(
+            TextTab(
+                lambda: f"Появилось: {BaseSimulationCreature.birth_counter},"
+                        f" умерло: {BaseSimulationCreature.death_counter}"
+            )
+        )
+        self.tabs.corners[2].add(
+            TextTab(
+                lambda: f"Сейчас существ: {BaseSimulationCreature.birth_counter - BaseSimulationCreature.death_counter}"
+            )
+        )
+
+        # левый верхний угол
+        self.world_resources_tab = self.tabs.corners[1].add(
+            TextTab(lambda: f"Ресурсы в мире: {self.world_resources}")
+        )
+        self.map_resources_tab = self.tabs.corners[1].add(
+            TextTab(lambda: f"Ресурсы на карте: {self.map_resources}")
+        )
+        self.creature_resources_tab = self.tabs.corners[1].add(
+            TextTab(lambda: f"Ресурсы существ: {self.creature_resources}")
+        )
+
+        self.ui_manager.add_tabs(self.tabs)
+
+    def count_resources(self) -> None:
+        # todo: rewrite loops by maps
+        if self.map_resources_tab or self.world_resources_tab:
+            self.map_resources = Resources()
+            for line in self.world.chunks:
+                for chunk in line:
+                    self.map_resources += chunk.get_resources()
+
+        if self.creature_resources_tab or self.world_resources_tab:
+            self.creature_resources = Resources()
+            for creature in self.world.creatures:
+                creature: BaseSimulationCreature
+                self.creature_resources += creature.remaining_resources
+                self.creature_resources += creature.storage.stored_resources
+
+        if self.world_resources_tab:
+            self.world_resources = self.map_resources + self.creature_resources
+
+    def count_tps(self) -> None:
+        # todo: rewrite loops by maps
+        # if self.world.age % 10 == 0:
+        if self.world.age % 1 == 0:
+            timings = arcade.get_timings()
+            # за 100 последних тиков
+            execution_time_100 = 0
+            for i in timings:
+                execution_time_100 += sum(timings[i])
+            # добавляется 0.00000001, во избежание деления на 0
+            average_execution_time = execution_time_100 / 100 + 0.0001
+            self.tps = int(1 / average_execution_time)
 
     def on_draw(self) -> None:
         self.clear()
         self.world.draw()
-        BaseTextTab.draw_all()
+        self.ui_manager.draw()
+        self.tabs.draw_all()
 
     def on_update(self, delta_time: float) -> None:
         try:
@@ -192,19 +317,14 @@ class BaseSimulationWindow(arcade.Window):
             error.window = self
             raise error
         finally:
-            if self.world.age % 10 == 0:
-                timings = arcade.get_timings()
-                # за 100 последних тиков
-                execution_time_100 = 0
-                for i in timings:
-                    execution_time_100 += sum(timings[i])
-                average_execution_time = execution_time_100 / 100
-                self.tps_tab.string = f"tps/желаемые tps: {int(1 / average_execution_time)} / {self.desired_tps}"
+            self.count_resources()
+            self.count_tps()
 
     def set_tps(self, tps: int) -> None:
         self.desired_tps = tps
         self.set_update_rate(1 / tps)
 
-    # todo: remove this method
     def on_mouse_press(self, x, y, button, modifiers) -> None:
+        """Выводит в консоль положение курсора."""
+
         print(f"x: {x}, y: {y}")
