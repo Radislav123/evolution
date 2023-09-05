@@ -101,7 +101,6 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.physics_body: pymunk.Body | None = None
 
             # инициализация ресурсов, которые будут тратиться каждый тик
-            self._can_metabolize: bool | None = None
             # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
             # (забираются из хранилища, добавляются в returned_resources,
             # а потом (через returned_resources) возвращаются в мир)
@@ -548,14 +547,13 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         return sharing_resources
 
     def can_metabolize(self) -> bool:
-        if self._can_metabolize is None:
-            # проверяется, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
-            if sum((resource not in self.storage or self.storage[resource].destroyed) for resource in self.resources) \
-                    > 0:
-                self._can_metabolize = False
-            else:
-                self._can_metabolize = True
-        return self._can_metabolize
+        # проверяется, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
+        if sum((resource not in self.storage or self.storage[resource].destroyed) for resource in self.resources) \
+                > 0:
+            can_metabolize = False
+        else:
+            can_metabolize = True
+        return can_metabolize
 
     def metabolize(self) -> None:
         self.storage.remove_resources(self.resources_loss)
