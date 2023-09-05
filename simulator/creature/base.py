@@ -13,16 +13,16 @@ from core.mixin import WorldObjectMixin
 from core.physic import BaseCreatureCharacteristics
 from evolution import settings
 from simulator.creature.bodypart import AddToNonExistentStoragesException, BaseBodypart, Body, Storage
-from simulator.creature.genome import BaseGenome
-from simulator.world_resource import WorldResource, ENERGY, Resources
+from simulator.creature.genome import Genome
+from simulator.world_resource import ENERGY, Resources, WorldResource
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.world import BaseSimulationWorld
+    from simulator.world import SimulationWorld
 
 
-class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
+class SimulationCreature(WorldObjectMixin, arcade.Sprite):
     class DeathCause(enum.Enum):
         AGE = 0
         STARVATION = 1
@@ -38,8 +38,8 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
     # position - центр существа
     def __init__(
             self,
-            world: "BaseSimulationWorld",
-            parents: list["BaseSimulationCreature"] | None,
+            world: "SimulationWorld",
+            parents: list["SimulationCreature"] | None,
             world_generation: bool = False
     ) -> None:
         try:
@@ -49,7 +49,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
                 parents = []
             # такая ситуация подразумевается только при генерации мира
             if world_generation:
-                genome = BaseGenome(None, world_generation = True)
+                genome = Genome(None, world_generation = True)
             else:
                 # noinspection PyUnresolvedReferences
                 genome = parents[0].genome.get_child_genome(parents)
@@ -65,14 +65,14 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.stop_tick = -1
             # -1 == существо не умирало в симуляции
             self.death_tick = -1
-            self.death_cause: BaseSimulationCreature.DeathCause | None = None
+            self.death_cause: SimulationCreature.DeathCause | None = None
             self.alive = True
 
             # инициализация генов
             self.parents = parents
             self.genome = genome
             self.children_number: int | None = None
-            self.next_children: list[BaseSimulationCreature] | None = None
+            self.next_children: list[SimulationCreature] | None = None
             self._reproduction_resources: Resources | None = None
             # todo: привязать к генам
             # коэффициент ресурсов, теряемых, при воспроизведении потомков
@@ -550,7 +550,8 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
     def can_metabolize(self) -> bool:
         if self._can_metabolize is None:
             # проверяется, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
-            if sum((resource not in self.storage or self.storage[resource].destroyed) for resource in self.resources) > 0:
+            if sum((resource not in self.storage or self.storage[resource].destroyed) for resource in self.resources) \
+                    > 0:
                 self._can_metabolize = False
             else:
                 self._can_metabolize = True
@@ -569,6 +570,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.kill(self.DeathCause.STARVATION)
 
         self._resources_loss = None
+        self._can_metabolize = None
 
     # https://ru.wikipedia.org/wiki/%D0%90%D1%83%D1%82%D0%BE%D1%84%D0%B0%D0%B3%D0%B8%D1%8F
     # если возвращается отрицательное количество ресурса, значит существу не хватает ресурсов частей тела,
@@ -591,8 +593,6 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
                     self.storage.add_resources(extra_resources)
                 except AddToNonExistentStoragesException as exception:
                     self.returned_resources += exception.resources
-                # чтобы проверилось, может ли существо дальше метаболизировать
-                self._can_metabolize = None
             # ресурсов части тела хватило, чтобы покрыть дефицит (возможно, она уничтожена)
             else:
                 try:

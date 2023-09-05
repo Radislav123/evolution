@@ -8,20 +8,20 @@ from simulator.world_resource import WorldResource
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.creature.genome import BaseGenome
+    from simulator.creature.genome import Genome
 
 step_type = TypeVar("step_type")
 
 
 # если ген находится в другом файле, чтобы ген заработал, его базовый класс (или его самого)
 # надо импортировать в gene/__init__.py
-class BaseGene(GetSubclassesMixin, abc.ABC):
+class Gene(GetSubclassesMixin, abc.ABC):
     # по умолчанию класс гена абстрактный
     abstract = True
     # обязательно ли присутствие хотя бы одного такого гена в геноме (могут ли все копии пропасть из генома)
     required_for_creature: bool
     # список генов, необходимых для появления этого гена
-    required_genes: list[Type["BaseGene"]] = []
+    required_genes: list[Type["Gene"]] = []
     mutation_chance = 0.001
     _disappearance_chance = 0.001
     appearance_chance = 1
@@ -34,36 +34,36 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
 
-    def get_disappearance_chance(self, genome: "BaseGenome") -> float:
+    def get_disappearance_chance(self, genome: "Genome") -> float:
         if not self.can_disappear(genome):
             disappearance_chance = 0
         else:
             disappearance_chance = self._disappearance_chance
         return disappearance_chance
 
-    def can_disappear(self, genome: "BaseGenome") -> bool:
+    def can_disappear(self, genome: "Genome") -> bool:
         """Проверяет, может ли ген исчезнуть."""
 
         return not self.required_for_creature or self.required_for_creature and genome.count_genes(self) > 1
 
     @abc.abstractmethod
-    def mutate(self, genome: "BaseGenome"):
+    def mutate(self, genome: "Genome"):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def apply(self, genome: "BaseGenome"):
+    def apply(self, genome: "Genome"):
         """Записывает эффекты гена в хранилище."""
 
         raise NotImplementedError()
 
-    def apply_resources_loss(self, genome: "BaseGenome"):
+    def apply_resources_loss(self, genome: "Genome"):
         for resource in self.resources_loss_coeffs:
             genome.effects.resources_loss[resource] += getattr(self, self.resources_loss_effect_attribute_name) * \
                                                        self.resources_loss_coeffs[resource]
 
     @classmethod
     @abc.abstractmethod
-    def correct(cls, genome: "BaseGenome"):
+    def correct(cls, genome: "Genome"):
         """Корректирует суммарный эффект генов данного типа после применения каждого по отдельности."""
 
         raise NotImplementedError()
@@ -75,7 +75,7 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
         return [gene(True) for gene in cls.get_all_subclasses() if not gene.abstract and gene.required_for_creature]
 
     @classmethod
-    def get_available_genes(cls, genome: "BaseGenome") -> list[Self]:
+    def get_available_genes(cls, genome: "Genome") -> list[Self]:
         """Возвращает список генов, возможных для добавления в процессе мутации."""
 
         return [

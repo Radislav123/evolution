@@ -1,12 +1,12 @@
 import random
 from typing import TYPE_CHECKING, Type
 
-from simulator.creature.genome.chromosome.gene import BaseGene
+from simulator.creature.genome.chromosome.gene import Gene
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.creature.genome import BaseGenome
+    from simulator.creature.genome import Genome
 
 
 class BaseChromosome:
@@ -15,7 +15,7 @@ class BaseChromosome:
     # максимальное количество новых генов, которые могут появиться за одну мутацию
     max_new_genes = 5
 
-    def __init__(self, genes: list[BaseGene]):
+    def __init__(self, genes: list[Gene]):
         self.genes = genes
 
     def __repr__(self) -> str:
@@ -24,7 +24,7 @@ class BaseChromosome:
     def __len__(self) -> int:
         return len(self.genes)
 
-    def __contains__(self, gene: Type[BaseGene] | BaseGene) -> bool:
+    def __contains__(self, gene: Type[Gene] | Gene) -> bool:
         if isinstance(gene, type):
             gene_class = gene
         else:
@@ -36,7 +36,7 @@ class BaseChromosome:
     def mutation_chance(self) -> float:
         return self._mutation_chance + sum([gene.mutation_chance for gene in self.genes])
 
-    def get_disappearance_chance(self, genome: "BaseGenome") -> float:
+    def get_disappearance_chance(self, genome: "Genome") -> float:
         if len(self) == 0:
             disappearance_chance = self._disappearance_chance * 2
         else:
@@ -48,11 +48,11 @@ class BaseChromosome:
         return disappearance_chance
 
     # если возвращает True, хромосому необходимо удалить из генома
-    def mutate(self, genome: "BaseGenome"):
+    def mutate(self, genome: "Genome"):
         # добавляются новые гены
         mutate_number = random.randint(0, len(self))
         if mutate_number == len(self):
-            available_genes = BaseGene.get_available_genes(genome)
+            available_genes = Gene.get_available_genes(genome)
             new_genes_number = 1 + random.choices(
                 range(self.max_new_genes), [1 / 5**x for x in range(self.max_new_genes)]
             )[0]

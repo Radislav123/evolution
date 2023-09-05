@@ -5,14 +5,14 @@ import arcade
 from core import models
 from core.mixin import WorldObjectMixin
 from core.physic import BaseWorldCharacteristics
-from simulator.creature import BaseSimulationCreature
+from simulator.creature import SimulationCreature
 from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
 
 
 CREATURE_START_RESOURCES = Resources({resource: 20 for resource in Resources.RESOURCE_LIST})
 
 
-class BaseSimulationWorld(WorldObjectMixin):
+class SimulationWorld(WorldObjectMixin):
     db_model = models.World
     db_instance: db_model
     borders: arcade.SpriteList
@@ -130,7 +130,7 @@ class BaseSimulationWorld(WorldObjectMixin):
             creature.stop()
 
     def spawn_start_creature(self) -> None:
-        creature = BaseSimulationCreature(
+        creature = SimulationCreature(
             self,
             None,
             world_generation = True
@@ -141,13 +141,13 @@ class BaseSimulationWorld(WorldObjectMixin):
         self.remove_resources(creature.position, creature.remaining_resources)
         self.remove_resources(creature.position, creature.storage.stored_resources)
 
-    def add_creature(self, creature: BaseSimulationCreature) -> None:
+    def add_creature(self, creature: SimulationCreature) -> None:
         """Добавляет существо в мир."""
 
         self.creatures.append(creature)
 
     # если существо необходимо убить, то это нужно сделать отдельно (creature.kill)
-    def remove_creature(self, creature: BaseSimulationCreature) -> None:
+    def remove_creature(self, creature: SimulationCreature) -> None:
         """Убирает существо из мира."""
 
         self.creatures.remove(creature)
@@ -211,7 +211,7 @@ class BaseSimulationWorld(WorldObjectMixin):
 
 
 class BaseSimulationWorldChunk:
-    def __init__(self, left_bottom: tuple[int, int], width: int, height: int, world: BaseSimulationWorld) -> None:
+    def __init__(self, left_bottom: tuple[int, int], width: int, height: int, world: SimulationWorld) -> None:
         self.left = left_bottom[0]
         self.right = self.left + width - 1
         self.bottom = left_bottom[1]
@@ -257,7 +257,7 @@ class BaseSimulationWorldChunk:
         )
 
     @classmethod
-    def cut_world(cls, world: BaseSimulationWorld) -> list[list["BaseSimulationWorldChunk"]]:
+    def cut_world(cls, world: SimulationWorld) -> list[list["BaseSimulationWorldChunk"]]:
         left, right, bottom, top = world.get_borders_coordinates()
         chunks: list[list[cls]] = []
 

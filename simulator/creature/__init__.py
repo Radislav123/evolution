@@ -1,1 +1,1 @@
-from simulator.creature.base import BaseSimulationCreature
+from simulator.creature.base import SimulationCreature

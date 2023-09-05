@@ -1,9 +1,9 @@
 import abc
 
-from simulator.creature.genome.chromosome.gene import BaseGene, StepGeneMixin
+from simulator.creature.genome.chromosome.gene import Gene, StepGeneMixin
 
 
-class BaseColorGene(StepGeneMixin, BaseGene, abc.ABC):
+class ColorGene(StepGeneMixin, Gene, abc.ABC):
     required_for_creature = False
     step = 10
     # сейчас вырабатываемый пигмент не дает расхода ресурсов
@@ -26,22 +26,22 @@ class BaseColorGene(StepGeneMixin, BaseGene, abc.ABC):
             self.current = 0
 
 
-class RedGene(BaseColorGene):
+class RedGene(ColorGene):
     abstract = False
     color_number = 0
 
 
-class GreenGene(BaseColorGene):
+class GreenGene(ColorGene):
     abstract = False
     color_number = 1
 
 
-class BlueGene(BaseColorGene):
+class BlueGene(ColorGene):
     abstract = False
     color_number = 2
 
 
-class MixColorGene(BaseColorGene):
+class MixColorGene(ColorGene):
     # разложение цвета на базовые (предполагается, что их сумма равна 1)
     red: float
     green: float

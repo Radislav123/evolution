@@ -4,15 +4,15 @@ from typing import TYPE_CHECKING, Type, TypeVar
 
 from simulator.creature.bodypart import BaseBodypart
 from simulator.creature.genome.chromosome import BaseChromosome
-from simulator.creature.genome.chromosome.gene import BaseGene
+from simulator.creature.genome.chromosome.gene import Gene
 from simulator.world_resource import Resources
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.creature import BaseSimulationCreature
+    from simulator.creature import SimulationCreature
 
-GENE_CLASS = TypeVar("GENE_CLASS", bound = BaseGene)
+GENE_CLASS = TypeVar("GENE_CLASS", bound = Gene)
 
 
 class GenomeEffects:
@@ -72,7 +72,7 @@ class GenomeEffects:
                     self.color[number] = self.color[number] * 255 // maximum
 
 
-class BaseGenome:
+class Genome:
     # [0, 1]
     # todo: вернуть 0.05?
     _mutation_chance = 1
@@ -83,7 +83,7 @@ class BaseGenome:
         self.effects = GenomeEffects()
         # такая ситуация подразумевается только при генерации мира
         if world_generation:
-            chromosomes = [BaseChromosome(BaseGene.get_required_for_creature_genes())]
+            chromosomes = [BaseChromosome(Gene.get_required_for_creature_genes())]
         self.chromosomes = chromosomes
 
     def __repr__(self) -> str:
@@ -97,7 +97,7 @@ class BaseGenome:
     def __len__(self) -> int:
         return len(self.chromosomes)
 
-    def __contains__(self, gene: Type[BaseGene] | BaseGene) -> bool:
+    def __contains__(self, gene: Type[Gene] | Gene) -> bool:
         if isinstance(gene, type):
             gene_class = gene
         else:
@@ -109,7 +109,7 @@ class BaseGenome:
                 break
         return contains
 
-    def contains_all(self, genes: list[Type[BaseGene]] | list[BaseGene]) -> bool:
+    def contains_all(self, genes: list[Type[Gene]] | list[Gene]) -> bool:
         if len(genes) == 0:
             return True
 
@@ -129,7 +129,7 @@ class BaseGenome:
         # todo: добавить возможность влияния внешних факторов на шанс мутации
         return self._mutation_chance + sum([chromosome.mutation_chance for chromosome in self.chromosomes])
 
-    def count_genes(self, gene: BaseGene | Type[BaseGene]) -> int:
+    def count_genes(self, gene: Gene | Type[Gene]) -> int:
         return len(self.get_genes(gene))
 
     def get_genes(self, gene: Type[GENE_CLASS] | GENE_CLASS) -> list[GENE_CLASS]:
@@ -174,7 +174,7 @@ class BaseGenome:
     def apply_genes(self):
         """Записывает эффекты генов в хранилище."""
 
-        gene_classes: set[Type[BaseGene]] = set()
+        gene_classes: set[Type[Gene]] = set()
         for chromosome in self.chromosomes:
             chromosome.apply_genes(self)
             gene_classes.update([gene.__class__ for gene in chromosome.genes])
@@ -185,7 +185,7 @@ class BaseGenome:
         self.effects.prepare()
 
     @staticmethod
-    def get_child_genome(parents: list["BaseSimulationCreature"]) -> "BaseGenome":
+    def get_child_genome(parents: list["SimulationCreature"]) -> "Genome":
         parent = parents[0]
         child_genome = parent.genome.__class__(copy.deepcopy(parent.genome.chromosomes))
         if random.random() < child_genome.mutation_chance:

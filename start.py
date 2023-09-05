@@ -5,9 +5,9 @@ import arcade
 # noinspection PyUnresolvedReferences
 import configure_django
 from player.window import BasePlaybackWindow
-from simulator.creature import BaseSimulationCreature
+from simulator.creature import SimulationCreature
 from simulator.window import SimulationWindow
-from simulator.world import BaseSimulationWorld
+from simulator.world import SimulationWorld
 
 
 SECTION_DELIMITER = "\n"
@@ -27,11 +27,11 @@ def log_window(window: SimulationWindow | BasePlaybackWindow, file: TextIO):
     file.write(f"{window}\n")
 
 
-def log_world(world: BaseSimulationWorld, file: TextIO):
+def log_world(world: SimulationWorld, file: TextIO):
     file.write(f"{world}\n")
 
 
-def log_creature(creature: BaseSimulationCreature, file: TextIO):
+def log_creature(creature: SimulationCreature, file: TextIO):
     file.write(f"{creature}\n")
     try:
         file.write(f"bodyparts: {creature.bodyparts}\n")
@@ -39,7 +39,7 @@ def log_creature(creature: BaseSimulationCreature, file: TextIO):
         log_error(error, file)
 
 
-def log_genome_effects(creature: BaseSimulationCreature, file: TextIO):
+def log_genome_effects(creature: SimulationCreature, file: TextIO):
     file.write("~~~~~~~~~~ Genome effects info ~~~~~~~~~~\n")
     for attribute in creature.genome.effects.__dict__:
         file.write(f"{attribute}: {creature.genome.effects.__dict__[attribute]}\n")

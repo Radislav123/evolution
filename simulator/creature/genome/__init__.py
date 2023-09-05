@@ -1,1 +1,1 @@
-from simulator.creature.genome.base import BaseGenome, GenomeEffects
+from simulator.creature.genome.base import Genome, GenomeEffects

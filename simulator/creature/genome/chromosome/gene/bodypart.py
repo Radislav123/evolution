@@ -1,11 +1,11 @@
 import abc
 
 from simulator.creature.bodypart import BaseBodypart, Body, Storage
-from simulator.creature.genome.chromosome.gene import BaseGene, StepGeneMixin
+from simulator.creature.genome.chromosome.gene import Gene, StepGeneMixin
 from simulator.world_resource import WorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
 
 
-class BaseBodyPartGene(BaseGene, abc.ABC):
+class BodyPartGene(Gene, abc.ABC):
     """Базовый класс для генов, добавляющих части тела."""
 
     # утеря ресурсов из-за частей тела уже включена в расчеты (берется часть ресурсов существа для "обновления клеток")
@@ -16,7 +16,7 @@ class BaseBodyPartGene(BaseGene, abc.ABC):
         genome.effects.bodyparts.append(self.bodypart)
 
 
-class BodyGene(BaseBodyPartGene):
+class BodyGene(BodyPartGene):
     abstract = False
     required_for_creature = True
     bodypart = Body
@@ -48,7 +48,7 @@ class BodyGene(BaseBodyPartGene):
         pass
 
 
-class StorageGene(BaseBodyPartGene):
+class StorageGene(BodyPartGene):
     abstract = False
     required_for_creature = True
     bodypart = Storage
@@ -67,7 +67,7 @@ class StorageGene(BaseBodyPartGene):
         pass
 
 
-class BaseResourceStorageGene(StepGeneMixin, BaseBodyPartGene, abc.ABC):
+class BaseResourceStorageGene(StepGeneMixin, BodyPartGene, abc.ABC):
     # bodypart = ResourceStorage
     resource: WorldResource
     step = 10
@@ -127,7 +127,7 @@ class HydrogenStorageGene(BaseResourceStorageGene):
     default_capacity = 100
 
 
-class BaseResourceConsumptionGene(StepGeneMixin, BaseGene, abc.ABC):
+class ResourceConsumptionGene(StepGeneMixin, Gene, abc.ABC):
     """Базовый класс для генов, позволяющих потреблять ресурсы."""
 
     step = 1
@@ -159,28 +159,28 @@ class BaseResourceConsumptionGene(StepGeneMixin, BaseGene, abc.ABC):
 
 
 # todo: изменить - сделать из EnergyConsumptionGene абстрактный
-class EnergyConsumptionGene(BaseResourceConsumptionGene):
+class EnergyConsumptionGene(ResourceConsumptionGene):
     abstract = False
     required_for_creature = True
     required_genes = [EnergyStorageGene]
     resource = ENERGY
 
 
-class OxygenConsumptionGene(BaseResourceConsumptionGene):
+class OxygenConsumptionGene(ResourceConsumptionGene):
     abstract = False
     required_for_creature = True
     required_genes = [OxygenStorageGene]
     resource = OXYGEN
 
 
-class CarbonConsumptionGene(BaseResourceConsumptionGene):
+class CarbonConsumptionGene(ResourceConsumptionGene):
     abstract = False
     required_for_creature = True
     required_genes = [CarbonStorageGene]
     resource = CARBON
 
 
-class HydrogenConsumptionGene(BaseResourceConsumptionGene):
+class HydrogenConsumptionGene(ResourceConsumptionGene):
     abstract = False
     required_for_creature = True
     required_genes = [HydrogenStorageGene]

@@ -1,9 +1,9 @@
 import abc
 
-from simulator.creature.genome.chromosome.gene import BaseGene, StepGeneMixin, step_type
+from simulator.creature.genome.chromosome.gene import Gene, StepGeneMixin, step_type
 
 
-class BaseNumberGene(StepGeneMixin, BaseGene, abc.ABC):
+class NumberGene(StepGeneMixin, Gene, abc.ABC):
     """Базовый класс для генов, влияющих численно."""
 
     attribute_default: step_type
@@ -67,7 +67,7 @@ class BaseNumberGene(StepGeneMixin, BaseGene, abc.ABC):
             )
 
 
-class ChildrenNumberGene(BaseNumberGene):
+class ChildrenNumberGene(NumberGene):
     abstract = False
     required_for_creature = True
     step = 1
@@ -75,7 +75,7 @@ class ChildrenNumberGene(BaseNumberGene):
     attribute_name = "children_number"
 
 
-class SizeGene(BaseNumberGene):
+class SizeGene(NumberGene):
     abstract = False
     required_for_creature = True
     step = 0.1
@@ -86,7 +86,7 @@ class SizeGene(BaseNumberGene):
 
 # todo: добавить трату специализированного ресурса, связанного с эластичностью
 #  можно так - если >= 0.3, то один ресурс (эластичность), если < 0.3 - другой ресурс (твердость)
-class ElasticityGene(BaseNumberGene):
+class ElasticityGene(NumberGene):
     abstract = False
     required_for_creature = True
     step = 0.1
@@ -97,7 +97,7 @@ class ElasticityGene(BaseNumberGene):
 
 
 # todo: добавить бонусы за высокое значение метаболизма, возможно, связанные с другими генами (температура, скорость...)
-class MetabolismGene(BaseNumberGene):
+class MetabolismGene(NumberGene):
     abstract = False
     required_for_creature = True
     step = 0.0005
@@ -107,7 +107,7 @@ class MetabolismGene(BaseNumberGene):
 
 
 # todo: добавить бонусы за высокое значение потери ресурсов, возможно, связанные с другими генами
-class ResourcesLossCoeffGene(BaseNumberGene):
+class ResourcesLossCoeffGene(NumberGene):
     abstract = False
     required_for_creature = True
     step = 0.0005
@@ -116,7 +116,7 @@ class ResourcesLossCoeffGene(BaseNumberGene):
     attribute_name = "resources_loss_coeff"
 
 
-class RegenerateAmountGene(BaseNumberGene):
+class RegenerateAmountGene(NumberGene):
     abstract = False
     required_for_creature = True
     step = 1

@@ -6,9 +6,10 @@ from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
 
 
 if TYPE_CHECKING:
-    from simulator.creature import BaseSimulationCreature
+    from simulator.creature import SimulationCreature
 
 
+# todo: rename to BodyPart
 class BaseBodypart(abc.ABC):
     # https://ru.wikipedia.org/wiki/%D0%A5%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B0%D1%8F_%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F_%D0%BA%D0%BB%D0%B5%D1%82%D0%BA%D0%B8
     # ресурсы, из которых состоит часть тела (химический состав)
@@ -27,7 +28,7 @@ class BaseBodypart(abc.ABC):
         # уничтожена ли часть тела полностью
         self.destroyed = False
         # построены ли зависимости методом construct
-        # устанавливается в положение True только в методе BaseSimulationCreature.apply_bodyparts
+        # устанавливается в положение True только в методе SimulationCreature.apply_bodyparts
         self.constructed = False
 
         self.damage = Resources()
@@ -108,7 +109,7 @@ class BaseBodypart(abc.ABC):
             mass = 0
         return mass
 
-    def construct(self, bodypart_classes: list[Type["BaseBodypart"]], creature: "BaseSimulationCreature"):
+    def construct(self, bodypart_classes: list[Type["BaseBodypart"]], creature: "SimulationCreature"):
         """Собирает тело, устанавливая ссылки на зависимые и необходимые части тела."""
 
         for bodypart_class in bodypart_classes:

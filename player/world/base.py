@@ -6,7 +6,7 @@ import arcade
 from core import models
 from core.physic import BaseWorldCharacteristics
 from player.creature import BasePlaybackCreature
-from simulator.world import BaseSimulationWorld
+from simulator.world import SimulationWorld
 
 
 class WorldHistoryEndException(Exception):
@@ -46,8 +46,8 @@ class BasePlaybackWorld:
             characteristics.borders_thickness,
             characteristics.resource_coeff
         )
-        self.get_borders_coordinates = functools.partial(getattr(BaseSimulationWorld, "get_borders_coordinates"), self)
-        self.prepare_borders = functools.partial(getattr(BaseSimulationWorld, "prepare_borders"), self)
+        self.get_borders_coordinates = functools.partial(getattr(SimulationWorld, "get_borders_coordinates"), self)
+        self.prepare_borders = functools.partial(getattr(SimulationWorld, "prepare_borders"), self)
         self.prepare_borders()
         # todo: добавить чанки
 

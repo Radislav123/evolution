@@ -8,7 +8,7 @@ from core import models
 if TYPE_CHECKING:
     from simulator.creature.bodypart import BaseBodypart
     from simulator.creature.genome import GenomeEffects
-    from simulator.world import BaseSimulationWorld
+    from simulator.world import SimulationWorld
 
 
 class BaseWorldCharacteristics:
@@ -33,7 +33,7 @@ class BaseWorldCharacteristics:
         string += f"borders thickness: {self.borders_thickness}, resources coef: {self.resource_coeff}"
         return string
 
-    def save_to_db(self, world: "BaseSimulationWorld"):
+    def save_to_db(self, world: "SimulationWorld"):
         self.db_instance = self.db_model(
             world = world.db_instance,
             viscosity = self.viscosity,

@@ -5,8 +5,8 @@ import arcade
 import arcade.gui
 
 from evolution import settings
-from simulator.creature import BaseSimulationCreature
-from simulator.world import BaseSimulationWorld
+from simulator.creature import SimulationCreature
+from simulator.world import SimulationWorld
 from simulator.world_resource import Resources
 
 
@@ -215,7 +215,7 @@ class SimulationWindow(arcade.Window):
     def __init__(self, width: int, height: int) -> None:
         super().__init__(width, height, center_window = True)
 
-        self.world: BaseSimulationWorld | None = None
+        self.world: SimulationWorld | None = None
         self.tabs = TextTabContainer(self)
         self.set_tps(settings.MAX_TPS)
         self.tps = settings.MAX_TPS
@@ -230,7 +230,7 @@ class SimulationWindow(arcade.Window):
 
     def start(self, world_width: int, world_height: int) -> None:
         center = (self.width // 2, self.height // 2)
-        self.world = BaseSimulationWorld(world_width, world_height, center)
+        self.world = SimulationWorld(world_width, world_height, center)
         self.world.start()
 
         self.construct_tabs()
@@ -251,13 +251,12 @@ class SimulationWindow(arcade.Window):
         # правый нижний угол
         self.tabs.corners[2].add(
             TextTab(
-                lambda: f"Появилось: {BaseSimulationCreature.birth_counter},"
-                        f" умерло: {BaseSimulationCreature.death_counter}"
+                lambda: f"Появилось: {SimulationCreature.birth_counter}, умерло: {SimulationCreature.death_counter}"
             )
         )
         self.tabs.corners[2].add(
             TextTab(
-                lambda: f"Сейчас существ: {BaseSimulationCreature.birth_counter - BaseSimulationCreature.death_counter}"
+                lambda: f"Сейчас существ: {SimulationCreature.birth_counter - SimulationCreature.death_counter}"
             )
         )
 
@@ -285,7 +284,7 @@ class SimulationWindow(arcade.Window):
         if self.creature_resources_tab or self.world_resources_tab:
             self.creature_resources = Resources()
             for creature in self.world.creatures:
-                creature: BaseSimulationCreature
+                creature: SimulationCreature
                 self.creature_resources += creature.remaining_resources
                 self.creature_resources += creature.storage.stored_resources
 
