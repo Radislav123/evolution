@@ -1,7 +1,7 @@
 from typing import Dict, Iterator, TypeVar
 
 
-class WorldResource:
+class WorldResource(int):
     counter = [0]
     # если будет принято решение сделать mass или volume не целым, решить,
     # что делать с атрибутами BaseBodypart.mass и BaseBodypart.volume
@@ -9,34 +9,27 @@ class WorldResource:
     volume = 1
     mass = 1
 
-    def __init__(self, name: str, formula: str | None):
-        self.hash = self.__class__.counter[0]
-        self.__class__.counter[0] += 1
-        self.name = name
-        self.formula = formula
+    def __new__(cls, name: str, formula) -> "WorldResource":
+        obj = int.__new__(cls, cls.counter[0])
+        cls.counter[0] += 1
+        obj.name = name
+        obj.formula = formula
+        return obj
 
     def __repr__(self):
         return self.name
 
-    def __hash__(self):
-        return self.hash
 
-    # todo: проверить, помогает ли кэширование ускорить сравнение
-    # @functools.cache
-    def __eq__(self, other: "WorldResource") -> bool:
-        return hash(self) == hash(other) and isinstance(other, self.__class__)
-
-
-class EnergyResource(WorldResource):
+class EnergyWorldResource(WorldResource):
     volume = 0
     mass = 0
 
-    def __init__(self, name):
-        super().__init__(name, None)
-        self.formula = self.name.lower()
+    def __new__(cls, name: str) -> "EnergyWorldResource":
+        # noinspection PyTypeChecker
+        return WorldResource.__new__(cls, name, name.lower())
 
 
-ENERGY = EnergyResource("Energy")
+ENERGY = EnergyWorldResource("Energy")
 # https://ru.wikipedia.org/wiki/%D0%A5%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D1%81%D1%82%D0%B0%D0%B2_%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA%D0%B0
 OXYGEN = WorldResource("Oxygen", "O")
 CARBON = WorldResource("Carbon", "C")
