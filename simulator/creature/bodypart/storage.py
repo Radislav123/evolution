@@ -1,5 +1,5 @@
 from simulator.creature.bodypart import BaseBodypart, Body
-from simulator.world_resource import BaseWorldResource, CARBON, HYDROGEN, OXYGEN, Resources
+from simulator.world_resource import WorldResource, CARBON, HYDROGEN, OXYGEN, Resources
 
 
 class AddToNonExistentStoragesException(Exception):
@@ -13,7 +13,7 @@ class AddToNonExistentStoragesException(Exception):
 class AddToDestroyedStorageException(Exception):
     """Исключение для ResourceStorage."""
 
-    def __init__(self, world_resource: BaseWorldResource, amount: int, message: str):
+    def __init__(self, world_resource: WorldResource, amount: int, message: str):
         super().__init__(message)
         self.world_resource = world_resource
         self.amount = amount
@@ -31,7 +31,7 @@ class Storage(BaseBodypart):
 
     def __init__(self, size, required_bodypart):
         super().__init__(size, required_bodypart)
-        self._storage: dict[BaseWorldResource, ResourceStorage] = {}
+        self._storage: dict[WorldResource, ResourceStorage] = {}
         self._stored_resources: Resources | None = None
         self._extra_resources: Resources | None = None
         self._lack_resources: Resources | None = None
@@ -98,7 +98,7 @@ class Storage(BaseBodypart):
     def values(self):
         return self._storage.values()
 
-    def add_resource_storage(self, resource: BaseWorldResource, size: float):
+    def add_resource_storage(self, resource: WorldResource, size: float):
         """Присоединяет хранилище ресурса к общему."""
 
         resource_storage = ResourceStorage(resource, size, self)
@@ -137,7 +137,7 @@ class Storage(BaseBodypart):
 
 
 class ResourceStorage(BaseBodypart):
-    world_resource: BaseWorldResource
+    world_resource: WorldResource
     capacity: int
     required_bodypart_class = Storage
     # показывает дополнительное увеличение объема части тела (хранилища), в зависимости от вместимости
@@ -149,7 +149,7 @@ class ResourceStorage(BaseBodypart):
         }
     )
 
-    def __init__(self, world_resource: BaseWorldResource, size, required_bodypart):
+    def __init__(self, world_resource: WorldResource, size, required_bodypart):
         super().__init__(size, required_bodypart)
 
         self.world_resource = world_resource

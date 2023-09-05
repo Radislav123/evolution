@@ -1,7 +1,7 @@
-from typing import Dict, TypeVar
+from typing import Dict, Iterator, TypeVar
 
 
-class BaseWorldResource:
+class WorldResource:
     counter = [0]
     # если будет принято решение сделать mass или volume не целым, решить,
     # что делать с атрибутами BaseBodypart.mass и BaseBodypart.volume
@@ -21,11 +21,13 @@ class BaseWorldResource:
     def __hash__(self):
         return self.hash
 
-    def __eq__(self, other: "BaseWorldResource") -> bool:
+    # todo: проверить, помогает ли кэширование ускорить сравнение
+    # @functools.cache
+    def __eq__(self, other: "WorldResource") -> bool:
         return hash(self) == hash(other) and isinstance(other, self.__class__)
 
 
-class EnergyResource(BaseWorldResource):
+class EnergyResource(WorldResource):
     volume = 0
     mass = 0
 
@@ -36,20 +38,21 @@ class EnergyResource(BaseWorldResource):
 
 ENERGY = EnergyResource("Energy")
 # https://ru.wikipedia.org/wiki/%D0%A5%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D1%81%D1%82%D0%B0%D0%B2_%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA%D0%B0
-OXYGEN = BaseWorldResource("Oxygen", "O")
-CARBON = BaseWorldResource("Carbon", "C")
-HYDROGEN = BaseWorldResource("Hydrogen", "H")
+OXYGEN = WorldResource("Oxygen", "O")
+CARBON = WorldResource("Carbon", "C")
+HYDROGEN = WorldResource("Hydrogen", "H")
 
-RESOURCE_LIST = [ENERGY, OXYGEN, CARBON, HYDROGEN]
 VT = TypeVar("VT", int, float)
-KT = TypeVar("KT", bound = BaseWorldResource)
+KT = TypeVar("KT", bound = WorldResource)
 
 
 class Resources(Dict[KT, VT]):
-    """Обертка для удобной работы с ресурсами."""
+    """Обертка-контейнер для удобной работы с ресурсами."""
+
+    RESOURCE_LIST = [ENERGY, OXYGEN, CARBON, HYDROGEN]
 
     def __init__(self, *args, **kwargs):
-        for resource in RESOURCE_LIST:
+        for resource in self.RESOURCE_LIST:
             self[resource] = 0
         super().__init__(*args, **kwargs)
 
@@ -65,38 +68,41 @@ class Resources(Dict[KT, VT]):
         return string
 
     def __iadd__(self, other: "Resources") -> "Resources":
-        for resource, amount in self.items():
+        for resource in self.RESOURCE_LIST:
             self[resource] += other[resource]
         return self
 
     def __add__(self, other: "Resources") -> "Resources":
-        return self.__class__({resource: self[resource] + other[resource] for resource in RESOURCE_LIST})
+        return self.__class__({resource: self[resource] + other[resource] for resource in self.RESOURCE_LIST})
 
     def __isub__(self, other: "Resources") -> "Resources":
-        for resource, amount in self.items():
+        for resource in self.RESOURCE_LIST:
             self[resource] -= other[resource]
         return self
 
     def __sub__(self, other: "Resources") -> "Resources":
-        return self.__class__({resource: self[resource] - other[resource] for resource in RESOURCE_LIST})
+        return self.__class__({resource: self[resource] - other[resource] for resource in self.RESOURCE_LIST})
 
     def __mul__(self, multiplier: int | float) -> "Resources":
-        return self.__class__({resource: self[resource] * multiplier for resource in RESOURCE_LIST})
+        return self.__class__({resource: self[resource] * multiplier for resource in self.RESOURCE_LIST})
 
     def __imul__(self, multiplier: int | float) -> "Resources":
-        for resource, amount in self.items():
+        for resource in self.RESOURCE_LIST:
             self[resource] *= multiplier
         return self
 
     def __truediv__(self, divisor: int | float) -> "Resources":
-        return self.__class__({resource: self[resource] / divisor for resource in RESOURCE_LIST})
+        return self.__class__({resource: self[resource] / divisor for resource in self.RESOURCE_LIST})
 
     def __floordiv__(self, divisor: int | float) -> "Resources":
         return (self / divisor).round()
 
     def __len__(self) -> int:
-        return sum([amount != 0 for amount in self.values()])
+        return sum(amount != 0 for amount in self.values())
+
+    def __iter__(self) -> Iterator[WorldResource]:
+        return iter(resource for resource, amount in self.items() if amount != 0)
 
     # todo: заменить на __round__
-    def round(self) -> "Resources[BaseWorldResource, int]":
+    def round(self) -> "Resources[WorldResource, int]":
         return self.__class__({resource: int(amount) for resource, amount in self.items()})

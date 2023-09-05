@@ -6,10 +6,10 @@ from core import models
 from core.mixin import WorldObjectMixin
 from core.physic import BaseWorldCharacteristics
 from simulator.creature import BaseSimulationCreature
-from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, RESOURCE_LIST, Resources
+from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
 
 
-CREATURE_START_RESOURCES = Resources({resource: 20 for resource in RESOURCE_LIST})
+CREATURE_START_RESOURCES = Resources({resource: 20 for resource in Resources.RESOURCE_LIST})
 
 
 class BaseSimulationWorld(WorldObjectMixin):
@@ -31,7 +31,7 @@ class BaseSimulationWorld(WorldObjectMixin):
 
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
-        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.4)
+        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.3)
         self.prepare_borders()
         self.prepare_physics_engine()
         self.chunks = BaseSimulationWorldChunk.cut_world(self)

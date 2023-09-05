@@ -14,7 +14,7 @@ from core.physic import BaseCreatureCharacteristics
 from evolution import settings
 from simulator.creature.bodypart import AddToNonExistentStoragesException, BaseBodypart, Body, Storage
 from simulator.creature.genome import BaseGenome
-from simulator.world_resource import BaseWorldResource, ENERGY, Resources
+from simulator.world_resource import WorldResource, ENERGY, Resources
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -163,6 +163,9 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
 
     @property
     def remaining_resources(self) -> Resources:
+        """Ресурсы, которые сейчас находятся в частях тела, как их части."""
+        # ресурсы существа, без тех, что хранятся в хранилищах
+
         resources = Resources()
         for bodypart in self.bodyparts:
             resources += bodypart.remaining_resources
@@ -376,7 +379,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
             # тратит энергию за потребление ресурса
             self.resources_loss_accumulated[ENERGY] += consumption_amount * 0.01
 
-    def get_consumption_resource(self) -> BaseWorldResource | None:
+    def get_consumption_resource(self) -> WorldResource | None:
         """Выбирает ресурс, который будет потреблен существом."""
 
         resources = []
@@ -547,7 +550,7 @@ class BaseSimulationCreature(WorldObjectMixin, arcade.Sprite):
     def can_metabolize(self) -> bool:
         if self._can_metabolize is None:
             # проверяется, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
-            if sum(resource not in self.storage or self.storage[resource].destroyed for resource in self.resources) > 0:
+            if sum((resource not in self.storage or self.storage[resource].destroyed) for resource in self.resources) > 0:
                 self._can_metabolize = False
             else:
                 self._can_metabolize = True

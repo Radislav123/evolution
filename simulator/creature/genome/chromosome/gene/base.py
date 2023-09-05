@@ -3,7 +3,7 @@ import random
 from typing import Literal, Self, TYPE_CHECKING, Type, TypeVar
 
 from core.mixin import GetSubclassesMixin
-from simulator.world_resource import BaseWorldResource
+from simulator.world_resource import WorldResource
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -29,7 +29,7 @@ class BaseGene(GetSubclassesMixin, abc.ABC):
 
     def __init__(self, first: bool):
         self.first = first
-        self.resources_loss_coeffs: dict[BaseWorldResource, float] = {}
+        self.resources_loss_coeffs: dict[WorldResource, float] = {}
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"

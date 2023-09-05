@@ -2,7 +2,7 @@ import abc
 
 from simulator.creature.bodypart import BaseBodypart, Body, Storage
 from simulator.creature.genome.chromosome.gene import BaseGene, StepGeneMixin
-from simulator.world_resource import BaseWorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
+from simulator.world_resource import WorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
 
 
 class BaseBodyPartGene(BaseGene, abc.ABC):
@@ -69,7 +69,7 @@ class StorageGene(BaseBodyPartGene):
 
 class BaseResourceStorageGene(StepGeneMixin, BaseBodyPartGene, abc.ABC):
     # bodypart = ResourceStorage
-    resource: BaseWorldResource
+    resource: WorldResource
     step = 10
     common_min_limit = 0
     default_capacity: int
@@ -133,7 +133,7 @@ class BaseResourceConsumptionGene(StepGeneMixin, BaseGene, abc.ABC):
     step = 1
     common_min_limit = 0
     default_consumption = 5
-    resource: BaseWorldResource
+    resource: WorldResource
 
     def __init__(self, first: bool):
         super().__init__(first)
