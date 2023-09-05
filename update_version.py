@@ -20,10 +20,10 @@ if __name__ == "__main__":
     if arguments.remove:
         removing_tag = repository.tag(arguments.tag_name)
         repository.git.tag("-d", removing_tag)
-        print(f"Удален тэг {arguments.tag_name}")
+        print(f"Удален тег {arguments.tag_name}")
     else:
         repository.create_tag(get_version(), message = arguments.message)
-        message = f"Добавлен тэг {arguments.tag_name}"
+        message = f"Добавлен тег {arguments.tag_name}"
         if arguments.message:
             message += f" с сообщением \"{arguments.message}\""
         print(message)

@@ -97,12 +97,14 @@ class TextTab(arcade.gui.UIFlatButton):
         self.state = self.State.NOT_PRESSED
         self.update_text()
 
-    def on_click(self, event: arcade.gui.UIOnClickEvent) -> None:
+    def on_click(self, event: arcade.gui.UIOnClickEvent = None) -> None:
         if self.state == self.State.PRESSED:
             self.reset()
         else:
             self.set()
         self.update_text()
+        # noinspection PyArgumentList
+        self._on_click(*self._on_click_args)
 
     def update_text(self) -> None:
         self.text = str(self.state)
@@ -231,7 +233,6 @@ class SimulationWindow(arcade.Window):
         self.world = BaseSimulationWorld(world_width, world_height, center)
         self.world.start()
 
-        # todo: добавить возможность выключать РАСЧЕТЫ информации для плашек, при не нажатых кнопках
         self.construct_tabs()
 
         # необходимо, чтобы разместить плашки, так как элементы размещаются на экране только после первой отрисовки
@@ -245,7 +246,7 @@ class SimulationWindow(arcade.Window):
         # возраст мира
         self.tabs.corners[3].add(TextTab(lambda: self.world.age))
         # счетчик tps
-        self.tabs.corners[3].add(TPSTab(lambda: f"{self.tps}"))
+        self.tabs.corners[3].add(TPSTab(lambda: f"tps/желаемые tps: {self.tps} / {self.desired_tps}"))
 
         # правый нижний угол
         self.tabs.corners[2].add(
@@ -274,7 +275,7 @@ class SimulationWindow(arcade.Window):
         self.ui_manager.add_tabs(self.tabs)
 
     def count_resources(self) -> None:
-        # todo: rewrite loops by maps
+        # циклы не заменить на map, так как map работает только с числами
         if self.map_resources_tab or self.world_resources_tab:
             self.map_resources = Resources()
             for line in self.world.chunks:
@@ -292,14 +293,10 @@ class SimulationWindow(arcade.Window):
             self.world_resources = self.map_resources + self.creature_resources
 
     def count_tps(self) -> None:
-        # todo: rewrite loops by maps
-        # if self.world.age % 10 == 0:
-        if self.world.age % 1 == 0:
+        if self.world.age % 10 == 0:
             timings = arcade.get_timings()
             # за 100 последних тиков
-            execution_time_100 = 0
-            for i in timings:
-                execution_time_100 += sum(timings[i])
+            execution_time_100 = sum(sum(timings[i]) for i in timings)
             # добавляется 0.00000001, во избежание деления на 0
             average_execution_time = execution_time_100 / 100 + 0.0001
             self.tps = int(1 / average_execution_time)
