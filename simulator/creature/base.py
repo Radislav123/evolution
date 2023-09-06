@@ -49,7 +49,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
                 parents = []
             # такая ситуация подразумевается только при генерации мира
             if world_generation:
-                genome = Genome(None, world_generation = True)
+                genome = Genome(None, True)
             else:
                 # noinspection PyUnresolvedReferences
                 genome = parents[0].genome.get_child_genome(parents)
@@ -63,7 +63,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.start_tick = -1
             # -1 == существо не остановлено (stop()) в симуляции
             self.stop_tick = -1
-            # -1 == существо не умирало в симуляции
+            # -1 == существо не умирало (kill()) в симуляции
             self.death_tick = -1
             self.death_cause: SimulationCreature.DeathCause | None = None
             self.alive = True
@@ -76,6 +76,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             self._reproduction_resources: Resources | None = None
             # todo: привязать к генам
             # коэффициент ресурсов, теряемых, при воспроизведении потомков
+            # (теряется лишь (1 - reproduction_lost_coeff))
             self.reproduction_lost_coeff = 1.1
             # todo: привязать к генам
             # коэффициент ресурсов, необходимых для разрешения воспроизведения (не расходуются)

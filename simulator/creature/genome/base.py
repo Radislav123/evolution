@@ -1,7 +1,9 @@
 import copy
+import dataclasses
 import random
 from typing import TYPE_CHECKING, Type, TypeVar
 
+from core.service import ObjectDescriptionReader
 from simulator.creature.bodypart import BaseBodypart
 from simulator.creature.genome.chromosome import BaseChromosome
 from simulator.creature.genome.chromosome.gene import Gene
@@ -73,13 +75,20 @@ class GenomeEffects:
 
 
 class Genome:
-    # [0, 1]
-    # todo: вернуть 0.05?
-    _mutation_chance = 1
-    # максимальное количество новых хромосом, которые могут появиться за одну мутацию
-    max_new_chromosomes = 3
+    @dataclasses.dataclass
+    class Descriptor:
+        name: str
+        # [0, 1]
+        base_mutation_chance: float
+        # максимальное количество новых хромосом, которые могут появиться за одну мутацию
+        max_new_chromosomes: int
 
-    def __init__(self, chromosomes: list[BaseChromosome] | None, world_generation: bool = False):
+    def __init__(self, chromosomes: list[BaseChromosome] | None, world_generation: bool):
+        descriptor = ObjectDescriptionReader[self.Descriptor]().read_folder_to_list("creature/genome", self.Descriptor)[
+            0]
+        self.base_mutation_chance = descriptor.base_mutation_chance
+        self.max_new_chromosomes = descriptor.max_new_chromosomes
+
         self.effects = GenomeEffects()
         # такая ситуация подразумевается только при генерации мира
         if world_generation:
@@ -127,7 +136,7 @@ class Genome:
     @property
     def mutation_chance(self) -> float:
         # todo: добавить возможность влияния внешних факторов на шанс мутации
-        return self._mutation_chance + sum([chromosome.mutation_chance for chromosome in self.chromosomes])
+        return self.base_mutation_chance + sum([chromosome.mutation_chance for chromosome in self.chromosomes])
 
     def count_genes(self, gene: Gene | Type[Gene]) -> int:
         return len(self.get_genes(gene))
@@ -187,7 +196,7 @@ class Genome:
     @staticmethod
     def get_child_genome(parents: list["SimulationCreature"]) -> "Genome":
         parent = parents[0]
-        child_genome = parent.genome.__class__(copy.deepcopy(parent.genome.chromosomes))
+        child_genome = parent.genome.__class__(copy.deepcopy(parent.genome.chromosomes), False)
         if random.random() < child_genome.mutation_chance:
             child_genome.mutate()
         return child_genome

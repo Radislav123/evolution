@@ -14,20 +14,19 @@ from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources
 CREATURE_START_RESOURCES = Resources({resource: 20 for resource in RESOURCE_LIST})
 
 
-@dataclasses.dataclass
-class WorldDescriptor:
-    name: str
-    width: int
-    height: int
-    viscosity: float
-    boarders_friction: float
-    borders_thickness: int
-    resource_coeff: float
-    chunk_width: int
-    chunk_height: int
-
-
 class SimulationWorld(WorldObjectMixin):
+    @dataclasses.dataclass
+    class Descriptor:
+        name: str
+        width: int
+        height: int
+        viscosity: float
+        boarders_friction: float
+        borders_thickness: int
+        resource_coeff: float
+        chunk_width: int
+        chunk_height: int
+
     db_model = models.World
     db_instance: db_model
     borders: arcade.SpriteList
@@ -36,24 +35,24 @@ class SimulationWorld(WorldObjectMixin):
     # width - минимальное значение ширины экрана - 120
     def __init__(self, window_center: tuple[int, int]) -> None:
         # todo: добавить выбор настроек мира
-        world_descriptor = ObjectDescriptionReader[WorldDescriptor]().read_folder_to_list("world", WorldDescriptor)[0]
+        descriptor = ObjectDescriptionReader[self.Descriptor]().read_folder_to_list("world", self.Descriptor)[0]
+
         self._id = None
         self.age = 0
-        self.name = world_descriptor.name
-        self.width = world_descriptor.width
-        self.height = world_descriptor.height
+        self.width = descriptor.width
+        self.height = descriptor.height
         # соотносится с центром окна
         self.center = window_center
-        self.chunk_width = world_descriptor.chunk_width
-        self.chunk_height = world_descriptor.chunk_height
+        self.chunk_width = descriptor.chunk_width
+        self.chunk_height = descriptor.chunk_height
 
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
         self.characteristics = BaseWorldCharacteristics(
-            world_descriptor.viscosity,
-            world_descriptor.boarders_friction,
-            world_descriptor.borders_thickness,
-            world_descriptor.resource_coeff
+            descriptor.viscosity,
+            descriptor.boarders_friction,
+            descriptor.borders_thickness,
+            descriptor.resource_coeff
         )
         self.prepare_borders()
         self.prepare_physics_engine()
