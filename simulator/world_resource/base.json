@@ -1,0 +1,28 @@
+{
+  "values": [
+    {
+      "name": "Oxygen",
+      "formula": "O",
+      "volume": 1,
+      "mass": 1
+    },
+    {
+      "name": "Carbon",
+      "formula": "C",
+      "volume": 1,
+      "mass": 1
+    },
+    {
+      "name": "Hydrogen",
+      "formula": "H",
+      "volume": 1,
+      "mass": 1
+    },
+    {
+      "name": "Energy",
+      "formula": "energy",
+      "volume": 0,
+      "mass": 0
+    }
+  ]
+}

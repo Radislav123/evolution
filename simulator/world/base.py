@@ -6,10 +6,10 @@ from core import models
 from core.mixin import WorldObjectMixin
 from core.physic import BaseWorldCharacteristics
 from simulator.creature import SimulationCreature
-from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources
+from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources, RESOURCE_LIST
 
 
-CREATURE_START_RESOURCES = Resources({resource: 20 for resource in Resources.RESOURCE_LIST})
+CREATURE_START_RESOURCES = Resources({resource: 20 for resource in RESOURCE_LIST})
 
 
 class SimulationWorld(WorldObjectMixin):
