@@ -228,9 +228,9 @@ class SimulationWindow(arcade.Window):
         background_color = (255, 255, 255, 255)
         arcade.set_background_color(background_color)
 
-    def start(self, world_width: int, world_height: int) -> None:
+    def start(self) -> None:
         center = (self.width // 2, self.height // 2)
-        self.world = SimulationWorld(world_width, world_height, center)
+        self.world = SimulationWorld(center)
         self.world.start()
 
         self.construct_tabs()

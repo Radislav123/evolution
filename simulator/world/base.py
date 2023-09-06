@@ -1,15 +1,30 @@
 import copy
+import dataclasses
 
 import arcade
 
 from core import models
 from core.mixin import WorldObjectMixin
 from core.physic import BaseWorldCharacteristics
+from core.service import ObjectDescriptionReader
 from simulator.creature import SimulationCreature
-from simulator.world_resource import CARBON, ENERGY, HYDROGEN, OXYGEN, Resources, RESOURCE_LIST
+from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources
 
 
 CREATURE_START_RESOURCES = Resources({resource: 20 for resource in RESOURCE_LIST})
+
+
+@dataclasses.dataclass
+class WorldDescriptor:
+    name: str
+    width: int
+    height: int
+    viscosity: float
+    boarders_friction: float
+    borders_thickness: int
+    resource_coeff: float
+    chunk_width: int
+    chunk_height: int
 
 
 class SimulationWorld(WorldObjectMixin):
@@ -19,19 +34,27 @@ class SimulationWorld(WorldObjectMixin):
     physics_engine: arcade.PymunkPhysicsEngine
 
     # width - минимальное значение ширины экрана - 120
-    def __init__(self, width: int, height: int, center: tuple[int, int]) -> None:
+    def __init__(self, window_center: tuple[int, int]) -> None:
+        # todo: добавить выбор настроек мира
+        world_descriptor = ObjectDescriptionReader[WorldDescriptor]().read_folder_to_list("world", WorldDescriptor)[0]
         self._id = None
         self.age = 0
-        self.width = width
-        self.height = height
+        self.name = world_descriptor.name
+        self.width = world_descriptor.width
+        self.height = world_descriptor.height
         # соотносится с центром окна
-        self.center = center
-        self.chunk_width = 50
-        self.chunk_height = 50
+        self.center = window_center
+        self.chunk_width = world_descriptor.chunk_width
+        self.chunk_height = world_descriptor.chunk_height
 
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
-        self.characteristics = BaseWorldCharacteristics(0.1, 0, 1000, 0.3)
+        self.characteristics = BaseWorldCharacteristics(
+            world_descriptor.viscosity,
+            world_descriptor.boarders_friction,
+            world_descriptor.borders_thickness,
+            world_descriptor.resource_coeff
+        )
         self.prepare_borders()
         self.prepare_physics_engine()
         self.chunks = BaseSimulationWorldChunk.cut_world(self)
@@ -76,7 +99,7 @@ class SimulationWorld(WorldObjectMixin):
         left, right, bottom, top = self.get_borders_coordinates()
 
         # инициализация спрайтов границ
-        color = (200, 200, 200)
+        color = (200, 200, 200, 255)
 
         left_border = arcade.SpriteSolidColor(
             self.characteristics.borders_thickness,
@@ -216,18 +239,11 @@ class BaseSimulationWorldChunk:
         self.right = self.left + width - 1
         self.bottom = left_bottom[1]
         self.top = self.bottom + height - 1
-        self.color = (100, 100, 100)
+        self.color = (100, 100, 100, 255)
         self.default_resource_amount = int(
             (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_coeff
         )
-        self._resources = Resources(
-            {
-                ENERGY: self.default_resource_amount,
-                CARBON: self.default_resource_amount,
-                OXYGEN: self.default_resource_amount,
-                HYDROGEN: self.default_resource_amount
-            }
-        )
+        self._resources = Resources({x: self.default_resource_amount for x in RESOURCE_LIST})
 
     def __repr__(self) -> str:
         return f"{self.left, self.bottom, self.right, self.top}"

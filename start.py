@@ -85,12 +85,10 @@ def log_error_info(error: Exception):
 def simulate():
     window_width = 800
     window_height = 600
-    world_width = 400
-    world_height = 400
 
     window = SimulationWindow(window_width, window_height)
     try:
-        window.start(world_width, world_height)
+        window.start()
         arcade.run()
     except Exception as error:
         log_error_info(error)

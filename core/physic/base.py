@@ -17,7 +17,7 @@ class BaseWorldCharacteristics:
     db_model = models.WorldCharacteristics
     db_instance: db_model
 
-    def __init__(self, viscosity: float, borders_friction: float, borders_thickness: int, resource_coef: float):
+    def __init__(self, viscosity: float, borders_friction: float, borders_thickness: int, resource_coeff: float):
         # вязкость
         # 1 - объекты теряют всю скорость после каждого тика
         # 0 - не теряют скорости вообще
@@ -26,7 +26,7 @@ class BaseWorldCharacteristics:
         self.viscosity = viscosity
         self.borders_friction = borders_friction
         self.borders_thickness = borders_thickness
-        self.resource_coeff = resource_coef
+        self.resource_coeff = resource_coeff
 
     def __repr__(self) -> str:
         string = f"viscosity: {self.viscosity}, borders friction: {self.borders_friction}, "

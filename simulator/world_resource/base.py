@@ -6,6 +6,7 @@ from core.service import ObjectDescriptionReader
 # https://ru.wikipedia.org/wiki/%D0%A5%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D1%81%D1%82%D0%B0%D0%B2_%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA%D0%B0
 class WorldResource(int):
     counter = [0]
+    max_formula_length = [0]
 
     # если будет принято решение сделать mass или volume не целым, решить,
     # что делать с атрибутами BaseBodypart.mass и BaseBodypart.volume
@@ -18,16 +19,29 @@ class WorldResource(int):
         obj.formula = formula
         obj.mass = mass
         obj.volume = volume
+        obj.max_formula_length[0] = max(obj.max_formula_length[0], len(obj.formula))
         return obj
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.name
 
+    @property
+    def sort_key(self) -> str:
+        return self.formula.rjust(self.max_formula_length[0] + 1, '_')
 
-RESOURCE_LIST = ObjectDescriptionReader[WorldResource]().read_file_to_list(
-    "simulator/world_resource/base.json", WorldResource
+
+# noinspection PyTypeChecker
+RESOURCE_DICT = dict(
+    sorted(
+        ObjectDescriptionReader[WorldResource]().read_folder_to_dict("world_resource", WorldResource).items(),
+        key = lambda x: x[1].sort_key
+    )
 )
-OXYGEN, CARBON, HYDROGEN, ENERGY = RESOURCE_LIST
+RESOURCE_LIST = [x for x in RESOURCE_DICT.values()]
+OXYGEN = RESOURCE_DICT["Oxygen"]
+CARBON = RESOURCE_DICT["Carbon"]
+HYDROGEN = RESOURCE_DICT["Hydrogen"]
+ENERGY = RESOURCE_DICT["Energy"]
 
 KT = TypeVar("KT", bound = WorldResource)
 VT = TypeVar("VT", int, float)
