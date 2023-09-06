@@ -1,6 +1,8 @@
+import dataclasses
 import random
 from typing import TYPE_CHECKING, Type
 
+from core.service import ObjectDescriptionReader
 from simulator.creature.genome.chromosome.gene import Gene
 
 
@@ -10,12 +12,24 @@ if TYPE_CHECKING:
 
 
 class BaseChromosome:
-    _mutation_chance = 0.02
-    _disappearance_chance = 0.01
-    # максимальное количество новых генов, которые могут появиться за одну мутацию
-    max_new_genes = 5
+    @dataclasses.dataclass
+    class Descriptor:
+        name: str
+        # [0, 1]
+        base_mutation_chance: float
+        base_disappearance_chance: float
+        # максимальное количество новых генов, которые могут появиться за одну мутацию
+        max_new_genes: int
 
     def __init__(self, genes: list[Gene]):
+        descriptor = ObjectDescriptionReader[self.Descriptor]().read_folder_to_list(
+            "creature/genome/chromosome",
+            self.Descriptor
+        )[0]
+
+        self.base_mutation_chance = descriptor.base_mutation_chance
+        self.base_disappearance_chance = descriptor.base_disappearance_chance
+        self.max_new_genes = descriptor.max_new_genes
         self.genes = genes
 
     def __repr__(self) -> str:
@@ -34,13 +48,13 @@ class BaseChromosome:
 
     @property
     def mutation_chance(self) -> float:
-        return self._mutation_chance + sum([gene.mutation_chance for gene in self.genes])
+        return self.base_mutation_chance + sum([gene.mutation_chance for gene in self.genes])
 
     def get_disappearance_chance(self, genome: "Genome") -> float:
         if len(self) == 0:
-            disappearance_chance = self._disappearance_chance * 2
+            disappearance_chance = self.base_disappearance_chance * 2
         else:
-            disappearance_chance = self._disappearance_chance / len(self)
+            disappearance_chance = self.base_disappearance_chance / len(self)
             for gene in self.genes:
                 if not gene.can_disappear(genome):
                     disappearance_chance = 0

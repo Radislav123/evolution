@@ -1,0 +1,10 @@
+{
+  "values": [
+    {
+      "name": "base",
+      "base_mutation_chance": 0.02,
+      "base_disappearance_chance": 0.01,
+      "max_new_genes": 5
+    }
+  ]
+}
