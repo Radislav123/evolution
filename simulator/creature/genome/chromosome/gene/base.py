@@ -22,7 +22,9 @@ class GeneDescriptor:
     abstract: bool
     # обязательно ли присутствие хотя бы одного такого гена в геноме (могут ли все копии пропасть из генома)
     required_for_creature: bool
-    # список генов, необходимых для появления этого гена
+    # список названий (name) генов, необходимых для появления этого гена
+    # необходимые гены не должны быть абстрактными, так как абстрактные не могут появиться у существа,
+    # значит не появится и тот, что содержит в этом списке хотя бы один абстрактный ген (интерфейс)
     required_genes: list[str]
     mutation_chance: float
     base_disappearance_chance: float
@@ -41,8 +43,16 @@ gene_descriptor = all_gene_descriptors["gene"]
 class Gene(GetSubclassesMixin, abc.ABC):
     _all_genes: dict[str, Type["Gene"]] = None
 
+    @classmethod
+    def all_genes(cls) -> dict[str, Type["Gene"]]:
+        if cls._all_genes is None:
+            cls._all_genes = {x(False).name: x for x in Gene.get_all_subclasses()}
+        return cls._all_genes
+
+    name = gene_descriptor.name
     abstract = gene_descriptor.abstract
-    required_for_creature = gene_descriptor.abstract
+    required_for_creature = gene_descriptor.required_for_creature
+    required_genes = [all_genes()[x] for x in gene_descriptor.required_genes]
     mutation_chance = gene_descriptor.mutation_chance
     base_disappearance_chance = gene_descriptor.base_disappearance_chance
     appearance_chance = gene_descriptor.appearance_chance
@@ -50,23 +60,8 @@ class Gene(GetSubclassesMixin, abc.ABC):
     def __init__(self, first: bool):
         self.first = first
 
-        # todo: убрать дублирование с объявлением в теле класса?
-        self.name = gene_descriptor.name
-        self.abstract = gene_descriptor.abstract
-        self.required_for_creature = gene_descriptor.required_for_creature
-        self.required_genes = [self.all_genes[x] for x in gene_descriptor.required_genes]
-        self.mutation_chance = gene_descriptor.mutation_chance
-        self.base_disappearance_chance = gene_descriptor.base_disappearance_chance
-        self.appearance_chance = gene_descriptor.appearance_chance
-
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
-
-    @property
-    def all_genes(self) -> dict[str, Type["Gene"]]:
-        if self._all_genes is None:
-            self._all_genes = {x(False).name: x for x in Gene.get_all_subclasses()}
-        return self._all_genes
 
     def get_disappearance_chance(self, genome: "Genome") -> float:
         if not self.can_disappear(genome):

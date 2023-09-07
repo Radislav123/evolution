@@ -96,8 +96,8 @@ class Resources(Dict[KT, VT]):
     def __truediv__(self, divisor: int | float) -> "Resources":
         return self.__class__({resource: self[resource] / divisor for resource in RESOURCE_LIST})
 
-    def __floordiv__(self, divisor: int | float) -> "Resources":
-        return (self / divisor).round()
+    def __floordiv__(self, divisor: int | float) -> "Resources[WorldResource, int]":
+        return self.__class__({resource: self[resource] // divisor for resource in RESOURCE_LIST})
 
     def __len__(self) -> int:
         return sum(amount != 0 for amount in self.values())
@@ -105,6 +105,7 @@ class Resources(Dict[KT, VT]):
     def __iter__(self) -> Iterator[WorldResource]:
         return iter(resource for resource, amount in self.items() if amount != 0)
 
-    # todo: заменить на __round__
+    # не заменять на __round__, потому что вне зависимости от того, какой возвращаемый тип будет указан в методе,
+    # возвращаемое значение из round() всегда считается int-ом
     def round(self) -> "Resources[WorldResource, int]":
         return self.__class__({resource: int(amount) for resource, amount in self.items()})

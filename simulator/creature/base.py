@@ -238,7 +238,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
                 self.body = bodypart_class(self.genome.effects.size_coeff, None)
                 break
 
-        # собирается тело
+        # собираются остальные части тела
         bodypart_classes = copy.copy(self.genome.effects.bodyparts)
         bodypart_classes.remove(self.body.__class__)
         self.body.construct(bodypart_classes, self)
