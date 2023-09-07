@@ -7,7 +7,7 @@ from typing import Callable
 class WorldResourceOld:
     counter = [0]
     # если будет принято решение сделать mass или volume не целым, решить,
-    # что делать с атрибутами BaseBodypart.mass и BaseBodypart.volume
+    # что делать с атрибутами Bodypart.mass и Bodypart.volume
     # объем
     volume = 1
     mass = 1

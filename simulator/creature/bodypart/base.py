@@ -9,21 +9,20 @@ if TYPE_CHECKING:
     from simulator.creature import SimulationCreature
 
 
-# todo: rename to BodyPart
-class BaseBodypart(abc.ABC):
+class Bodypart(abc.ABC):
     # https://ru.wikipedia.org/wiki/%D0%A5%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B0%D1%8F_%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F_%D0%BA%D0%BB%D0%B5%D1%82%D0%BA%D0%B8
     # ресурсы, из которых состоит часть тела (химический состав)
     _composition: Resources
-    required_bodypart_class: Type["BaseBodypart"] | None
+    required_bodypart_class: Type["Bodypart"] | None
     extra_storage_coeff = 0.1
 
-    def __init__(self, size: float, required_bodypart: Optional["BaseBodypart"]):
+    def __init__(self, size: float, required_bodypart: Optional["Bodypart"]):
         self.size = size
         # часть тела, к которой крепится данная
-        self.required_bodypart: "BaseBodypart" = required_bodypart
-        self.dependent_bodyparts: list["BaseBodypart"] = []
-        self._all_dependent: list["BaseBodypart"] | None = None
-        self._all_required: list["BaseBodypart"] | None = None
+        self.required_bodypart: "Bodypart" = required_bodypart
+        self.dependent_bodyparts: list["Bodypart"] = []
+        self._all_dependent: list["Bodypart"] | None = None
+        self._all_required: list["Bodypart"] | None = None
 
         # уничтожена ли часть тела полностью
         self.destroyed = False
@@ -73,7 +72,7 @@ class BaseBodypart(abc.ABC):
         return self._remaining_resources
 
     @property
-    def all_required(self) -> list["BaseBodypart"]:
+    def all_required(self) -> list["Bodypart"]:
         if self._all_required is None or not self.constructed:
             if self.required_bodypart is None:
                 self._all_required = []
@@ -83,7 +82,7 @@ class BaseBodypart(abc.ABC):
         return self._all_required
 
     @property
-    def all_dependent(self) -> list["BaseBodypart"]:
+    def all_dependent(self) -> list["Bodypart"]:
         if self._all_dependent is None or not self.constructed:
             self._all_dependent = copy.copy(self.dependent_bodyparts)
             if len(self.dependent_bodyparts) > 0:
@@ -109,7 +108,7 @@ class BaseBodypart(abc.ABC):
             mass = 0
         return mass
 
-    def construct(self, bodypart_classes: list[Type["BaseBodypart"]], creature: "SimulationCreature"):
+    def construct(self, bodypart_classes: list[Type["Bodypart"]], creature: "SimulationCreature"):
         """Собирает тело, устанавливая ссылки на зависимые и необходимые части тела."""
 
         for bodypart_class in bodypart_classes:
@@ -164,7 +163,7 @@ class BaseBodypart(abc.ABC):
         return resources - regenerating_resources
 
 
-class Body(BaseBodypart):
+class Body(Bodypart):
     _composition = Resources(
         {
             OXYGEN: 70,

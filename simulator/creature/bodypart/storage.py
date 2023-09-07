@@ -1,4 +1,4 @@
-from simulator.creature.bodypart import BaseBodypart, Body
+from simulator.creature.bodypart import Bodypart, Body
 from simulator.world_resource import WorldResource, CARBON, HYDROGEN, OXYGEN, Resources
 
 
@@ -19,7 +19,7 @@ class AddToDestroyedStorageException(Exception):
         self.amount = amount
 
 
-class Storage(BaseBodypart):
+class Storage(Bodypart):
     _composition = Resources(
         {
             OXYGEN: 40,
@@ -136,7 +136,7 @@ class Storage(BaseBodypart):
         self._fullness = None
 
 
-class ResourceStorage(BaseBodypart):
+class ResourceStorage(Bodypart):
     world_resource: WorldResource
     capacity: int
     required_bodypart_class = Storage

@@ -6,7 +6,7 @@ from core import models
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.creature.bodypart import BaseBodypart
+    from simulator.creature.bodypart import Bodypart
     from simulator.creature.genome import GenomeEffects
     from simulator.world import SimulationWorld
 
@@ -47,7 +47,7 @@ class BaseWorldCharacteristics:
 class BaseCreatureCharacteristics:
     def __init__(
             self,
-            bodyparts: list["BaseBodypart"],
+            bodyparts: list["Bodypart"],
             genome_effects: "GenomeEffects",
             world_characteristics: BaseWorldCharacteristics,
     ):

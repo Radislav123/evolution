@@ -12,7 +12,7 @@ from core import models
 from core.mixin import WorldObjectMixin
 from core.physic import BaseCreatureCharacteristics
 from evolution import settings
-from simulator.creature.bodypart import AddToNonExistentStoragesException, BaseBodypart, Body, Storage
+from simulator.creature.bodypart import AddToNonExistentStoragesException, Bodypart, Body, Storage
 from simulator.creature.genome import Genome
 from simulator.world_resource import ENERGY, Resources, WorldResource
 
@@ -90,7 +90,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             # инициализация частей тела
             self.body: Body | None = None
             self.storage: Storage | None = None
-            self._bodyparts: list[BaseBodypart] | None = None
+            self._bodyparts: list[Bodypart] | None = None
             self.apply_bodyparts()
             # ресурсы, необходимые для воспроизводства существа
             self.resources = Resources()
@@ -179,7 +179,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         return extra_storage
 
     @property
-    def bodyparts(self) -> list[BaseBodypart]:
+    def bodyparts(self) -> list[Bodypart]:
         """Все части тела существа."""
 
         if self._bodyparts is None:
@@ -188,13 +188,13 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         return self._bodyparts
 
     @property
-    def damaged_bodyparts(self) -> list[BaseBodypart]:
+    def damaged_bodyparts(self) -> list[Bodypart]:
         """Части тела, получившие урон."""
 
         return [bodypart for bodypart in self.bodyparts if bodypart.damaged]
 
     @property
-    def present_bodyparts(self) -> list[BaseBodypart]:
+    def present_bodyparts(self) -> list[Bodypart]:
         """Присутствующие, не уничтоженные полностью, части тела."""
 
         return [bodypart for bodypart in self.bodyparts if not bodypart.destroyed]
@@ -428,7 +428,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             spent_resources[ENERGY] += int(sum(spent_resources.values()) * self.energy_regenerate_cost)
             self.storage.remove_resources(spent_resources)
 
-    def get_regeneration_bodypart(self) -> BaseBodypart | None:
+    def get_regeneration_bodypart(self) -> Bodypart | None:
         bodyparts = []
         for bodypart in self.damaged_bodyparts:
             append = False
@@ -601,7 +601,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
                 except AddToNonExistentStoragesException as error:
                     self.returned_resources += error.resources
 
-    def get_autophagic_bodypart(self) -> BaseBodypart:
+    def get_autophagic_bodypart(self) -> Bodypart:
         bodyparts = []
         for bodypart in self.present_bodyparts:
             append = True

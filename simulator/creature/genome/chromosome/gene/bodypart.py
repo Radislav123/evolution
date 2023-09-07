@@ -1,6 +1,6 @@
 import abc
 
-from simulator.creature.bodypart import BaseBodypart, Body, Storage
+from simulator.creature.bodypart import Bodypart, Body, Storage
 from simulator.creature.genome.chromosome.gene import Gene, StepGeneMixin
 from simulator.world_resource import WorldResource, CARBON, ENERGY, HYDROGEN, OXYGEN
 
@@ -10,7 +10,7 @@ class BodyPartGene(Gene, abc.ABC):
 
     # утеря ресурсов из-за частей тела уже включена в расчеты (берется часть ресурсов существа для "обновления клеток")
     effect_attribute_name = None
-    bodypart: BaseBodypart
+    bodypart: Bodypart
 
     def apply(self, genome):
         genome.effects.bodyparts.append(self.bodypart)
@@ -64,7 +64,6 @@ class StorageGene(BodyPartGene):
     def mutate(self, genome):
         # mutation_chance = 0 (никогда не мутирует)
         raise NotImplementedError()
-        pass
 
 
 class BaseResourceStorageGene(StepGeneMixin, BodyPartGene, abc.ABC):

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Type, TypeVar
 
 from core.service import ObjectDescriptionReader
 from evolution import settings
-from simulator.creature.bodypart import BaseBodypart
+from simulator.creature.bodypart import Bodypart
 from simulator.creature.genome.chromosome import BaseChromosome
 from simulator.creature.genome.chromosome.gene import Gene
 from simulator.world_resource import Resources
@@ -34,7 +34,7 @@ class GenomeEffects:
         self.consumption_amount = Resources()
         # количество ресурсов, теряемых каждый тик
         self.resources_loss = Resources()
-        self.bodyparts: list[Type[BaseBodypart]] = []
+        self.bodyparts: list[Type[Bodypart]] = []
         self.resource_storages = Resources()
         self.color: list[int] = [0, 0, 0]
 
