@@ -1,9 +1,11 @@
 import abc
+import dataclasses
 import random
 from typing import Literal, Self, TYPE_CHECKING, Type, TypeVar
 
 from core.mixin import GetSubclassesMixin
-from simulator.world_resource import WorldResource
+from core.service import ObjectDescriptionReader
+from evolution import settings
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -13,32 +15,64 @@ if TYPE_CHECKING:
 step_type = TypeVar("step_type")
 
 
-# если ген находится в другом файле, чтобы ген заработал, его базовый класс (или его самого)
-# надо импортировать в gene/__init__.py
-class Gene(GetSubclassesMixin, abc.ABC):
-    # по умолчанию класс гена абстрактный
-    abstract = True
+@dataclasses.dataclass
+class GeneDescriptor:
+    name: str
+    # по умолчанию класс гена абстрактный (появляется ли у существа)
+    abstract: bool
     # обязательно ли присутствие хотя бы одного такого гена в геноме (могут ли все копии пропасть из генома)
     required_for_creature: bool
     # список генов, необходимых для появления этого гена
-    required_genes: list[Type["Gene"]] = []
-    mutation_chance = 0.001
-    _disappearance_chance = 0.001
-    appearance_chance = 1
-    resources_loss_effect_attribute_name: str
+    required_genes: list[str]
+    mutation_chance: float
+    base_disappearance_chance: float
+    appearance_chance: float
+
+
+all_gene_descriptors = ObjectDescriptionReader[GeneDescriptor]().read_folder_to_dict(
+    settings.GENE_JSON_PATH,
+    GeneDescriptor
+)
+gene_descriptor = all_gene_descriptors["gene"]
+
+
+# если ген находится в другом файле, чтобы ген заработал/появился, его базовый класс (или его самого)
+# надо импортировать в gene/__init__.py
+class Gene(GetSubclassesMixin, abc.ABC):
+    _all_genes: dict[str, Type["Gene"]] = None
+
+    abstract = gene_descriptor.abstract
+    required_for_creature = gene_descriptor.abstract
+    mutation_chance = gene_descriptor.mutation_chance
+    base_disappearance_chance = gene_descriptor.base_disappearance_chance
+    appearance_chance = gene_descriptor.appearance_chance
 
     def __init__(self, first: bool):
         self.first = first
-        self.resources_loss_coeffs: dict[WorldResource, float] = {}
+
+        # todo: убрать дублирование с объявлением в теле класса?
+        self.name = gene_descriptor.name
+        self.abstract = gene_descriptor.abstract
+        self.required_for_creature = gene_descriptor.required_for_creature
+        self.required_genes = [self.all_genes[x] for x in gene_descriptor.required_genes]
+        self.mutation_chance = gene_descriptor.mutation_chance
+        self.base_disappearance_chance = gene_descriptor.base_disappearance_chance
+        self.appearance_chance = gene_descriptor.appearance_chance
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
+
+    @property
+    def all_genes(self) -> dict[str, Type["Gene"]]:
+        if self._all_genes is None:
+            self._all_genes = {x(False).name: x for x in Gene.get_all_subclasses()}
+        return self._all_genes
 
     def get_disappearance_chance(self, genome: "Genome") -> float:
         if not self.can_disappear(genome):
             disappearance_chance = 0
         else:
-            disappearance_chance = self._disappearance_chance
+            disappearance_chance = self.base_disappearance_chance
         return disappearance_chance
 
     def can_disappear(self, genome: "Genome") -> bool:
@@ -56,11 +90,6 @@ class Gene(GetSubclassesMixin, abc.ABC):
 
         raise NotImplementedError()
 
-    def apply_resources_loss(self, genome: "Genome"):
-        for resource in self.resources_loss_coeffs:
-            genome.effects.resources_loss[resource] += getattr(self, self.resources_loss_effect_attribute_name) * \
-                                                       self.resources_loss_coeffs[resource]
-
     @classmethod
     @abc.abstractmethod
     def correct(cls, genome: "Genome"):
@@ -69,13 +98,13 @@ class Gene(GetSubclassesMixin, abc.ABC):
         raise NotImplementedError()
 
     @classmethod
-    def get_required_for_creature_genes(cls) -> list[Self]:
+    def get_required_for_creature_genes(cls) -> list[Type[Self]]:
         """Возвращает гены для вставки в геном первого существа."""
 
         return [gene(True) for gene in cls.get_all_subclasses() if not gene.abstract and gene.required_for_creature]
 
     @classmethod
-    def get_available_genes(cls, genome: "Genome") -> list[Self]:
+    def get_available_genes(cls, genome: "Genome") -> list[Type[Self]]:
         """Возвращает список генов, возможных для добавления в процессе мутации."""
 
         return [
@@ -100,7 +129,6 @@ class StepGeneMixin:
     common_max_limit: int
 
     def make_step(self, sign: Literal['+', '-', None] = None) -> step_type:
-        step = None
         negative_step = self.negative_step if hasattr(self, "negative_step") else self.step
         positive_step = self.positive_step if hasattr(self, "positive_step") else self.step
         if sign is None:
@@ -109,4 +137,6 @@ class StepGeneMixin:
             step = positive_step
         elif sign == '-':
             step = negative_step
+        else:
+            step = None
         return step

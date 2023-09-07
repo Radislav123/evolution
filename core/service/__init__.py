@@ -5,10 +5,11 @@ from typing import Generic, TypeVar
 
 VT = TypeVar("VT")
 
+# кэш для загрузки файлов
+VALUES_CACHE = {}
+
 
 class ObjectDescriptionReader(Generic[VT]):
-    DEFAULT_FOLDER = "object_descriptions"
-
     @staticmethod
     def read_file(path: str) -> dict:
         with open(path, 'r') as file:
@@ -16,12 +17,15 @@ class ObjectDescriptionReader(Generic[VT]):
         return data
 
     @classmethod
-    def read_folder(cls, folder: str) -> dict:
-        pattern = f"{cls.DEFAULT_FOLDER}/{folder}/*.json"
-        values = []
-        for file in glob.glob(pattern):
-            values.extend(cls.read_file(file)["values"])
-        return {"values": values}
+    def read_folder(cls, folder: str) -> dict[str, list[dict]]:
+        pattern = f"{folder}/*.json"
+        if pattern not in VALUES_CACHE:
+            values = []
+            for file in glob.glob(pattern):
+                values.extend(cls.read_file(file)["values"])
+            VALUES_CACHE[pattern] = values
+
+        return {"values": VALUES_CACHE[pattern]}
 
     @classmethod
     def read_folder_to_dict(cls, folder: str, descriptor: type = dict) -> dict[str, VT]:

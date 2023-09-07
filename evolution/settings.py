@@ -19,13 +19,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 LOGS_PATH = Path(f"{BASE_DIR}/logs")
 
 # изображения, звуки...
-RESOURCES_PATH = Path(f"{BASE_DIR}/resources")
-SIMULATION_RESOURCES_PATH = Path(f"{RESOURCES_PATH}/simulation")
-SIMULATION_IMAGES_PATH = Path(f"{SIMULATION_RESOURCES_PATH}/images")
+RESOURCES_PATH = f"{BASE_DIR}/resources"
+SIMULATION_RESOURCES_PATH = f"{RESOURCES_PATH}/simulation"
+SIMULATION_IMAGES_PATH = f"{SIMULATION_RESOURCES_PATH}/images"
 
 CREATURE_IMAGE_PATH = f"{SIMULATION_IMAGES_PATH}/BaseCreature.png"
 
 IMAGES_STORE_FORMAT = "RGBA"
+
+# файлы описаний
+JSON_FOLDER_PATH = "object_descriptions"
+WORLD_RESOURCE_JSON_PATH = f"{JSON_FOLDER_PATH}/world_resource"
+WORLD_JSON_PATH = f"{JSON_FOLDER_PATH}/world"
+CREATURE_JSON_PATH = f"{JSON_FOLDER_PATH}/creature"
+GENOME_JSON_PATH = f"{CREATURE_JSON_PATH}/genome"
+CHROMOSOME_JSON_PATH = f"{GENOME_JSON_PATH}/chromosome"
+GENE_JSON_PATH = f"{CHROMOSOME_JSON_PATH}/gene"
 
 # tps - ticks per second
 MAX_TPS = 1000

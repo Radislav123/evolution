@@ -21,7 +21,7 @@ class BodyGene(BodyPartGene):
     required_for_creature = True
     bodypart = Body
     appearance_chance = 0
-    _disappearance_chance = 0
+    base_disappearance_chance = 0
     mutation_chance = 0
 
     def __init__(self, first: bool):
@@ -53,7 +53,7 @@ class StorageGene(BodyPartGene):
     required_for_creature = True
     bodypart = Storage
     appearance_chance = 0
-    _disappearance_chance = 0
+    base_disappearance_chance = 0
     mutation_chance = 0
     required_genes = [BodyGene]
 

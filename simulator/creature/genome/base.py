@@ -4,6 +4,7 @@ import random
 from typing import TYPE_CHECKING, Type, TypeVar
 
 from core.service import ObjectDescriptionReader
+from evolution import settings
 from simulator.creature.bodypart import BaseBodypart
 from simulator.creature.genome.chromosome import BaseChromosome
 from simulator.creature.genome.chromosome.gene import Gene
@@ -29,7 +30,9 @@ class GenomeEffects:
         self.metabolism = 0.0
         self.resources_loss_coeff = 0.0
         self.regeneration_amount = 0
+        # количество ресурса, которое существо может потребить за тик
         self.consumption_amount = Resources()
+        # количество ресурсов, теряемых каждый тик
         self.resources_loss = Resources()
         self.bodyparts: list[Type[BaseBodypart]] = []
         self.resource_storages = Resources()
@@ -74,20 +77,25 @@ class GenomeEffects:
                     self.color[number] = self.color[number] * 255 // maximum
 
 
-class Genome:
-    @dataclasses.dataclass
-    class Descriptor:
-        name: str
-        # [0, 1]
-        base_mutation_chance: float
-        # максимальное количество новых хромосом, которые могут появиться за одну мутацию
-        max_new_chromosomes: int
+@dataclasses.dataclass
+class GenomeDescriptor:
+    name: str
+    # [0, 1]
+    base_mutation_chance: float
+    # максимальное количество новых хромосом, которые могут появиться за одну мутацию
+    max_new_chromosomes: int
 
+
+genome_descriptor = ObjectDescriptionReader[GenomeDescriptor]().read_folder_to_list(
+    settings.GENOME_JSON_PATH,
+    GenomeDescriptor
+)[0]
+
+
+class Genome:
     def __init__(self, chromosomes: list[BaseChromosome] | None, world_generation: bool):
-        descriptor = ObjectDescriptionReader[self.Descriptor]().read_folder_to_list("creature/genome", self.Descriptor)[
-            0]
-        self.base_mutation_chance = descriptor.base_mutation_chance
-        self.max_new_chromosomes = descriptor.max_new_chromosomes
+        self.base_mutation_chance = genome_descriptor.base_mutation_chance
+        self.max_new_chromosomes = genome_descriptor.max_new_chromosomes
 
         self.effects = GenomeEffects()
         # такая ситуация подразумевается только при генерации мира

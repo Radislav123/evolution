@@ -3,6 +3,7 @@ import random
 from typing import TYPE_CHECKING, Type
 
 from core.service import ObjectDescriptionReader
+from evolution import settings
 from simulator.creature.genome.chromosome.gene import Gene
 
 
@@ -11,25 +12,27 @@ if TYPE_CHECKING:
     from simulator.creature.genome import Genome
 
 
+@dataclasses.dataclass
+class ChromosomeDescriptor:
+    name: str
+    # [0, 1]
+    base_mutation_chance: float
+    base_disappearance_chance: float
+    # максимальное количество новых генов, которые могут появиться за одну мутацию
+    max_new_genes: int
+
+
+chromosome_descriptor = ObjectDescriptionReader[ChromosomeDescriptor]().read_folder_to_list(
+    settings.CHROMOSOME_JSON_PATH,
+    ChromosomeDescriptor
+)[0]
+
+
 class BaseChromosome:
-    @dataclasses.dataclass
-    class Descriptor:
-        name: str
-        # [0, 1]
-        base_mutation_chance: float
-        base_disappearance_chance: float
-        # максимальное количество новых генов, которые могут появиться за одну мутацию
-        max_new_genes: int
-
     def __init__(self, genes: list[Gene]):
-        descriptor = ObjectDescriptionReader[self.Descriptor]().read_folder_to_list(
-            "creature/genome/chromosome",
-            self.Descriptor
-        )[0]
-
-        self.base_mutation_chance = descriptor.base_mutation_chance
-        self.base_disappearance_chance = descriptor.base_disappearance_chance
-        self.max_new_genes = descriptor.max_new_genes
+        self.base_mutation_chance = chromosome_descriptor.base_mutation_chance
+        self.base_disappearance_chance = chromosome_descriptor.base_disappearance_chance
+        self.max_new_genes = chromosome_descriptor.max_new_genes
         self.genes = genes
 
     def __repr__(self) -> str:
@@ -100,4 +103,3 @@ class BaseChromosome:
 
         for gene in self.genes:
             gene.apply(genome)
-            gene.apply_resources_loss(genome)

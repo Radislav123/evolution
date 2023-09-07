@@ -7,6 +7,7 @@ from core import models
 from core.mixin import WorldObjectMixin
 from core.physic import BaseWorldCharacteristics
 from core.service import ObjectDescriptionReader
+from evolution import settings
 from simulator.creature import SimulationCreature
 from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources
 
@@ -14,19 +15,27 @@ from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources
 CREATURE_START_RESOURCES = Resources({resource: 20 for resource in RESOURCE_LIST})
 
 
-class SimulationWorld(WorldObjectMixin):
-    @dataclasses.dataclass
-    class Descriptor:
-        name: str
-        width: int
-        height: int
-        viscosity: float
-        boarders_friction: float
-        borders_thickness: int
-        resource_coeff: float
-        chunk_width: int
-        chunk_height: int
+@dataclasses.dataclass
+class WorldDescriptor:
+    name: str
+    width: int
+    height: int
+    viscosity: float
+    boarders_friction: float
+    borders_thickness: int
+    resource_coeff: float
+    chunk_width: int
+    chunk_height: int
 
+
+# todo: добавить выбор настроек мира
+world_descriptor = ObjectDescriptionReader[WorldDescriptor]().read_folder_to_list(
+    settings.WORLD_JSON_PATH,
+    WorldDescriptor
+)[0]
+
+
+class SimulationWorld(WorldObjectMixin):
     db_model = models.World
     db_instance: db_model
     borders: arcade.SpriteList
@@ -34,25 +43,22 @@ class SimulationWorld(WorldObjectMixin):
 
     # width - минимальное значение ширины экрана - 120
     def __init__(self, window_center: tuple[int, int]) -> None:
-        # todo: добавить выбор настроек мира
-        descriptor = ObjectDescriptionReader[self.Descriptor]().read_folder_to_list("world", self.Descriptor)[0]
-
         self._id = None
         self.age = 0
-        self.width = descriptor.width
-        self.height = descriptor.height
+        self.width = world_descriptor.width
+        self.height = world_descriptor.height
         # соотносится с центром окна
         self.center = window_center
-        self.chunk_width = descriptor.chunk_width
-        self.chunk_height = descriptor.chunk_height
+        self.chunk_width = world_descriptor.chunk_width
+        self.chunk_height = world_descriptor.chunk_height
 
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList()
         self.characteristics = BaseWorldCharacteristics(
-            descriptor.viscosity,
-            descriptor.boarders_friction,
-            descriptor.borders_thickness,
-            descriptor.resource_coeff
+            world_descriptor.viscosity,
+            world_descriptor.boarders_friction,
+            world_descriptor.borders_thickness,
+            world_descriptor.resource_coeff
         )
         self.prepare_borders()
         self.prepare_physics_engine()

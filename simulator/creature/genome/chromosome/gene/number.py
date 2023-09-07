@@ -22,10 +22,6 @@ class NumberGene(StepGeneMixin, Gene, abc.ABC):
     def __repr__(self):
         return f"{super().__repr__()}: {getattr(self, self.attribute_name)}"
 
-    @property
-    def resources_loss_effect_attribute_name(self) -> str:
-        return self.attribute_name
-
     def apply(self, genome):
         setattr(
             genome.effects,
