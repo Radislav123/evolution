@@ -144,9 +144,8 @@ class Genome:
 
     def mutate(self):
         # исчезновение хромосом
-        # todo: заменить len(self)
         if len(self.chromosomes) > 1:
-            amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+            amount = random.choices(range(len(self.chromosomes)), [1 / 10**x for x in range(len(self.chromosomes))])[0]
             weights = [chromosome.get_disappearance_chance(self) for chromosome in self.chromosomes]
             if sum(weights) > 0:
                 disappearing_chromosomes = set(random.choices(self.chromosomes, weights, k = amount))
@@ -155,18 +154,19 @@ class Genome:
                 self.chromosomes = [x for x in self.chromosomes if x not in disappearing_chromosomes]
 
         # добавляются новые хромосомы
-        mutate_number = random.randint(0, len(self))
-        if mutate_number == len(self):
+        mutate_number = random.randint(0, len(self.chromosomes))
+        if mutate_number == len(self.chromosomes):
             new_chromosomes_number = 1 + random.choices(
                 range(self.max_new_chromosomes), [1 / 10**x for x in range(self.max_new_chromosomes)]
             )[0]
             self.chromosomes.extend([Chromosome([]) for _ in range(new_chromosomes_number)])
 
         # мутации хромосом
-        amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
-        amount = min(amount, len(self))
+        # noinspection DuplicatedCode
+        amount = random.choices(range(len(self.chromosomes)), [1 / 10**x for x in range(len(self.chromosomes))])[0]
+        amount = min(amount, len(self.chromosomes))
         weights = [chromosome.mutation_chance for chromosome in self.chromosomes]
-        chromosomes_numbers = set(random.choices(range(len(self)), weights, k = amount))
+        chromosomes_numbers = set(random.choices(range(len(self.chromosomes)), weights, k = amount))
         for number in chromosomes_numbers:
             self.gene_counter.subtract(self.chromosomes[number].gene_counter)
             self.chromosomes[number].mutate(self)

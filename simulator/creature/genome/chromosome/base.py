@@ -64,10 +64,10 @@ class Chromosome:
         return self.base_mutation_chance + sum(gene.mutation_chance for gene in self.genes)
 
     def get_disappearance_chance(self, genome: "Genome") -> float:
-        if len(self) == 0:
+        if len(self.genes) == 0:
             disappearance_chance = self.base_disappearance_chance * 2
         else:
-            disappearance_chance = self.base_disappearance_chance / len(self)
+            disappearance_chance = self.base_disappearance_chance / len(self.genes)
             for gene in self.genes:
                 if not gene.can_disappear(genome):
                     disappearance_chance = 0
@@ -76,9 +76,8 @@ class Chromosome:
 
     def mutate(self, genome: "Genome") -> None:
         # исчезновение генов
-        # todo: заменить len(self)
-        if len(self) > 0:
-            amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+        if len(self.genes) > 0:
+            amount = random.choices(range(len(self.genes)), [1 / 10**x for x in range(len(self.genes))])[0]
             weights = [gene.get_disappearance_chance(genome) for gene in self.genes]
             if sum(weights) > 0:
                 disappearing_genes = set(random.choices(self.genes, weights, k = amount))
@@ -86,8 +85,8 @@ class Chromosome:
                 self.genes = [gene for gene in self.genes if gene not in disappearing_genes]
 
         # добавляются новые гены
-        mutate_number = random.randint(0, len(self))
-        if mutate_number == len(self):
+        mutate_number = random.randint(0, len(self.genes))
+        if mutate_number == len(self.genes):
             available_gene_classes = GeneInterface.get_available_gene_classes(genome)
             weights = [gene.appearance_chance for gene in available_gene_classes]
             new_genes_number = 1 + random.choices(
@@ -99,14 +98,15 @@ class Chromosome:
             self.genes.extend(GeneInterface.construct_genes(False, new_gene_classes))
 
         # мутации генов
-        if len(self) > 0:
-            amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
-            amount = min(amount, len(self))
+        if len(self.genes) > 0:
+            # noinspection DuplicatedCode
+            amount = random.choices(range(len(self.genes)), [1 / 10**x for x in range(len(self.genes))])[0]
+            amount = min(amount, len(self.genes))
             weights = [gene.mutation_chance for gene in self.genes]
             # если хромосома пустая или содержит лишь гены, которые не могут мутировать,
             # то мутировать нечему (секция добавления генов в начале метода)
             if sum(weights) > 0:
-                genes_numbers = set(random.choices(range(len(self)), weights, k = amount))
+                genes_numbers = set(random.choices(range(len(self.genes)), weights, k = amount))
                 for number in genes_numbers:
                     self.genes[number].mutate(genome)
 

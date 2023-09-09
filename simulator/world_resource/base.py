@@ -42,9 +42,6 @@ RESOURCE_DICT = dict(
 )
 RESOURCE_LIST = [x for x in RESOURCE_DICT.values()]
 # todo: убрать отсюда явные ресурсы (оставить пока что энергию)
-OXYGEN = RESOURCE_DICT["oxygen"]
-CARBON = RESOURCE_DICT["carbon"]
-HYDROGEN = RESOURCE_DICT["hydrogen"]
 ENERGY = RESOURCE_DICT["energy"]
 
 VT = TypeVar("VT", int, float)
