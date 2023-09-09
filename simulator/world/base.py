@@ -53,7 +53,7 @@ class SimulationWorld(WorldObjectMixin):
         self.chunk_height = world_descriptor.chunk_height
 
         # {creature.object_id: creature}
-        self.creatures = arcade.SpriteList()
+        self.creatures = arcade.SpriteList[SimulationCreature]()
         self.characteristics = BaseWorldCharacteristics(
             world_descriptor.viscosity,
             world_descriptor.boarders_friction,
@@ -62,7 +62,8 @@ class SimulationWorld(WorldObjectMixin):
         )
         self.prepare_borders()
         self.prepare_physics_engine()
-        self.chunks = BaseSimulationWorldChunk.cut_world(self)
+        self.chunks = SimulationWorldChunk.cut_world(self)
+        self.chunk_list = [chunk for line in self.chunks for chunk in line]
 
     def __repr__(self) -> str:
         return f"{self.object_id}"
@@ -224,7 +225,7 @@ class SimulationWorld(WorldObjectMixin):
                 for chunk in line:
                     chunk.draw()
 
-    def position_to_chunk(self, position: tuple[float, float]) -> "BaseSimulationWorldChunk":
+    def position_to_chunk(self, position: tuple[float, float]) -> "SimulationWorldChunk":
         x = int((position[0] - self.chunks[0][0].left) / self.chunk_width)
         y = int((position[1] - self.chunks[0][0].bottom) / self.chunk_height)
         if x < 0:
@@ -238,7 +239,7 @@ class SimulationWorld(WorldObjectMixin):
         return self.chunks[x][y]
 
 
-class BaseSimulationWorldChunk:
+class SimulationWorldChunk:
     def __init__(self, left_bottom: tuple[int, int], width: int, height: int, world: SimulationWorld) -> None:
         self.left = left_bottom[0]
         self.right = self.left + width - 1
@@ -278,7 +279,7 @@ class BaseSimulationWorldChunk:
         )
 
     @classmethod
-    def cut_world(cls, world: SimulationWorld) -> list[list["BaseSimulationWorldChunk"]]:
+    def cut_world(cls, world: SimulationWorld) -> list[list["SimulationWorldChunk"]]:
         left, right, bottom, top = world.get_borders_coordinates()
         chunks: list[list[cls]] = []
 

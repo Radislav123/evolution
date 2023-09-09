@@ -1,4 +1,4 @@
-from typing import Dict, Iterator, TypeVar
+from typing import Dict, Iterable, Iterator, TypeVar
 
 from core.service import ObjectDescriptionReader
 from evolution import settings
@@ -47,11 +47,11 @@ CARBON = RESOURCE_DICT["carbon"]
 HYDROGEN = RESOURCE_DICT["hydrogen"]
 ENERGY = RESOURCE_DICT["energy"]
 
-KT = TypeVar("KT", bound = WorldResource)
 VT = TypeVar("VT", int, float)
 
 
-class Resources(Dict[KT, VT]):
+# todo: проверить будет ли Resources быстрее работать, если унаследовать его от collections.Counter
+class Resources(Dict[WorldResource, VT]):
     """Обертка-контейнер для удобной работы с ресурсами."""
 
     def __init__(self, *args, **kwargs):
@@ -86,18 +86,18 @@ class Resources(Dict[KT, VT]):
     def __sub__(self, other: "Resources") -> "Resources":
         return self.__class__({resource: self[resource] - other[resource] for resource in RESOURCE_LIST})
 
-    def __mul__(self, multiplier: int | float) -> "Resources":
+    def __mul__(self, multiplier: VT) -> "Resources":
         return self.__class__({resource: self[resource] * multiplier for resource in RESOURCE_LIST})
 
-    def __imul__(self, multiplier: int | float) -> "Resources":
+    def __imul__(self, multiplier: VT) -> "Resources":
         for resource in RESOURCE_LIST:
             self[resource] *= multiplier
         return self
 
-    def __truediv__(self, divisor: int | float) -> "Resources":
+    def __truediv__(self, divisor: VT) -> "Resources[float]":
         return self.__class__({resource: self[resource] / divisor for resource in RESOURCE_LIST})
 
-    def __floordiv__(self, divisor: int | float) -> "Resources[WorldResource, int]":
+    def __floordiv__(self, divisor: VT) -> "Resources[int]":
         return self.__class__({resource: self[resource] // divisor for resource in RESOURCE_LIST})
 
     def __len__(self) -> int:
@@ -110,3 +110,8 @@ class Resources(Dict[KT, VT]):
     # возвращаемое значение из round() всегда считается int-ом
     def round(self) -> "Resources[WorldResource, int]":
         return self.__class__({resource: int(amount) for resource, amount in self.items()})
+
+    @classmethod
+    def sum(cls, resources_iterable: Iterable["Resources"]) -> "Resources":
+        temp_iterable = list(resources_iterable)
+        return Resources({resource: sum(x[resource] for x in temp_iterable) for resource in RESOURCE_LIST})

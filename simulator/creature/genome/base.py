@@ -1,6 +1,7 @@
 import copy
 import dataclasses
 import random
+from collections import Counter
 from typing import Self, TYPE_CHECKING, Type, TypeVar
 
 from core.service import ObjectDescriptionReader
@@ -102,6 +103,10 @@ class Genome:
             chromosomes = [Chromosome.get_first_chromosome()]
         self.chromosomes = chromosomes
 
+        self.gene_counter = Counter()
+        for chromosome in self.chromosomes:
+            self.gene_counter.update(chromosome.gene_counter)
+
     def __repr__(self) -> str:
         string = f"{self.__class__.__name__}:\n"
         for chromosome in self.chromosomes:
@@ -114,24 +119,20 @@ class Genome:
         return len(self.chromosomes)
 
     def __contains__(self, gene: str | Type[GeneInterface] | GeneInterface) -> bool:
-        contains = False
-        for chromosome in self.chromosomes:
-            if gene in chromosome:
-                contains = True
-                break
-        return contains
+        if isinstance(gene, str):
+            gene_name = gene
+        else:
+            gene_name = gene.name
+        return gene_name in self.gene_counter
 
     @classmethod
     def get_first_genome(cls) -> Self:
         return cls(None, True)
 
     def contains_all(self, gene_names: list[str]) -> bool:
-        if len(gene_names) == 0:
-            return True
-
         contains = True
         for gene_name in gene_names:
-            if gene_name not in self:
+            if gene_name not in self.gene_counter:
                 contains = False
                 break
         return contains
@@ -141,24 +142,18 @@ class Genome:
         # todo: добавить возможность влияния внешних факторов на шанс мутации
         return self.base_mutation_chance + sum([chromosome.mutation_chance for chromosome in self.chromosomes])
 
-    # todo: добавить кэширование?
-    def count_genes(self, gene: Type[GeneInterface] | GeneInterface) -> int:
-        return len(self.get_genes(gene))
-
-    def get_genes(self, gene: Type[GENE_CLASS] | GENE_CLASS) -> list[GENE_CLASS]:
-        """Ищет запрошенные гены и все дочерние."""
-
-        if isinstance(gene, type):
-            gene_class = gene
-        else:
-            gene_class = gene.__class__
-
-        genes = []
-        for chromosome in self.chromosomes:
-            genes.extend([x for x in chromosome.genes if isinstance(x, gene_class)])
-        return genes
-
     def mutate(self):
+        # исчезновение хромосом
+        # todo: заменить len(self)
+        if len(self.chromosomes) > 1:
+            amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+            weights = [chromosome.get_disappearance_chance(self) for chromosome in self.chromosomes]
+            if sum(weights) > 0:
+                disappearing_chromosomes = set(random.choices(self.chromosomes, weights, k = amount))
+                for chromosome in disappearing_chromosomes:
+                    self.gene_counter.subtract(chromosome.gene_counter)
+                self.chromosomes = [x for x in self.chromosomes if x not in disappearing_chromosomes]
+
         # добавляются новые хромосомы
         mutate_number = random.randint(0, len(self))
         if mutate_number == len(self):
@@ -167,22 +162,15 @@ class Genome:
             )[0]
             self.chromosomes.extend([Chromosome([]) for _ in range(new_chromosomes_number)])
 
-        # исчезновение хромосом
-        # noinspection DuplicatedCode
-        amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
-        weights = [chromosome.get_disappearance_chance(self) for chromosome in self.chromosomes]
-        if sum(weights) > 0:
-            disappearing_chromosomes = set(random.choices(self.chromosomes, weights, k = amount))
-            self.chromosomes = [chromosome for chromosome in self.chromosomes
-                                if chromosome not in disappearing_chromosomes]
-
         # мутации хромосом
         amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
         amount = min(amount, len(self))
         weights = [chromosome.mutation_chance for chromosome in self.chromosomes]
         chromosomes_numbers = set(random.choices(range(len(self)), weights, k = amount))
         for number in chromosomes_numbers:
+            self.gene_counter.subtract(self.chromosomes[number].gene_counter)
             self.chromosomes[number].mutate(self)
+            self.gene_counter.update(self.chromosomes[number].gene_counter)
 
     def apply_genes(self):
         """Записывает эффекты генов в хранилище."""

@@ -75,7 +75,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     def can_disappear(self, genome: "Genome") -> bool:
         """Проверяет, может ли ген исчезнуть."""
 
-        return not self.required_for_creature or self.required_for_creature and genome.count_genes(self) > 1
+        return not self.required_for_creature or self.required_for_creature and genome.gene_counter[self.name] > 1
 
     @abc.abstractmethod
     def mutate(self, genome: "Genome") -> None:

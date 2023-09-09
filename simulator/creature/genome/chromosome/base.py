@@ -1,5 +1,6 @@
 import dataclasses
 import random
+from collections import Counter
 from typing import Self, TYPE_CHECKING, Type
 
 from core.service import ObjectDescriptionReader
@@ -37,6 +38,7 @@ class Chromosome:
         self.base_disappearance_chance = chromosome_descriptor.base_disappearance_chance
         self.max_new_genes = chromosome_descriptor.max_new_genes
         self.genes = GeneInterface.construct_genes(True, gene_classes)
+        self.gene_counter = Counter(x.name for x in self.genes)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}: {self.genes}"
@@ -49,7 +51,7 @@ class Chromosome:
             gene_name = gene
         else:
             gene_name = gene.name
-        return gene_name in [x.name for x in self.genes]
+        return gene_name in self.gene_counter
 
     @classmethod
     def get_first_chromosome(cls) -> Self:
@@ -59,7 +61,7 @@ class Chromosome:
 
     @property
     def mutation_chance(self) -> float:
-        return self.base_mutation_chance + sum([gene.mutation_chance for gene in self.genes])
+        return self.base_mutation_chance + sum(gene.mutation_chance for gene in self.genes)
 
     def get_disappearance_chance(self, genome: "Genome") -> float:
         if len(self) == 0:
@@ -72,15 +74,15 @@ class Chromosome:
                     break
         return disappearance_chance
 
-    # если возвращает True, хромосому необходимо удалить из генома
     def mutate(self, genome: "Genome") -> None:
         # исчезновение генов
+        # todo: заменить len(self)
         if len(self) > 0:
-            # noinspection DuplicatedCode
             amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
             weights = [gene.get_disappearance_chance(genome) for gene in self.genes]
             if sum(weights) > 0:
                 disappearing_genes = set(random.choices(self.genes, weights, k = amount))
+                self.gene_counter.subtract(x.name for x in disappearing_genes)
                 self.genes = [gene for gene in self.genes if gene not in disappearing_genes]
 
         # добавляются новые гены
@@ -93,6 +95,7 @@ class Chromosome:
             )[0]
 
             new_gene_classes = random.choices(available_gene_classes, weights, k = new_genes_number)
+            self.gene_counter.update(x.name for x in new_gene_classes)
             self.genes.extend(GeneInterface.construct_genes(False, new_gene_classes))
 
         # мутации генов
