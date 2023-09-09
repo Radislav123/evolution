@@ -1,6 +1,6 @@
 import abc
 import random
-from typing import Generic, Literal, Self, TYPE_CHECKING, Type, TypeVar
+from typing import Generic, Literal, TYPE_CHECKING, Type, TypeVar
 
 from core.mixin import ApplyDescriptorMixin, GetSubclassesMixin
 from core.service import ObjectDescriptionReader
@@ -97,13 +97,13 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
         raise NotImplementedError()
 
     @classmethod
-    def get_required_for_creature_gene_classes(cls) -> list[Type[Self]]:
+    def get_required_for_creature_gene_classes(cls) -> list[Type["GeneInterface"]]:
         """Возвращает классы генов для вставки в геном первого существа."""
 
         return [x for x in GENE_CLASSES.values() if x.required_for_creature]
 
     @classmethod
-    def get_available_gene_classes(cls, genome: "Genome") -> list[Type[Self]]:
+    def get_available_gene_classes(cls, genome: "Genome") -> list[Type["GeneInterface"]]:
         """Возвращает классы генов, возможных для добавления в процессе мутации."""
 
         return [x for x in GENE_CLASSES.values() if x.appearance_chance > 0 and genome.contains_all(x.required_genes)]
