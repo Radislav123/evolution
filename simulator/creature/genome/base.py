@@ -21,7 +21,7 @@ GENE_CLASS = TypeVar("GENE_CLASS", bound = GeneInterface)
 class GenomeEffects:
     """Хранилище эффектов генома."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # не переносить определения в тело класса,
         # иначе не простые типы (list, dict...) используются всеми экземплярами совместно
         self.children_amount = 0
@@ -38,10 +38,10 @@ class GenomeEffects:
         self.resource_storages = Resources()
         self.color: list[int] = [0, 0, 0]
 
-    def prepare(self):
+    def prepare(self) -> None:
         self.prepare_color()
 
-    def prepare_color(self):
+    def prepare_color(self) -> None:
         other_color_numbers = {
             0: [1, 2],
             1: [0, 2],
