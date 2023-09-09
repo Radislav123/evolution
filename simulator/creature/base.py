@@ -357,10 +357,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         if resource is not None:
             # забирает из мира ресурс
             available_amount = self.world.get_resources(self.position)[resource]
-            if available_amount >= self.consumption_amount[resource]:
-                consumption_amount = self.consumption_amount[resource]
-            else:
-                consumption_amount = available_amount
+            consumption_amount = min(available_amount, self.consumption_amount[resource])
 
             consumption_resources = Resources({resource: consumption_amount})
             self.world.remove_resources(self.position, consumption_resources)
@@ -540,9 +537,17 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         return sharing_resources
 
     def can_metabolize(self) -> bool:
-        # проверяется, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
-        if sum((resource not in self.storage or self.storage[resource].destroyed) for resource in self.resources) \
-                > 0:
+        """
+        Проверяет, может ли проходить процесс метаболизма с учетом наличия хранилищ ресурсов у существа
+        и достаточности ресурсов существа и хранимых ресурсов.
+        """
+
+        missing_storages_amount = sum(
+            (resource not in self.storage or self.storage[resource].destroyed) for resource in self.resources
+        )
+        lacking_resources = self.remaining_resources + self.storage.stored_resources - self.resources_loss
+        lacking_resources_count = sum(1 for x in lacking_resources.values() if x < 0)
+        if missing_storages_amount > 0 or lacking_resources_count > 0:
             can_metabolize = False
         else:
             can_metabolize = True
@@ -573,6 +578,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         while not self.body.destroyed and len(self.storage.lack_resources) > 0:
             bodypart = self.get_autophagic_bodypart()
             damage = self.storage.lack_resources
+            # коррекция урона с учетом наличия ресурсов в части тела
             for resource, amount in bodypart.remaining_resources.items():
                 if amount < damage[resource]:
                     damage[resource] = amount

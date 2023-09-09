@@ -65,26 +65,28 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return BODYPART_CLASSES["body"](creature, None)
 
     @property
-    # должно использоваться только в make_damage(), для всех остальных случаев есть destroyed
-    def _present(self) -> bool:
+    # должно использоваться только в make_damage() и regenerate(), для всех остальных случаев есть destroyed
+    def present(self) -> bool:
         """Показывает, присутствует ли часть тела относительно нанесенного ей урона."""
 
-        present = True
         for resource, amount in self.resources.items():
             if amount <= self.damage[resource]:
                 present = False
                 break
+        else:
+            present = True
         return present
 
     @property
     def damaged(self) -> bool:
         """Проверяет, нанесен ли урон части тела."""
 
-        damaged = False
         for amount in self.damage.values():
             if amount > 0:
                 damaged = True
                 break
+        else:
+            damaged = False
         return damaged
 
     @property
@@ -113,9 +115,8 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
 
         if self._all_dependent is None or not self.constructed:
             self._all_dependent = copy.copy(self.dependent_bodyparts)
-            if len(self.dependent_bodyparts) > 0:
-                for bodypart in self.dependent_bodyparts:
-                    self._all_dependent.extend(bodypart.all_dependent)
+            for bodypart in self.dependent_bodyparts:
+                self._all_dependent.extend(bodypart.all_dependent)
         return self._all_dependent
 
     @property
@@ -169,7 +170,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
     def make_damage(self, damaging_resources: Resources) -> Resources:
         self._remaining_resources = None
         self.damage += damaging_resources
-        if not self._present:
+        if not self.present:
             return_resources = copy.copy(damaging_resources)
             return_resources += self.destroy()
         else:
@@ -185,7 +186,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
                 regenerating_resources[resource] = self.damage[resource]
 
         self.damage -= regenerating_resources
-        if self._present:
+        if self.present:
             self.destroyed = False
 
         return resources - regenerating_resources
@@ -258,33 +259,25 @@ class StorageInterface(BodypartInterface):
     @property
     def stored_resources(self) -> Resources:
         if self._stored_resources is None:
-            self._stored_resources = Resources()
-            for resource_storage in self._storage.values():
-                self._stored_resources[resource_storage.world_resource] += resource_storage.current
+            self._stored_resources = Resources({x.world_resource: x.current for x in self._storage.values()})
         return self._stored_resources
 
     @property
     def extra_resources(self) -> Resources:
         if self._extra_resources is None:
-            self._extra_resources = Resources()
-            for resource_storage in self._storage.values():
-                self._extra_resources[resource_storage.world_resource] = resource_storage.extra
+            self._extra_resources = Resources({x.world_resource: x.extra for x in self._storage.values()})
         return self._extra_resources
 
     @property
     def lack_resources(self) -> Resources:
         if self._lack_resources is None:
-            self._lack_resources = Resources()
-            for resource_storage in self._storage.values():
-                self._lack_resources[resource_storage.world_resource] = resource_storage.lack
+            self._lack_resources = Resources({x.world_resource: x.lack for x in self._storage.values()})
         return self._lack_resources
 
     @property
     def fullness(self) -> Resources:
         if self._fullness is None:
-            self._fullness = Resources()
-            for resource in self._storage.values():
-                self._fullness[resource.world_resource] = resource.fullness
+            self._fullness = Resources({x.world_resource: x.fullness for x in self._storage.values()})
         return self._fullness
 
     def items(self):
