@@ -6,9 +6,9 @@ from core import models
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.creature.bodypart import Bodypart
     from simulator.creature.genome import GenomeEffects
     from simulator.world import SimulationWorld
+    from simulator.creature import SimulationCreature
 
 
 class BaseWorldCharacteristics:
@@ -44,18 +44,18 @@ class BaseWorldCharacteristics:
         self.db_instance.save()
 
 
-class BaseCreatureCharacteristics:
+class CreatureCharacteristics:
     def __init__(
             self,
-            bodyparts: list["Bodypart"],
+            creature: "SimulationCreature",
             genome_effects: "GenomeEffects",
             world_characteristics: BaseWorldCharacteristics,
     ):
-        self.bodyparts = bodyparts
+        self.creature = creature
         self.genome_effects = genome_effects
         if not 0 <= genome_effects.elasticity <= 1:
             raise ValueError(f"Elasticity must belong to [0, 1], but {genome_effects.elasticity} was given")
-        self.elasticity = genome_effects.elasticity
+        self.elasticity = self.genome_effects.elasticity
         self.size_coeff = self.genome_effects.size_coeff
         self.world_characteristics = world_characteristics
 
@@ -71,8 +71,8 @@ class BaseCreatureCharacteristics:
     # объем == площадь
     @property
     def volume(self) -> float:
-        return sum([bodypart.volume for bodypart in self.bodyparts])
+        return sum([bodypart.volume for bodypart in self.creature.bodyparts])
 
     @property
     def mass(self) -> float:
-        return sum([bodypart.mass for bodypart in self.bodyparts])
+        return sum([bodypart.mass for bodypart in self.creature.bodyparts])

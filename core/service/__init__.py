@@ -9,6 +9,7 @@ VT = TypeVar("VT")
 VALUES_CACHE = {}
 
 
+# поля начинающиеся с '_' считаются комментариями
 class ObjectDescriptionReader(Generic[VT]):
     @staticmethod
     def read_file(path: str) -> dict:
@@ -22,7 +23,7 @@ class ObjectDescriptionReader(Generic[VT]):
         if pattern not in VALUES_CACHE:
             values = []
             for file in glob.glob(pattern):
-                values.extend(cls.read_file(file)["values"])
+                values.extend(cls.read_file(file)["values"].values())
             VALUES_CACHE[pattern] = values
 
         return {"values": VALUES_CACHE[pattern]}
@@ -38,4 +39,4 @@ class ObjectDescriptionReader(Generic[VT]):
     def read_folder_to_list(cls, folder: str, descriptor: type = dict) -> list[VT]:
         """Считывает все json-файлы в папке."""
 
-        return [x for x in cls.read_folder_to_dict(folder, descriptor).values()]
+        return list(cls.read_folder_to_dict(folder, descriptor).values())

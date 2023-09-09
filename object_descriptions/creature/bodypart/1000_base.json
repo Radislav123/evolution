@@ -1,0 +1,33 @@
+{
+    "values": {
+        "body": {
+            "name": "body",
+            "interface": "bodypart_interface",
+            "_todo": "убрать энергию отсюда, когда будут синтезируемые вещества",
+            "composition": {
+                "oxygen": 70,
+                "carbon": 20,
+                "hydrogen": 10,
+                "energy": 100
+            }
+        },
+        "storage": {
+            "name": "storage",
+            "interface": "storage_interface",
+            "required_bodypart": "body",
+            "composition": {
+                "oxygen": 40,
+                "carbon": 20,
+                "hydrogen": 10
+            }
+        },
+        "resource_storage": {
+            "name": "resource_storage",
+            "interface": "resource_storage_interface",
+            "composition": {
+                "oxygen": 10,
+                "carbon": 5
+            }
+        }
+    }
+}

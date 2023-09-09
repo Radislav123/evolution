@@ -1,1 +1,1 @@
-from simulator.creature.genome.chromosome.base import BaseChromosome
+from simulator.creature.genome.chromosome.base import Chromosome

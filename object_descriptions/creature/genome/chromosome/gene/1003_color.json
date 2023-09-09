@@ -1,0 +1,47 @@
+{
+    "values": {
+        "red_gene": {
+            "name": "red_gene",
+            "interface": "color_gene_interface",
+            "red": 1,
+            "green": 0,
+            "blue": 0
+        },
+        "green_gene": {
+            "name": "green_gene",
+            "interface": "color_gene_interface",
+            "red": 0,
+            "green": 1,
+            "blue": 0
+        },
+        "blue_gene": {
+            "name": "blue_gene",
+            "interface": "color_gene_interface",
+            "red": 0,
+            "green": 0,
+            "blue": 1
+        },
+        "yellow_gene": {
+            "name": "yellow_gene",
+            "interface": "color_gene_interface",
+            "red": 0.5,
+            "green": 0.5,
+            "blue": 0
+        },
+        "cyan_gene": {
+            "name": "cyan_gene",
+            "interface": "color_gene_interface",
+            "red": 0,
+            "green": 0.5,
+            "blue": 0.5
+        },
+        "magenta_gene": {
+            "name": "magenta_gene",
+            "interface": "color_gene_interface",
+            "required_for_creature": true,
+            "red": 0.5,
+            "green": 0,
+            "blue": 0.5
+        }
+    }
+}

@@ -1,13 +1,12 @@
 import copy
 import dataclasses
 import random
-from typing import TYPE_CHECKING, Type, TypeVar
+from typing import Self, TYPE_CHECKING, Type, TypeVar
 
 from core.service import ObjectDescriptionReader
 from evolution import settings
-from simulator.creature.bodypart import Bodypart
-from simulator.creature.genome.chromosome import BaseChromosome
-from simulator.creature.genome.chromosome.gene import Gene
+from simulator.creature.genome.chromosome import Chromosome
+from simulator.creature.genome.chromosome.gene import GeneInterface
 from simulator.world_resource import Resources
 
 
@@ -15,7 +14,7 @@ from simulator.world_resource import Resources
 if TYPE_CHECKING:
     from simulator.creature import SimulationCreature
 
-GENE_CLASS = TypeVar("GENE_CLASS", bound = Gene)
+GENE_CLASS = TypeVar("GENE_CLASS", bound = GeneInterface)
 
 
 class GenomeEffects:
@@ -24,7 +23,7 @@ class GenomeEffects:
     def __init__(self):
         # не переносить определения в тело класса,
         # иначе не простые типы (list, dict...) используются всеми экземплярами совместно
-        self.children_number = 0
+        self.children_amount = 0
         self.size_coeff = 0.0
         self.elasticity = 0.0
         self.metabolism = 0.0
@@ -34,7 +33,7 @@ class GenomeEffects:
         self.consumption_amount = Resources()
         # количество ресурсов, теряемых каждый тик
         self.resources_loss = Resources()
-        self.bodyparts: list[Type[Bodypart]] = []
+        self.bodyparts: list[str] = []
         self.resource_storages = Resources()
         self.color: list[int] = [0, 0, 0]
 
@@ -93,14 +92,14 @@ genome_descriptor = ObjectDescriptionReader[GenomeDescriptor]().read_folder_to_l
 
 
 class Genome:
-    def __init__(self, chromosomes: list[BaseChromosome] | None, world_generation: bool):
+    def __init__(self, chromosomes: list[Chromosome] | None, world_generation: bool):
         self.base_mutation_chance = genome_descriptor.base_mutation_chance
         self.max_new_chromosomes = genome_descriptor.max_new_chromosomes
 
         self.effects = GenomeEffects()
         # такая ситуация подразумевается только при генерации мира
         if world_generation:
-            chromosomes = [BaseChromosome(Gene.get_required_for_creature_genes())]
+            chromosomes = [Chromosome.get_first_chromosome()]
         self.chromosomes = chromosomes
 
     def __repr__(self) -> str:
@@ -114,29 +113,25 @@ class Genome:
     def __len__(self) -> int:
         return len(self.chromosomes)
 
-    def __contains__(self, gene: Type[Gene] | Gene) -> bool:
-        if isinstance(gene, type):
-            gene_class = gene
-        else:
-            gene_class = gene.__class__
+    def __contains__(self, gene: str | Type[GeneInterface] | GeneInterface) -> bool:
         contains = False
         for chromosome in self.chromosomes:
-            if gene_class in chromosome:
+            if gene in chromosome:
                 contains = True
                 break
         return contains
 
-    def contains_all(self, genes: list[Type[Gene]] | list[Gene]) -> bool:
-        if len(genes) == 0:
+    @classmethod
+    def get_first_genome(cls) -> Self:
+        return cls(None, True)
+
+    def contains_all(self, gene_names: list[str]) -> bool:
+        if len(gene_names) == 0:
             return True
 
-        if isinstance(genes[0], type):
-            genes_classes = genes
-        else:
-            genes_classes = [gene.__class__ for gene in genes]
         contains = True
-        for gene_class in genes_classes:
-            if gene_class not in self:
+        for gene_name in gene_names:
+            if gene_name not in self:
                 contains = False
                 break
         return contains
@@ -146,7 +141,8 @@ class Genome:
         # todo: добавить возможность влияния внешних факторов на шанс мутации
         return self.base_mutation_chance + sum([chromosome.mutation_chance for chromosome in self.chromosomes])
 
-    def count_genes(self, gene: Gene | Type[Gene]) -> int:
+    # todo: добавить кэширование?
+    def count_genes(self, gene: Type[GeneInterface] | GeneInterface) -> int:
         return len(self.get_genes(gene))
 
     def get_genes(self, gene: Type[GENE_CLASS] | GENE_CLASS) -> list[GENE_CLASS]:
@@ -169,7 +165,7 @@ class Genome:
             new_chromosomes_number = 1 + random.choices(
                 range(self.max_new_chromosomes), [1 / 10**x for x in range(self.max_new_chromosomes)]
             )[0]
-            self.chromosomes.extend([copy.deepcopy(BaseChromosome([])) for _ in range(new_chromosomes_number)])
+            self.chromosomes.extend([Chromosome([]) for _ in range(new_chromosomes_number)])
 
         # исчезновение хромосом
         # noinspection DuplicatedCode
@@ -191,7 +187,7 @@ class Genome:
     def apply_genes(self):
         """Записывает эффекты генов в хранилище."""
 
-        gene_classes: set[Type[Gene]] = set()
+        gene_classes: set[Type[GeneInterface]] = set()
         for chromosome in self.chromosomes:
             chromosome.apply_genes(self)
             gene_classes.update([gene.__class__ for gene in chromosome.genes])
@@ -201,10 +197,11 @@ class Genome:
 
         self.effects.prepare()
 
-    @staticmethod
-    def get_child_genome(parents: list["SimulationCreature"]) -> "Genome":
+    @classmethod
+    def get_child_genome(cls, parents: list["SimulationCreature"]) -> "Genome":
+        # todo: переделать этот метод при введении системы полового размножения
         parent = parents[0]
-        child_genome = parent.genome.__class__(copy.deepcopy(parent.genome.chromosomes), False)
+        child_genome = cls(copy.deepcopy(parent.genome.chromosomes), False)
         if random.random() < child_genome.mutation_chance:
             child_genome.mutate()
         return child_genome

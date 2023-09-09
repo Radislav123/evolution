@@ -1,0 +1,40 @@
+{
+    "values": {
+        "oxygen_consumption_gene": {
+            "name": "oxygen_consumption_gene",
+            "interface": "resource_consumption_gene_interface",
+            "required_for_creature": true,
+            "required_genes": [
+                "oxygen_storage_gene"
+            ],
+            "resource": "oxygen"
+        },
+        "carbon_consumption_gene": {
+            "name": "carbon_consumption_gene",
+            "interface": "resource_consumption_gene_interface",
+            "required_for_creature": true,
+            "required_genes": [
+                "carbon_storage_gene"
+            ],
+            "resource": "carbon"
+        },
+        "hydrogen_consumption_gene": {
+            "name": "hydrogen_consumption_gene",
+            "interface": "resource_consumption_gene_interface",
+            "required_for_creature": true,
+            "required_genes": [
+                "hydrogen_storage_gene"
+            ],
+            "resource": "hydrogen"
+        },
+        "energy_consumption_gene": {
+            "name": "energy_consumption_gene",
+            "interface": "resource_consumption_gene_interface",
+            "required_for_creature": true,
+            "required_genes": [
+                "energy_storage_gene"
+            ],
+            "resource": "energy"
+        }
+    }
+}

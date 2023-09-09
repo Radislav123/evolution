@@ -1,0 +1,64 @@
+{
+    "values": {
+        "body_gene": {
+            "name": "body_gene",
+            "interface": "body_part_gene_interface",
+            "required_for_creature": true,
+            "required_genes": [
+                "oxygen_storage_gene",
+                "oxygen_consumption_gene",
+                "hydrogen_storage_gene",
+                "hydrogen_consumption_gene",
+                "carbon_storage_gene",
+                "carbon_consumption_gene",
+                "energy_storage_gene",
+                "energy_consumption_gene"
+            ],
+            "mutation_chance": 0,
+            "base_disappearance_chance": 0,
+            "appearance_chance": 0,
+            "bodypart": "body"
+        },
+        "storage_gene": {
+            "name": "storage_gene",
+            "interface": "body_part_gene_interface",
+            "required_for_creature": true,
+            "required_genes": [
+                "body_gene"
+            ],
+            "mutation_chance": 0,
+            "base_disappearance_chance": 0,
+            "appearance_chance": 0,
+            "bodypart": "storage"
+        },
+        "oxygen_storage_gene": {
+            "name": "oxygen_storage_gene",
+            "interface": "resource_storage_gene_interface",
+            "required_for_creature": true,
+            "resource": "oxygen",
+            "default_capacity": 350
+        },
+        "carbon_storage_gene": {
+            "name": "carbon_storage_gene",
+            "interface": "resource_storage_gene_interface",
+            "required_for_creature": true,
+            "resource": "carbon",
+            "default_capacity": 200
+        },
+        "hydrogen_storage_gene": {
+            "name": "hydrogen_storage_gene",
+            "interface": "resource_storage_gene_interface",
+            "required_for_creature": true,
+            "resource": "hydrogen",
+            "default_capacity": 100
+        },
+        "energy_storage_gene": {
+            "name": "energy_storage_gene",
+            "interface": "resource_storage_gene_interface",
+            "required_for_creature": true,
+            "resource": "energy",
+            "_todo": "вернуть на 100 (или 200), когда уберу ENERGY из ресурсов Body",
+            "default_capacity": 400
+        }
+    }
+}

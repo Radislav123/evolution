@@ -1,10 +1,10 @@
 import dataclasses
 import random
-from typing import TYPE_CHECKING, Type
+from typing import Self, TYPE_CHECKING, Type
 
 from core.service import ObjectDescriptionReader
 from evolution import settings
-from simulator.creature.genome.chromosome.gene import Gene
+from simulator.creature.genome.chromosome.gene import GeneInterface
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -28,12 +28,15 @@ chromosome_descriptor = ObjectDescriptionReader[ChromosomeDescriptor]().read_fol
 )[0]
 
 
-class BaseChromosome:
-    def __init__(self, genes: list[Gene]):
+class Chromosome:
+    # использование конструктора подразумевается только при создании первого существа
+    # не использовать обратные ссылки (gene -> chromosome -> genome),
+    # они сильно усложняют код и вызывают проблемы при копировании (а значит и при создании потомков) хромосом и генов
+    def __init__(self, gene_classes: list[Type[GeneInterface]]) -> None:
         self.base_mutation_chance = chromosome_descriptor.base_mutation_chance
         self.base_disappearance_chance = chromosome_descriptor.base_disappearance_chance
         self.max_new_genes = chromosome_descriptor.max_new_genes
-        self.genes = genes
+        self.genes = GeneInterface.construct_genes(True, gene_classes)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}: {self.genes}"
@@ -41,13 +44,18 @@ class BaseChromosome:
     def __len__(self) -> int:
         return len(self.genes)
 
-    def __contains__(self, gene: Type[Gene] | Gene) -> bool:
-        if isinstance(gene, type):
-            gene_class = gene
+    def __contains__(self, gene: str | Type[GeneInterface] | GeneInterface) -> bool:
+        if isinstance(gene, str):
+            gene_name = gene
         else:
-            gene_class = gene.__class__
-        genes_classes = [x.__class__ for x in self.genes]
-        return gene_class in genes_classes
+            gene_name = gene.name
+        return gene_name in [x.name for x in self.genes]
+
+    @classmethod
+    def get_first_chromosome(cls) -> Self:
+        """Создает первую и единственную хромосому для первого существа."""
+
+        return cls(GeneInterface.get_required_for_creature_gene_classes())
 
     @property
     def mutation_chance(self) -> float:
@@ -65,26 +73,27 @@ class BaseChromosome:
         return disappearance_chance
 
     # если возвращает True, хромосому необходимо удалить из генома
-    def mutate(self, genome: "Genome"):
+    def mutate(self, genome: "Genome") -> None:
+        # исчезновение генов
+        if len(self) > 0:
+            # noinspection DuplicatedCode
+            amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
+            weights = [gene.get_disappearance_chance(genome) for gene in self.genes]
+            if sum(weights) > 0:
+                disappearing_genes = set(random.choices(self.genes, weights, k = amount))
+                self.genes = [gene for gene in self.genes if gene not in disappearing_genes]
+
         # добавляются новые гены
         mutate_number = random.randint(0, len(self))
         if mutate_number == len(self):
-            available_genes = Gene.get_available_genes(genome)
+            available_gene_classes = GeneInterface.get_available_gene_classes(genome)
+            weights = [gene.appearance_chance for gene in available_gene_classes]
             new_genes_number = 1 + random.choices(
                 range(self.max_new_genes), [1 / 5**x for x in range(self.max_new_genes)]
             )[0]
-            weights = [gene.appearance_chance for gene in available_genes]
 
-            new_genes = set(random.choices(available_genes, weights, k = new_genes_number))
-            self.genes.extend(new_genes)
-
-        # исчезновение генов
-        # noinspection DuplicatedCode
-        amount = random.choices(range(len(self)), [1 / 10**x for x in range(len(self))])[0]
-        weights = [gene.get_disappearance_chance(genome) for gene in self.genes]
-        if sum(weights) > 0:
-            disappearing_genes = set(random.choices(self.genes, weights, k = amount))
-            self.genes = [gene for gene in self.genes if gene not in disappearing_genes]
+            new_gene_classes = random.choices(available_gene_classes, weights, k = new_genes_number)
+            self.genes.extend(GeneInterface.construct_genes(False, new_gene_classes))
 
         # мутации генов
         if len(self) > 0:
@@ -98,7 +107,7 @@ class BaseChromosome:
                 for number in genes_numbers:
                     self.genes[number].mutate(genome)
 
-    def apply_genes(self, genome):
+    def apply_genes(self, genome: "Genome") -> None:
         """Записывает эффекты генов в хранилище."""
 
         for gene in self.genes:

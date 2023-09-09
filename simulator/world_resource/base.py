@@ -10,7 +10,7 @@ class WorldResource(int):
     max_formula_length = [0]
 
     # если будет принято решение сделать mass или volume не целым, решить,
-    # что делать с атрибутами Bodypart.mass и Bodypart.volume
+    # что делать с атрибутами BodypartInterface.mass и BodypartInterface.volume
     # объем
 
     def __new__(cls, name: str, formula: str, mass: float, volume: float) -> "WorldResource":
@@ -41,10 +41,11 @@ RESOURCE_DICT = dict(
     )
 )
 RESOURCE_LIST = [x for x in RESOURCE_DICT.values()]
-OXYGEN = RESOURCE_DICT["Oxygen"]
-CARBON = RESOURCE_DICT["Carbon"]
-HYDROGEN = RESOURCE_DICT["Hydrogen"]
-ENERGY = RESOURCE_DICT["Energy"]
+# todo: убрать отсюда явные ресурсы (оставить пока что энергию)
+OXYGEN = RESOURCE_DICT["oxygen"]
+CARBON = RESOURCE_DICT["carbon"]
+HYDROGEN = RESOURCE_DICT["hydrogen"]
+ENERGY = RESOURCE_DICT["energy"]
 
 KT = TypeVar("KT", bound = WorldResource)
 VT = TypeVar("VT", int, float)

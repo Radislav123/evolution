@@ -1,9 +1,9 @@
 {
-  "values": [
-    {
-      "name": "base",
-      "base_mutation_chance": 0.5,
-      "max_new_chromosomes": 3
+    "values": {
+        "base": {
+            "name": "base",
+            "base_mutation_chance": 0.5,
+            "max_new_chromosomes": 3
+        }
     }
-  ]
 }

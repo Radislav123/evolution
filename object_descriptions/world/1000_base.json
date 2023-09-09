@@ -1,15 +1,15 @@
 {
-  "values": [
-    {
-      "name": "base",
-      "width": 400,
-      "height": 400,
-      "viscosity": 0.1,
-      "boarders_friction": 0,
-      "borders_thickness": 1000,
-      "resource_coeff": 0.3,
-      "chunk_width": 50,
-      "chunk_height": 50
+    "values": {
+        "base": {
+            "name": "base",
+            "width": 400,
+            "height": 400,
+            "viscosity": 0.1,
+            "boarders_friction": 0,
+            "borders_thickness": 1000,
+            "resource_coeff": 0.3,
+            "chunk_width": 50,
+            "chunk_height": 50
+        }
     }
-  ]
 }

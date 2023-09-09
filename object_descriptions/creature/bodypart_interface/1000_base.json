@@ -1,0 +1,15 @@
+{
+    "values": {
+        "bodypart_interface": {
+            "name": "bodypart_interface",
+            "extra_storage_coeff": 0.1
+        },
+        "storage_interface": {
+            "name": "storage_interface"
+        },
+        "resource_storage_interface": {
+            "name": "resource_storage_interface",
+            "extra_volume_coeff": 0.1
+        }
+    }
+}

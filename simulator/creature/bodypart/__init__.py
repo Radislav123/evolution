@@ -1,2 +1,2 @@
-from simulator.creature.bodypart.base import Bodypart, Body
-from simulator.creature.bodypart.storage import AddToNonExistentStoragesException, ResourceStorage, Storage
+from simulator.creature.bodypart.base import BODYPART_CLASSES, BODYPART_INTERFACE_CLASSES, BodypartInterface, \
+    ResourceStorageInterface, StorageInterface, AddToNonExistentStoragesException
