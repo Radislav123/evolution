@@ -95,9 +95,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             self._bodyparts: list[BodypartInterface] | None = None
             self.apply_bodyparts()
             # ресурсы, необходимые для воспроизводства существа
-            self.resources = Resources()
-            for bodypart in self.bodyparts:
-                self.resources += bodypart.resources
+            self.resources = Resources.sum(x.resources for x in self.bodyparts)
 
             # инициализация физических характеристик
             self.characteristics: CreatureCharacteristics | None = None
@@ -212,15 +210,17 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         self.db_instance.save()
 
     def save_position_history_to_db(self) -> None:
-        # todo: записывать историю перемещений периодически
-        #  - раз в некоторое количество тиков (и при остановке симуляции)?
+        position_history = []
         for tick in self.position_history:
-            models.CreaturePositionHistory(
-                creature = self.db_instance,
-                age = tick,
-                position_x = self.position_history[tick][0],
-                position_y = self.position_history[tick][1]
-            ).save()
+            position_history.append(
+                models.CreaturePositionHistory(
+                    creature = self.db_instance,
+                    age = tick,
+                    position_x = self.position_history[tick][0],
+                    position_y = self.position_history[tick][1]
+                )
+            )
+        models.CreaturePositionHistory.objects.bulk_create(position_history)
 
     def apply_genes(self) -> None:
         """Применяет эффекты генов на существо."""
@@ -307,7 +307,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         self.next_children = [SimulationCreature(self.world, [self]) for _ in range(self.children_amount)]
 
     # noinspection PyMethodOverriding
-    def on_update(self, delta_time: float) -> None:
+    def on_update(self) -> None:
         """Симулирует жизнедеятельность за один тик."""
 
         try:

@@ -130,11 +130,12 @@ class Genome:
         return cls(None, True)
 
     def contains_all(self, gene_names: list[str]) -> bool:
-        contains = True
         for gene_name in gene_names:
-            if gene_name not in self.gene_counter:
+            if self.gene_counter[gene_name] <= 0:
                 contains = False
                 break
+        else:
+            contains = True
         return contains
 
     @property

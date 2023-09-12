@@ -67,11 +67,12 @@ class Chromosome:
         if len(self.genes) == 0:
             disappearance_chance = self.base_disappearance_chance * 2
         else:
-            disappearance_chance = self.base_disappearance_chance / len(self.genes)
             for gene in self.genes:
                 if not gene.can_disappear(genome):
                     disappearance_chance = 0
                     break
+            else:
+                disappearance_chance = self.base_disappearance_chance / len(self.genes)
         return disappearance_chance
 
     def mutate(self, genome: "Genome") -> None:
@@ -88,14 +89,15 @@ class Chromosome:
         mutate_number = random.randint(0, len(self.genes))
         if mutate_number == len(self.genes):
             available_gene_classes = GeneInterface.get_available_gene_classes(genome)
-            weights = [gene.appearance_chance for gene in available_gene_classes]
-            new_genes_number = 1 + random.choices(
-                range(self.max_new_genes), [1 / 5**x for x in range(self.max_new_genes)]
-            )[0]
+            if len(available_gene_classes) > 0:
+                weights = [gene.appearance_chance for gene in available_gene_classes]
+                new_genes_number = 1 + random.choices(
+                    range(self.max_new_genes), [1 / 5**x for x in range(self.max_new_genes)]
+                )[0]
 
-            new_gene_classes = random.choices(available_gene_classes, weights, k = new_genes_number)
-            self.gene_counter.update(x.name for x in new_gene_classes)
-            self.genes.extend(GeneInterface.construct_genes(False, new_gene_classes))
+                new_gene_classes = random.choices(available_gene_classes, weights, k = new_genes_number)
+                self.gene_counter.update(x.name for x in new_gene_classes)
+                self.genes.extend(GeneInterface.construct_genes(False, new_gene_classes))
 
         # мутации генов
         if len(self.genes) > 0:

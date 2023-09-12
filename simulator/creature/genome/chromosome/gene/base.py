@@ -43,27 +43,15 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     # интерфейсы не должны использовать конструктор
     # не использовать обратные ссылки (gene -> chromosome -> genome),
     # они сильно усложняют код и вызывают проблемы при копировании (а значит и при создании потомков) хромосом и генов
-    def __init__(self, first: bool, descriptor: dict) -> None:
+    def __init__(self, first: bool) -> None:
         self.first = first
-
-        for key, value in descriptor.items():
-            if isinstance(value, list):
-                getattr(self, key).extend(value)
-            elif value is not None:
-                setattr(self, key, value)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
 
-    # использование этого метода подразумевается только для интерфейсов
-    @classmethod
-    def apply_descriptor(cls, descriptor: dict) -> None:
-        for key, value in descriptor.items():
-            setattr(cls, key, value)
-
     @classmethod
     def construct_genes(cls, first: bool, gene_classes: list[Type["GeneInterface"]]) -> list["GeneInterface"]:
-        return [x(first, gene_descriptors[x.name]) for x in gene_classes]
+        return [x(first) for x in gene_classes]
 
     def get_disappearance_chance(self, genome: "Genome") -> float:
         if not self.can_disappear(genome):
@@ -106,6 +94,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     def get_available_gene_classes(cls, genome: "Genome") -> list[Type["GeneInterface"]]:
         """Возвращает классы генов, возможных для добавления в процессе мутации."""
 
+        # todo: убрать отсюда классы генов, которые точно не могут появиться, и это известно при генерации мира
         return [x for x in GENE_CLASSES.values() if x.appearance_chance > 0 and genome.contains_all(x.required_genes)]
 
 
@@ -162,13 +151,13 @@ class ResourceStorageGeneInterface(StepGeneMixin, BodyPartGeneInterface):
     resource: str
     default_capacity: int
 
-    def __init__(self, first: bool, descriptor: dict) -> None:
+    def __init__(self, first: bool) -> None:
         if first:
             self.capacity = self.default_capacity
         else:
             self.capacity = self.make_step()
 
-        super().__init__(first, descriptor)
+        super().__init__(first)
 
     def __repr__(self) -> str:
         return f"{super().__repr__()}: {self.capacity}"
@@ -192,13 +181,13 @@ class ResourceConsumptionGeneInterface(StepGeneMixin, GeneInterface):
     default_consumption: int
     resource: str
 
-    def __init__(self, first: bool, descriptor: dict) -> None:
+    def __init__(self, first: bool) -> None:
         if first:
             self.consumption = self.default_consumption
         else:
             self.consumption = self.make_step()
 
-        super().__init__(first, descriptor)
+        super().__init__(first)
 
     def __repr__(self) -> str:
         return f"{super().__repr__()}: {RESOURCE_DICT[self.resource]}"
@@ -222,8 +211,8 @@ class NumberGeneInterface(StepGeneMixin[ST], GeneInterface):
     attribute_default: ST
     attribute_name: str
 
-    def __init__(self, first: bool, descriptor: dict) -> None:
-        super().__init__(first, descriptor)
+    def __init__(self, first: bool) -> None:
+        super().__init__(first)
 
         if self.first:
             self.attribute_value = self.attribute_default
@@ -290,6 +279,7 @@ class ColorGeneInterface(StepGeneMixin, GeneInterface):
 GENE_INTERFACE_CLASSES: dict[str, Type[GeneInterface]] = {x.name: x for x in GeneInterface.get_all_subclasses()}
 GENE_INTERFACE_CLASSES[GeneInterface.name] = GeneInterface
 # обновляются данные в интерфейсах
+GeneInterface.apply_descriptor(gene_interface_descriptors[GeneInterface.name])
 # noinspection DuplicatedCode
 for name, gene_interface_class in GENE_INTERFACE_CLASSES.items():
     gene_interface_class.apply_descriptor(gene_interface_descriptors[name])
@@ -299,3 +289,6 @@ GENE_CLASSES: dict[str, Type[GeneInterface]] = {
     x["name"]: type(x["name"], (GENE_INTERFACE_CLASSES[x["interface"]],), x)
     for x in gene_descriptors.values()
 }
+# обновляются данные в классах генов
+for name, gene_class in GENE_CLASSES.items():
+    gene_class.apply_descriptor(gene_descriptors[name])

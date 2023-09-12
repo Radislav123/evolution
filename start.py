@@ -41,8 +41,9 @@ def log_creature(creature: SimulationCreature, file: TextIO):
 
 def log_genome_effects(creature: SimulationCreature, file: TextIO):
     file.write("~~~~~~~~~~ Genome effects info ~~~~~~~~~~\n")
-    for attribute in creature.genome.effects.__dict__:
-        file.write(f"{attribute}: {creature.genome.effects.__dict__[attribute]}\n")
+    if hasattr(creature, "genome"):
+        for attribute in creature.genome.effects.__dict__:
+            file.write(f"{attribute}: {creature.genome.effects.__dict__[attribute]}\n")
 
 
 def log_error_info(error: Exception):

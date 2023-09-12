@@ -47,10 +47,12 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
 
         self.damage = Resources()
         # ресурсы, находящиеся в неповрежденной части тела/необходимые для воспроизводства части тела
+        # при размере (size_coeff) равном 1.0 соответствует composition
         self.resources = (
                 Resources(
                     {RESOURCE_DICT[resource_name]: amount for resource_name, amount in self.composition.items()}
-                ) * self.size_coeff).round()
+                ) * self.size_coeff
+        ).round()
         # расширение хранилища существа, которое предоставляет часть тела
         self.extra_storage = (self.resources * self.extra_storage_coeff).round()
         self._remaining_resources: Resources | None = None
@@ -123,7 +125,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
     def volume(self) -> int:
         if not self.destroyed:
             # todo: можно добавить кэширование (аккуратнее с хранилищами)
-            volume = int(sum([resource.volume * amount for resource, amount in self.resources.items()]))
+            volume = int(sum(resource.volume * amount for resource, amount in self.resources.items()))
         else:
             volume = 0
         return volume
@@ -132,7 +134,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
     def mass(self) -> int:
         if not self.destroyed:
             # todo: можно добавить кэширование (аккуратнее с хранилищами)
-            mass = sum([resource.mass * amount for resource, amount in self.remaining_resources.items()])
+            mass = int(sum(resource.mass * amount for resource, amount in self.remaining_resources.items()))
         else:
             mass = 0
         return mass
@@ -427,3 +429,6 @@ BODYPART_CLASSES: dict[str, Type[BodypartInterface]] = {
     x["name"]: type(x["name"], (BODYPART_INTERFACE_CLASSES[x["interface"]],), x)
     for x in bodypart_descriptors.values()
 }
+# обновляются данные в классах генов
+for name, bodypart_class in BODYPART_CLASSES.items():
+    bodypart_class.apply_descriptor(bodypart_descriptors[name])

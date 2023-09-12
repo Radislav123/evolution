@@ -182,16 +182,16 @@ class SimulationWorld(WorldObjectMixin):
         self.creatures.remove(creature)
         self.physics_engine.remove_sprite(creature)
 
-    def on_update(self, delta_time: float) -> None:
+    def on_update(self) -> None:
         try:
             existing_creatures = copy.copy(self.creatures)
             for creature in existing_creatures:
-                creature.on_update(delta_time)
+                creature.on_update()
 
-            for line in self.chunks:
-                for chunk in line:
-                    chunk.on_update()
+            for chunk in self.chunk_list:
+                chunk.on_update()
 
+            # не передавать delta_time, так как физические расчеты должны быть привязаны не ко времени, а к тикам
             self.physics_engine.step()
             self.age += 1
         except Exception as error:

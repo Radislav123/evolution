@@ -30,7 +30,7 @@ class ApplyDescriptorMixin:
 
 
 class WorldObjectMixin(abc.ABC):
-    id: int
+    id: int = None
 
     @property
     def object_id(self):

@@ -302,7 +302,7 @@ class SimulationWindow(arcade.Window):
 
     def on_update(self, delta_time: float) -> None:
         try:
-            self.world.on_update(delta_time)
+            self.world.on_update()
         except Exception as error:
             error.window = self
             raise error
