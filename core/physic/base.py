@@ -6,7 +6,6 @@ from core import models
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.creature.genome import GenomeEffects
     from simulator.world import SimulationWorld
     from simulator.creature import SimulationCreature
 
@@ -45,25 +44,21 @@ class BaseWorldCharacteristics:
 
 
 class CreatureCharacteristics:
-    def __init__(
-            self,
-            creature: "SimulationCreature",
-            genome_effects: "GenomeEffects",
-            world_characteristics: BaseWorldCharacteristics,
-    ):
+    def __init__(self, creature: "SimulationCreature") -> None:
         self.creature = creature
-        self.genome_effects = genome_effects
-        if not 0 <= genome_effects.elasticity <= 1:
-            raise ValueError(f"Elasticity must belong to [0, 1], but {genome_effects.elasticity} was given")
-        self.elasticity = self.genome_effects.elasticity
-        self.size_coeff = self.genome_effects.size_coeff
-        self.world_characteristics = world_characteristics
+        if not 0 <= self.creature.genome.effects.elasticity <= 1:
+            raise ValueError(
+                f"Elasticity must belong to [0, 1], but {self.creature.genome.effects.elasticity} was given"
+            )
+        self.elasticity = self.creature.genome.effects.elasticity
+        self.size_coeff = self.creature.genome.effects.size_coeff
 
     def __repr__(self) -> str:
-        string = f"elasticity: {self.elasticity}, size coef: {self.size_coeff}, radius: {self.radius}, "
-        string += f"volume: {self.volume}, mass: {self.mass}"
+        string = (f"elasticity: {self.elasticity}, size coef: {self.size_coeff}, radius: {self.radius}, "
+                  f"volume: {self.volume}, mass: {self.mass}")
         return string
 
+    # объем == площадь
     @property
     def radius(self) -> float:
         return math.sqrt(self.volume / math.pi)
@@ -71,8 +66,8 @@ class CreatureCharacteristics:
     # объем == площадь
     @property
     def volume(self) -> float:
-        return sum([bodypart.volume for bodypart in self.creature.bodyparts])
+        return sum(bodypart.volume for bodypart in self.creature.bodyparts)
 
     @property
     def mass(self) -> float:
-        return sum([bodypart.mass for bodypart in self.creature.bodyparts])
+        return sum(bodypart.mass for bodypart in self.creature.bodyparts)

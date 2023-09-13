@@ -39,6 +39,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     mutation_chance: float
     base_disappearance_chance: float
     appearance_chance: float
+    _required_for_creature_gene_classes: list[Type["GeneInterface"]] = None
 
     # интерфейсы не должны использовать конструктор
     # не использовать обратные ссылки (gene -> chromosome -> genome),
@@ -63,7 +64,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     def can_disappear(self, genome: "Genome") -> bool:
         """Проверяет, может ли ген исчезнуть."""
 
-        return not self.required_for_creature or self.required_for_creature and genome.gene_counter[self.name] > 1
+        return not self.required_for_creature or (self.required_for_creature and genome.gene_counter[self.name] > 1)
 
     @abc.abstractmethod
     def mutate(self, genome: "Genome") -> None:
@@ -86,9 +87,11 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
 
     @classmethod
     def get_required_for_creature_gene_classes(cls) -> list[Type["GeneInterface"]]:
-        """Возвращает классы генов для вставки в геном первого существа."""
+        """Возвращает классы генов, необходимые для любого существа."""
 
-        return [x for x in GENE_CLASSES.values() if x.required_for_creature]
+        if cls._required_for_creature_gene_classes is None:
+            cls._required_for_creature_gene_classes = [x for x in GENE_CLASSES.values() if x.required_for_creature]
+        return cls._required_for_creature_gene_classes
 
     @classmethod
     def get_available_gene_classes(cls, genome: "Genome") -> list[Type["GeneInterface"]]:
@@ -259,6 +262,9 @@ class ColorGeneInterface(StepGeneMixin, GeneInterface):
     red: float
     green: float
     blue: float
+
+    def __repr__(self) -> str:
+        return f"{super().__repr__()}: {self.current}"
 
     def mutate(self, genome: "Genome"):
         self.current += self.make_step()

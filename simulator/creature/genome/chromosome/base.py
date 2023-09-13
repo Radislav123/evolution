@@ -67,12 +67,18 @@ class Chromosome:
         if len(self.genes) == 0:
             disappearance_chance = self.base_disappearance_chance * 2
         else:
-            for gene in self.genes:
-                if not gene.can_disappear(genome):
+            for gene in GeneInterface.get_required_for_creature_gene_classes():
+                # проверка на то, что копии необходимых для существа генов есть и в других хромосомах
+                if self.gene_counter[gene.name] > 0 and genome.gene_counter[gene.name] <= self.gene_counter[gene.name]:
                     disappearance_chance = 0
                     break
             else:
-                disappearance_chance = self.base_disappearance_chance / len(self.genes)
+                for gene in self.genes:
+                    if not gene.can_disappear(genome):
+                        disappearance_chance = 0
+                        break
+                else:
+                    disappearance_chance = self.base_disappearance_chance / len(self.genes)
         return disappearance_chance
 
     def mutate(self, genome: "Genome") -> None:

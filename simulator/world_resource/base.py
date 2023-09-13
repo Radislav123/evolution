@@ -83,18 +83,18 @@ class Resources(Dict[WorldResource, VT]):
     def __sub__(self, other: "Resources") -> "Resources":
         return self.__class__({resource: self[resource] - other[resource] for resource in RESOURCE_LIST})
 
-    def __mul__(self, multiplier: VT) -> "Resources":
+    def __mul__(self, multiplier: int | float) -> "Resources":
         return self.__class__({resource: self[resource] * multiplier for resource in RESOURCE_LIST})
 
-    def __imul__(self, multiplier: VT) -> "Resources":
+    def __imul__(self, multiplier: int | float) -> "Resources":
         for resource in RESOURCE_LIST:
             self[resource] *= multiplier
         return self
 
-    def __truediv__(self, divisor: VT) -> "Resources[float]":
+    def __truediv__(self, divisor: int | float) -> "Resources[float]":
         return self.__class__({resource: self[resource] / divisor for resource in RESOURCE_LIST})
 
-    def __floordiv__(self, divisor: VT) -> "Resources[int]":
+    def __floordiv__(self, divisor: int | float) -> "Resources[int]":
         return self.__class__({resource: self[resource] // divisor for resource in RESOURCE_LIST})
 
     def __len__(self) -> int:

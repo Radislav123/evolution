@@ -263,7 +263,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
     def start(self) -> None:
         self.__class__.birth_counter += 1
-        self.characteristics = CreatureCharacteristics(self, self.genome.effects, self.world.characteristics)
+        self.characteristics = CreatureCharacteristics(self)
         self.position_history[self.world.age] = self.position
         self.last_movement_age = self.world.age
 
@@ -328,6 +328,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             if self.alive and self.world.age - self.start_tick >= self.max_age:
                 self.kill(self.DeathCause.AGE)
 
+            # todo: вынести return_resources и update_physics после обработки тика для всех существ (в world)
             self.return_resources()
             self.update_physics()
         except Exception as error:

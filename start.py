@@ -96,7 +96,7 @@ def simulate():
         raise error
     finally:
         window.world.stop()
-        print(f"Симуляция окончена. World id: {window.world.id}.")
+        print(f"Симуляция окончена. Мир: {window.world.id}. Возраст мира: {window.world.age}")
 
 
 def play():
@@ -112,7 +112,7 @@ def play():
         log_error_info(error)
         raise error
     finally:
-        print(f"Воспроизведение окончено. World id: {window.world.id}.")
+        print(f"Воспроизведение окончено. Мир: {window.world.id}. Возраст мира: {window.world.age}")
 
 
 if __name__ == "__main__":
