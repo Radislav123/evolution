@@ -45,6 +45,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     # не использовать обратные ссылки (gene -> chromosome -> genome),
     # они сильно усложняют код и вызывают проблемы при копировании (а значит и при создании потомков) хромосом и генов
     def __init__(self, first: bool) -> None:
+        # first - принадлежит ли ген первому существу
         self.first = first
 
     def __repr__(self) -> str:
@@ -54,6 +55,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     def construct_genes(cls, first: bool, gene_classes: list[Type["GeneInterface"]]) -> list["GeneInterface"]:
         return [x(first) for x in gene_classes]
 
+    # результат должен вычисляться каждый раз, так как геном меняется
     def get_disappearance_chance(self, genome: "Genome") -> float:
         if not self.can_disappear(genome):
             disappearance_chance = 0
@@ -61,6 +63,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
             disappearance_chance = self.base_disappearance_chance
         return disappearance_chance
 
+    # результат должен вычисляться каждый раз, так как геном меняется
     def can_disappear(self, genome: "Genome") -> bool:
         """Проверяет, может ли ген исчезнуть."""
 

@@ -33,8 +33,8 @@
             "required_for_creature": true,
             "step": 0.1,
             "attribute_default": 0.5,
-            "common_min_limit": 0,
-            "common_max_limit": 1,
+            "common_min_limit": 0.1,
+            "common_max_limit": 0.9,
             "attribute_name": "elasticity"
         },
         "metabolism_gene": {

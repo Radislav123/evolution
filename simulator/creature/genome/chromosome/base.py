@@ -63,23 +63,32 @@ class Chromosome:
     def mutation_chance(self) -> float:
         return self.base_mutation_chance + sum(gene.mutation_chance for gene in self.genes)
 
+    # результат должен вычисляться каждый раз, так как геном меняется
     def get_disappearance_chance(self, genome: "Genome") -> float:
         if len(self.genes) == 0:
             disappearance_chance = self.base_disappearance_chance * 2
         else:
-            for gene in GeneInterface.get_required_for_creature_gene_classes():
-                # проверка на то, что копии необходимых для существа генов есть и в других хромосомах
-                if self.gene_counter[gene.name] > 0 and genome.gene_counter[gene.name] <= self.gene_counter[gene.name]:
-                    disappearance_chance = 0
+            if self.can_disappear(genome):
+                disappearance_chance = self.base_disappearance_chance / len(self.genes)
+            else:
+                disappearance_chance = 0
+        return disappearance_chance
+
+    # результат должен вычисляться каждый раз, так как геном меняется
+    def can_disappear(self, genome: "Genome") -> bool:
+        for gene in GeneInterface.get_required_for_creature_gene_classes():
+            # проверка на то, что копии необходимых для существа генов есть и в других хромосомах
+            if self.gene_counter[gene.name] > 0 and genome.gene_counter[gene.name] <= self.gene_counter[gene.name]:
+                can_disappear = False
+                break
+        else:
+            for gene in self.genes:
+                if not gene.can_disappear(genome):
+                    can_disappear = False
                     break
             else:
-                for gene in self.genes:
-                    if not gene.can_disappear(genome):
-                        disappearance_chance = 0
-                        break
-                else:
-                    disappearance_chance = self.base_disappearance_chance / len(self.genes)
-        return disappearance_chance
+                can_disappear = True
+        return can_disappear
 
     def mutate(self, genome: "Genome") -> None:
         # исчезновение генов
@@ -88,8 +97,10 @@ class Chromosome:
             weights = [gene.get_disappearance_chance(genome) for gene in self.genes]
             if sum(weights) > 0:
                 disappearing_genes = set(random.choices(self.genes, weights, k = amount))
-                self.gene_counter.subtract(x.name for x in disappearing_genes)
-                self.genes = [gene for gene in self.genes if gene not in disappearing_genes]
+                for gene in disappearing_genes:
+                    if gene.can_disappear(genome):
+                        self.gene_counter[gene.name] -= 1
+                        self.genes.remove(gene)
 
         # добавляются новые гены
         mutate_number = random.randint(0, len(self.genes))
@@ -107,9 +118,7 @@ class Chromosome:
 
         # мутации генов
         if len(self.genes) > 0:
-            # noinspection DuplicatedCode
             amount = random.choices(range(len(self.genes)), [1 / 10**x for x in range(len(self.genes))])[0]
-            amount = min(amount, len(self.genes))
             weights = [gene.mutation_chance for gene in self.genes]
             # если хромосома пустая или содержит лишь гены, которые не могут мутировать,
             # то мутировать нечему (секция добавления генов в начале метода)

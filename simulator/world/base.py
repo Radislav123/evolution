@@ -62,7 +62,9 @@ class SimulationWorld(WorldObjectMixin):
         )
         self.prepare_borders()
         self.prepare_physics_engine()
+        # чанки мира по линиям
         self.chunks = SimulationWorldChunk.cut_world(self)
+        # список всех чанков мира
         self.chunk_list = [chunk for line in self.chunks for chunk in line]
 
     def __repr__(self) -> str:

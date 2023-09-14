@@ -151,8 +151,9 @@ class Genome:
             if sum(weights) > 0:
                 disappearing_chromosomes = set(random.choices(self.chromosomes, weights, k = amount))
                 for chromosome in disappearing_chromosomes:
-                    self.gene_counter.subtract(chromosome.gene_counter)
-                self.chromosomes = [x for x in self.chromosomes if x not in disappearing_chromosomes]
+                    if chromosome.can_disappear(self):
+                        self.gene_counter.subtract(chromosome.gene_counter)
+                        self.chromosomes.remove(chromosome)
 
         # добавляются новые хромосомы
         mutate_number = random.randint(0, len(self.chromosomes))
@@ -163,12 +164,10 @@ class Genome:
             self.chromosomes.extend([Chromosome([]) for _ in range(new_chromosomes_number)])
 
         # мутации хромосом
-        # noinspection DuplicatedCode
         amount = random.choices(range(len(self.chromosomes)), [1 / 10**x for x in range(len(self.chromosomes))])[0]
-        amount = min(amount, len(self.chromosomes))
         weights = [chromosome.mutation_chance for chromosome in self.chromosomes]
-        chromosomes_numbers = set(random.choices(range(len(self.chromosomes)), weights, k = amount))
-        for number in chromosomes_numbers:
+        chromosome_numbers = set(random.choices(range(len(self.chromosomes)), weights, k = amount))
+        for number in chromosome_numbers:
             self.gene_counter.subtract(self.chromosomes[number].gene_counter)
             self.chromosomes[number].mutate(self)
             self.gene_counter.update(self.chromosomes[number].gene_counter)
