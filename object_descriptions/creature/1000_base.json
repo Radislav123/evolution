@@ -1,0 +1,8 @@
+{
+    "values": {
+        "base": {
+            "name": "base",
+            "action_duration": 10
+        }
+    }
+}

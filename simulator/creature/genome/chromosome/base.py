@@ -24,7 +24,7 @@ class ChromosomeDescriptor:
 
 
 chromosome_descriptor = ObjectDescriptionReader[ChromosomeDescriptor]().read_folder_to_list(
-    settings.CHROMOSOME_JSON_PATH,
+    settings.CHROMOSOME_DESCRIPTIONS_PATH,
     ChromosomeDescriptor
 )[0]
 

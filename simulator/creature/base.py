@@ -1,4 +1,5 @@
 import copy
+import dataclasses
 import enum
 import math
 import random
@@ -11,7 +12,9 @@ import pymunk
 from core import models
 from core.mixin import WorldObjectMixin
 from core.physic import CreatureCharacteristics
+from core.service import ObjectDescriptionReader
 from evolution import settings
+from simulator.creature.action import ActionInterface, ConsumeAction, WaitAction
 from simulator.creature.bodypart import AddToNonExistentStoragesException, BodypartInterface, StorageInterface
 from simulator.creature.genome import Genome
 from simulator.world_resource import ENERGY, Resources, WorldResource
@@ -20,6 +23,18 @@ from simulator.world_resource import ENERGY, Resources, WorldResource
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
     from simulator.world import SimulationWorld
+
+
+@dataclasses.dataclass
+class CreatureDescriptor:
+    name: str
+    action_duration: int
+
+
+creature_descriptor = ObjectDescriptionReader[CreatureDescriptor]().read_folder_to_list(
+    settings.CREATURE_DESCRIPTIONS_PATH,
+    CreatureDescriptor
+)[0]
 
 
 class SimulationCreature(WorldObjectMixin, arcade.Sprite):
@@ -67,6 +82,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.death_tick = -1
             self.death_cause: SimulationCreature.DeathCause | None = None
             self.alive = True
+            self.action: ActionInterface = ActionInterface.get_wait_action(self.world.age)
 
             # инициализация генов
             self.parents = parents
@@ -313,6 +329,10 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         try:
             self.update_position_history()
 
+            if self.action is None:
+                # todo: write it
+                self.action = ActionInterface.get_next_action(self.world.age)
+
             if self.can_consume():
                 self.consume()
             if self.can_regenerate():
@@ -325,10 +345,11 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             else:
                 self.kill(self.DeathCause.STARVATION)
 
+            if self.world.age == self.action.stop_tick:
+                self.action = None
             if self.alive and self.world.age - self.start_tick >= self.max_age:
                 self.kill(self.DeathCause.AGE)
 
-            # todo: вынести return_resources и update_physics после обработки тика для всех существ (в world)
             self.return_resources()
             self.update_physics()
         except Exception as error:

@@ -16,11 +16,11 @@ if TYPE_CHECKING:
 ST = TypeVar("ST", int, float)
 
 gene_interface_descriptors = ObjectDescriptionReader[dict]().read_folder_to_dict(
-    settings.GENE_INTERFACE_JSON_PATH,
+    settings.GENE_INTERFACE_DESCRIPTIONS_PATH,
     dict
 )
 gene_descriptors = ObjectDescriptionReader[dict]().read_folder_to_dict(
-    settings.GENE_JSON_PATH,
+    settings.GENE_DESCRIPTIONS_PATH,
     dict
 )
 
@@ -289,7 +289,6 @@ GENE_INTERFACE_CLASSES: dict[str, Type[GeneInterface]] = {x.name: x for x in Gen
 GENE_INTERFACE_CLASSES[GeneInterface.name] = GeneInterface
 # обновляются данные в интерфейсах
 GeneInterface.apply_descriptor(gene_interface_descriptors[GeneInterface.name])
-# noinspection DuplicatedCode
 for name, gene_interface_class in GENE_INTERFACE_CLASSES.items():
     gene_interface_class.apply_descriptor(gene_interface_descriptors[name])
 

@@ -1,5 +1,6 @@
 import copy
 import dataclasses
+import random
 
 import arcade
 
@@ -26,11 +27,12 @@ class WorldDescriptor:
     resource_coeff: float
     chunk_width: int
     chunk_height: int
+    seed: int
 
 
 # todo: добавить выбор настроек мира
 world_descriptor = ObjectDescriptionReader[WorldDescriptor]().read_folder_to_list(
-    settings.WORLD_JSON_PATH,
+    settings.WORLD_DESCRIPTIONS_PATH,
     WorldDescriptor
 )[0]
 
@@ -43,6 +45,8 @@ class SimulationWorld(WorldObjectMixin):
 
     # width - минимальное значение ширины экрана - 120
     def __init__(self, window_center: tuple[int, int]) -> None:
+        random.seed(world_descriptor.seed)
+
         self._id = None
         self.age = 0
         self.width = world_descriptor.width
@@ -54,6 +58,7 @@ class SimulationWorld(WorldObjectMixin):
 
         # {creature.object_id: creature}
         self.creatures = arcade.SpriteList[SimulationCreature]()
+        self.active_creatures: dict[int, list[SimulationCreature]] = {}
         self.characteristics = BaseWorldCharacteristics(
             world_descriptor.viscosity,
             world_descriptor.boarders_friction,
@@ -186,9 +191,14 @@ class SimulationWorld(WorldObjectMixin):
 
     def on_update(self) -> None:
         try:
-            existing_creatures = copy.copy(self.creatures)
+            # copy.copy может работать не правильно, так как SpriteList использует внутренний список
+            existing_creatures = [x for x in self.creatures]
             for creature in existing_creatures:
                 creature.on_update()
+
+            if self.age in self.active_creatures:
+                for creature in self.active_creatures[self.age]:
+                    creature.perform_activity()
 
             for chunk in self.chunk_list:
                 chunk.on_update()

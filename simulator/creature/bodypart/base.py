@@ -11,11 +11,11 @@ if TYPE_CHECKING:
     from simulator.creature import SimulationCreature
 
 bodypart_interface_descriptors = ObjectDescriptionReader[dict]().read_folder_to_dict(
-    settings.BODYPART_INTERFACE_JSON_PATH,
+    settings.BODYPART_INTERFACE_DESCRIPTIONS_PATH,
     dict
 )
 bodypart_descriptors = ObjectDescriptionReader[dict]().read_folder_to_dict(
-    settings.BODYPART_JSON_PATH,
+    settings.BODYPART_DESCRIPTIONS_PATH,
     dict
 )
 
@@ -420,7 +420,6 @@ BODYPART_INTERFACE_CLASSES: dict[str, Type[BodypartInterface]] = {
 BODYPART_INTERFACE_CLASSES[BodypartInterface.name] = BodypartInterface
 # обновляются данные в интерфейсах
 BodypartInterface.apply_descriptor(bodypart_interface_descriptors[BodypartInterface.name])
-# noinspection DuplicatedCode
 for name, bodypart_interface_class in BODYPART_INTERFACE_CLASSES.items():
     bodypart_interface_class.apply_descriptor(bodypart_interface_descriptors[name])
 

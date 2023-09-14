@@ -1,0 +1,16 @@
+{
+    "values": {
+        "action_interface": {
+            "name": "action_interface",
+            "duration": 5,
+            "base_weight": 1
+        },
+        "consume_action": {
+            "name": "consume_action"
+        },
+        "wait_action": {
+            "name": "wait_action",
+            "duration": 1
+        }
+    }
+}

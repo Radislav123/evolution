@@ -2,7 +2,7 @@ import copy
 import dataclasses
 import random
 from collections import Counter
-from typing import Self, TYPE_CHECKING, Type, TypeVar
+from typing import Self, TYPE_CHECKING, Type
 
 from core.service import ObjectDescriptionReader
 from evolution import settings
@@ -14,8 +14,6 @@ from simulator.world_resource import Resources
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
     from simulator.creature import SimulationCreature
-
-GENE_CLASS = TypeVar("GENE_CLASS", bound = GeneInterface)
 
 
 class GenomeEffects:
@@ -87,7 +85,7 @@ class GenomeDescriptor:
 
 
 genome_descriptor = ObjectDescriptionReader[GenomeDescriptor]().read_folder_to_list(
-    settings.GENOME_JSON_PATH,
+    settings.GENOME_DESCRIPTIONS_PATH,
     GenomeDescriptor
 )[0]
 

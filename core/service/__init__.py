@@ -29,7 +29,7 @@ class ObjectDescriptionReader(Generic[VT]):
         return {"values": VALUES_CACHE[pattern]}
 
     @classmethod
-    def read_folder_to_dict(cls, folder: str, descriptor: type = dict) -> dict[str, VT]:
+    def read_folder_to_dict(cls, folder: str, descriptor: type) -> dict[str, VT]:
         """Считывает все json-файлы в папке."""
 
         json_dict = cls.read_folder(folder)

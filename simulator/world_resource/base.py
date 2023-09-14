@@ -6,21 +6,21 @@ from evolution import settings
 
 # https://ru.wikipedia.org/wiki/%D0%A5%D0%B8%D0%BC%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9_%D1%81%D0%BE%D1%81%D1%82%D0%B0%D0%B2_%D1%87%D0%B5%D0%BB%D0%BE%D0%B2%D0%B5%D0%BA%D0%B0
 class WorldResource(int):
-    counter = [0]
-    max_formula_length = [0]
+    counter = 0
+    max_formula_length = 0
 
     # если будет принято решение сделать mass или volume не целым, решить,
     # что делать с атрибутами BodypartInterface.mass и BodypartInterface.volume
     # объем
 
     def __new__(cls, name: str, formula: str, mass: float, volume: float) -> "WorldResource":
-        obj = int.__new__(cls, cls.counter[0])
-        cls.counter[0] += 1
+        obj = int.__new__(cls, cls.counter)
+        cls.counter += 1
         obj.name = name
         obj.formula = formula
         obj.mass = mass
         obj.volume = volume
-        obj.max_formula_length[0] = max(obj.max_formula_length[0], len(obj.formula))
+        cls.max_formula_length = max(obj.max_formula_length, len(obj.formula))
         return obj
 
     def __repr__(self) -> str:
@@ -28,14 +28,15 @@ class WorldResource(int):
 
     @property
     def sort_key(self) -> str:
-        return self.formula.rjust(self.max_formula_length[0] + 1, '_')
+        return self.formula.rjust(self.max_formula_length + 1, '_')
 
 
-# noinspection PyTypeChecker
+# {resource.name: resource}
 RESOURCE_DICT = dict(
     sorted(
         ObjectDescriptionReader[WorldResource]().read_folder_to_dict(
-            settings.WORLD_RESOURCE_JSON_PATH, WorldResource
+            settings.WORLD_RESOURCE_DESCRIPTIONS_PATH,
+            WorldResource
         ).items(),
         key = lambda x: x[1].sort_key
     )
