@@ -2,15 +2,25 @@
     "values": {
         "action_interface": {
             "name": "action_interface",
-            "duration": 5,
+            "estimated_duration": 10,
+            "duration_coeff": 1,
             "base_weight": 1
+        },
+        "wait_action": {
+            "name": "wait_action",
+            "estimated_duration": 1,
+            "base_weight": 0
         },
         "consume_action": {
             "name": "consume_action"
         },
-        "wait_action": {
-            "name": "wait_action",
-            "duration": 1
+        "regenerate_action": {
+            "name": "regenerate_action",
+            "duration_coeff": 0.5
+        },
+        "reproduce_action": {
+            "name": "reproduce_action",
+            "duration_coeff": 2
         }
     }
 }

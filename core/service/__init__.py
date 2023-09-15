@@ -1,6 +1,7 @@
 import glob
 import json
 from typing import Generic, TypeVar
+from arcade import SpriteList, SpriteType
 
 
 VT = TypeVar("VT")
@@ -40,3 +41,8 @@ class ObjectDescriptionReader(Generic[VT]):
         """Считывает все json-файлы в папке."""
 
         return list(cls.read_folder_to_dict(folder, descriptor).values())
+
+
+class EvolutionSpriteList(SpriteList[SpriteType]):
+    def __repr__(self) -> str:
+        return repr(self.sprite_list)

@@ -104,9 +104,12 @@ class Resources(Dict[WorldResource, VT]):
     def __iter__(self) -> Iterator[WorldResource]:
         return iter(resource for resource, amount in self.items() if amount != 0)
 
+    def __neg__(self) -> "Resources[VT]":
+        return self.__class__({resource: -self[resource] for resource in RESOURCE_LIST})
+
     # не заменять на __round__, потому что вне зависимости от того, какой возвращаемый тип будет указан в методе,
     # возвращаемое значение из round() всегда считается int-ом
-    def round(self) -> "Resources[WorldResource, int]":
+    def round(self) -> "Resources[int]":
         return self.__class__({resource: int(amount) for resource, amount in self.items()})
 
     @classmethod

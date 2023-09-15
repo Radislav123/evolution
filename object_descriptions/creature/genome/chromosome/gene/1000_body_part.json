@@ -36,29 +36,29 @@
             "interface": "resource_storage_gene_interface",
             "required_for_creature": true,
             "resource": "oxygen",
-            "default_capacity": 350
+            "default_capacity": 500
         },
         "carbon_storage_gene": {
             "name": "carbon_storage_gene",
             "interface": "resource_storage_gene_interface",
             "required_for_creature": true,
             "resource": "carbon",
-            "default_capacity": 200
+            "default_capacity": 300
         },
         "hydrogen_storage_gene": {
             "name": "hydrogen_storage_gene",
             "interface": "resource_storage_gene_interface",
             "required_for_creature": true,
             "resource": "hydrogen",
-            "default_capacity": 100
+            "default_capacity": 150
         },
         "energy_storage_gene": {
             "name": "energy_storage_gene",
             "interface": "resource_storage_gene_interface",
             "required_for_creature": true,
             "resource": "energy",
-            "_todo": "вернуть на 100 (или 200), когда уберу ENERGY из ресурсов Body",
-            "default_capacity": 400
+            "_todo": "уменьшить default_capacity, когда уберу ENERGY из ресурсов Body",
+            "default_capacity": 600
         }
     }
 }

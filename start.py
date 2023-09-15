@@ -37,6 +37,9 @@ def log_creature(creature: SimulationCreature, file: TextIO):
         file.write(f"bodyparts: {creature.bodyparts}\n")
     except Exception as error:
         log_error(error, file)
+    log_attributes(error.creature, file)
+    log_genome_effects(error.creature, file)
+    log_action(error.creature, file)
 
 
 def log_genome_effects(creature: SimulationCreature, file: TextIO):
@@ -44,6 +47,13 @@ def log_genome_effects(creature: SimulationCreature, file: TextIO):
     if hasattr(creature, "genome"):
         for attribute in creature.genome.effects.__dict__:
             file.write(f"{attribute}: {creature.genome.effects.__dict__[attribute]}\n")
+
+
+def log_action(creature: SimulationCreature, file: TextIO):
+    file.write("~~~~~~~~~~ Action info ~~~~~~~~~~\n")
+    if hasattr(creature, "action") and creature.action is not None:
+        for attribute in creature.action.__dict__:
+            file.write(f"{attribute}: {creature.action.__dict__[attribute]}\n")
 
 
 def log_error_info(error: Exception):
@@ -65,20 +75,14 @@ def log_error_info(error: Exception):
         if hasattr(error, "creature"):
             file.write("========== Creature info ==========\n")
             log_creature(error.creature, file)
-            log_attributes(error.creature, file)
-            log_genome_effects(error.creature, file)
             file.write(SECTION_DELIMITER)
         if hasattr(error, "child"):
             file.write("========== Child info ==========\n")
             log_creature(error.child, file)
-            log_attributes(error.child, file)
-            log_genome_effects(error.child, file)
             file.write(SECTION_DELIMITER)
         if hasattr(error, "init_creature"):
             file.write("========== Init creature info ==========\n")
             log_creature(error.init_creature, file)
-            log_attributes(error.init_creature, file)
-            log_genome_effects(error.init_creature, file)
             file.write(SECTION_DELIMITER)
 
 

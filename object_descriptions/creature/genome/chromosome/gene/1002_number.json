@@ -1,14 +1,5 @@
 {
     "values": {
-        "oxygen_consumption_gene": {
-            "name": "oxygen_consumption_gene",
-            "interface": "resource_consumption_gene_interface",
-            "required_for_creature": true,
-            "required_genes": [
-                "oxygen_storage_gene"
-            ],
-            "resource": "oxygen"
-        },
         "children_amount_gene": {
             "name": "children_amount_gene",
             "interface": "number_gene_interface",

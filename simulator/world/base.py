@@ -1,19 +1,20 @@
 import copy
 import dataclasses
 import random
+from collections import defaultdict
 
 import arcade
 
 from core import models
 from core.mixin import WorldObjectMixin
 from core.physic import BaseWorldCharacteristics
-from core.service import ObjectDescriptionReader
+from core.service import EvolutionSpriteList, ObjectDescriptionReader
 from evolution import settings
 from simulator.creature import SimulationCreature
 from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources
 
 
-CREATURE_START_RESOURCES = Resources({resource: 20 for resource in RESOURCE_LIST})
+CREATURE_START_RESOURCES = Resources({resource: 100 for resource in RESOURCE_LIST})
 
 
 @dataclasses.dataclass
@@ -56,9 +57,10 @@ class SimulationWorld(WorldObjectMixin):
         self.chunk_width = world_descriptor.chunk_width
         self.chunk_height = world_descriptor.chunk_height
 
+        # copy.copy(self.creatures) может работать не правильно, так как SpriteList использует внутренний список
         # {creature.object_id: creature}
-        self.creatures = arcade.SpriteList[SimulationCreature]()
-        self.active_creatures: dict[int, list[SimulationCreature]] = {}
+        self.creatures = EvolutionSpriteList[SimulationCreature]()
+        self.active_creatures: defaultdict[int, dict[int, SimulationCreature]] = defaultdict(dict)
         self.characteristics = BaseWorldCharacteristics(
             world_descriptor.viscosity,
             world_descriptor.boarders_friction,
@@ -187,22 +189,22 @@ class SimulationWorld(WorldObjectMixin):
         """Убирает существо из мира."""
 
         self.creatures.remove(creature)
+        if creature.action.stop_tick > self.age:
+            del self.active_creatures[creature.action.stop_tick][creature.id]
         self.physics_engine.remove_sprite(creature)
 
     def on_update(self) -> None:
         try:
-            # copy.copy может работать не правильно, так как SpriteList использует внутренний список
-            existing_creatures = [x for x in self.creatures]
-            for creature in existing_creatures:
-                creature.on_update()
+            for creature in self.creatures:
+                creature.update_position_history()
 
-            if self.age in self.active_creatures:
-                for creature in self.active_creatures[self.age]:
-                    creature.perform_activity()
+            for creature in self.active_creatures[self.age].values():
+                creature.perform()
 
             for chunk in self.chunk_list:
                 chunk.on_update()
 
+            del self.active_creatures[self.age]
             # не передавать delta_time, так как физические расчеты должны быть привязаны не ко времени, а к тикам
             self.physics_engine.step()
             self.age += 1
@@ -233,9 +235,8 @@ class SimulationWorld(WorldObjectMixin):
 
         draw_chunks = False
         if draw_chunks:
-            for line in self.chunks:
-                for chunk in line:
-                    chunk.draw()
+            for chunk in self.chunk_list:
+                chunk.draw()
 
     def position_to_chunk(self, position: tuple[float, float]) -> "SimulationWorldChunk":
         x = int((position[0] - self.chunks[0][0].left) / self.chunk_width)

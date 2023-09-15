@@ -92,7 +92,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return damaged
 
     @property
-    def remaining_resources(self) -> Resources:
+    def remaining_resources(self) -> Resources[int]:
         """Ресурсы, находящиеся в части тела сейчас."""
 
         if self._remaining_resources is None:
@@ -122,19 +122,19 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return self._all_dependent
 
     @property
-    def volume(self) -> int:
+    def volume(self) -> float:
         if not self.destroyed:
             # todo: можно добавить кэширование (аккуратнее с хранилищами)
-            volume = int(sum(resource.volume * amount for resource, amount in self.resources.items()))
+            volume = sum(resource.volume * amount for resource, amount in self.resources.items())
         else:
             volume = 0
         return volume
 
     @property
-    def mass(self) -> int:
+    def mass(self) -> float:
         if not self.destroyed:
             # todo: можно добавить кэширование (аккуратнее с хранилищами)
-            mass = int(sum(resource.mass * amount for resource, amount in self.remaining_resources.items()))
+            mass = sum(resource.mass * amount for resource, amount in self.remaining_resources.items())
         else:
             mass = 0
         return mass
@@ -155,32 +155,36 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         for bodypart in self.dependent_bodyparts:
             bodypart.construct(bodypart_names)
 
-    def destroy(self) -> Resources:
+    def destroy(self) -> Resources[int]:
         """Уничтожает часть тела и все зависимые."""
 
         return_resources = self.remaining_resources
-        self._remaining_resources = None
-        for dependent in self.dependent_bodyparts:
-            return_resources += dependent.destroy()
-        self.destroyed = True
-        self.damage = copy.copy(self.resources)
+        if not self.destroyed:
+            self._remaining_resources = None
+            for dependent in self.dependent_bodyparts:
+                return_resources += dependent.destroy()
+            self.destroyed = True
+            self.damage = copy.copy(self.resources)
         return return_resources
 
     # если возвращаемые ресурсы != 0, значит часть тела уничтожена, а эти ресурсы являются ресурсами,
     # полученными после уничтожения части тела и всех зависимых частей
-    # если возвращаемые ресурсы < 0, данная часть тела и все ее зависимые части не могут покрыть нанесенного урона
-    def make_damage(self, damaging_resources: Resources) -> Resources:
+    def make_damage(self, damaging_resources: Resources[int]) -> Resources[int]:
         self._remaining_resources = None
         self.damage += damaging_resources
+        for resource, amount in self.damage.items():
+            if amount > self.resources[resource]:
+                raise ValueError(f"Bodypart damage {self.damage} can not be greater then resources {self.resources}.")
+        # часть тела не выдержала урона и была уничтожена
         if not self.present:
-            return_resources = copy.copy(damaging_resources)
-            return_resources += self.destroy()
+            return_resources = self.destroy()
+        # часть тела осталась не уничтоженной
         else:
             return_resources = Resources()
         return return_resources
 
     # если возвращаемые ресурсы != 0, значит эти ресурсы не израсходованы при регенерации
-    def regenerate(self, resources: Resources) -> Resources:
+    def regenerate(self, resources: Resources[int]) -> Resources[int]:
         self._remaining_resources = None
         regenerating_resources = copy.copy(resources)
         for resource, amount in resources.items():
@@ -194,7 +198,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return resources - regenerating_resources
 
 
-class AddToNonExistentStoragesException(Exception):
+class StoragesException(Exception):
     """Исключение для Storage."""
 
     def __init__(self, message: str):
@@ -202,13 +206,33 @@ class AddToNonExistentStoragesException(Exception):
         self.resources = Resources()
 
 
-class AddToDestroyedStorageException(Exception):
+class AddToNonExistentStoragesException(StoragesException):
+    pass
+
+
+class RemoveFromNonExistentStorageException(StoragesException):
+    pass
+
+
+class ResourceStorageException(Exception):
     """Исключение для ResourceStorage."""
 
     def __init__(self, world_resource: WorldResource, amount: int, message: str):
         super().__init__(message)
         self.world_resource = world_resource
         self.amount = amount
+
+
+class AddToDestroyedResourceStorageException(ResourceStorageException):
+    pass
+
+
+class RemoveFromDestroyedResourcesStorageException(ResourceStorageException):
+    pass
+
+
+class ResourceStorageBelowZeroException(ResourceStorageException):
+    pass
 
 
 class StorageNotFoundException(Exception):
@@ -223,17 +247,17 @@ class StorageInterface(BodypartInterface):
         self._storage: dict[WorldResource, ResourceStorageInterface] = {}
         self._stored_resources: Resources | None = None
         self._extra_resources: Resources | None = None
-        self._lack_resources: Resources | None = None
         self._fullness: Resources | None = None
 
     def __repr__(self) -> str:
         string = f"{super().__repr__()}: "
         if len(self._storage) > 0:
-            for storage in self.values():
-                if storage.destroyed:
-                    string += f"{storage.world_resource.formula}: destroyed, "
+            for resource_storage in self.values():
+                if resource_storage.destroyed:
+                    string += f"{resource_storage.world_resource.formula}: destroyed, "
                 else:
-                    string += f"{storage.world_resource.formula}: {storage.current}/{storage.capacity}, "
+                    string += (f"{resource_storage.world_resource.formula}:"
+                               f" {resource_storage.current}/{resource_storage.capacity}, ")
         else:
             string += "empty"
         if string[-2:] == ", ":
@@ -245,6 +269,11 @@ class StorageInterface(BodypartInterface):
 
     def __iter__(self):
         return iter(self._storage)
+
+    def destroy(self) -> Resources[int]:
+        return_resources = super().destroy()
+        self._stored_resources = None
+        return return_resources
 
     @classmethod
     def find_storage(cls, bodyparts: list["BodypartInterface"]) -> "StorageInterface":
@@ -259,39 +288,36 @@ class StorageInterface(BodypartInterface):
         return bodypart
 
     @property
-    def stored_resources(self) -> Resources:
+    def stored_resources(self) -> Resources[int]:
         if self._stored_resources is None:
             self._stored_resources = Resources({x.world_resource: x.current for x in self._storage.values()})
         return self._stored_resources
 
     @property
-    def extra_resources(self) -> Resources:
+    def extra_resources(self) -> Resources[int]:
         if self._extra_resources is None:
             self._extra_resources = Resources({x.world_resource: x.extra for x in self._storage.values()})
         return self._extra_resources
 
     @property
-    def lack_resources(self) -> Resources:
-        if self._lack_resources is None:
-            self._lack_resources = Resources({x.world_resource: x.lack for x in self._storage.values()})
-        return self._lack_resources
-
-    @property
-    def fullness(self) -> Resources:
+    def fullness(self) -> Resources[float]:
         if self._fullness is None:
             self._fullness = Resources({x.world_resource: x.fullness for x in self._storage.values()})
         return self._fullness
 
+    # todo: добавить возвращаемый тип
     def items(self):
         return self._storage.items()
 
+    # todo: добавить возвращаемый тип
     def keys(self):
         return self._storage.keys()
 
+    # todo: добавить возвращаемый тип
     def values(self):
         return self._storage.values()
 
-    def add_resource_storage(self, resource: WorldResource):
+    def add_resource_storage(self, resource: WorldResource) -> None:
         """Присоединяет хранилище ресурса к общему."""
 
         # noinspection PyTypeChecker,PyArgumentList
@@ -299,14 +325,14 @@ class StorageInterface(BodypartInterface):
         self._storage[resource] = resource_storage
         self.dependent_bodyparts.append(resource_storage)
 
-    def add_resources(self, resources: Resources):
+    def add_resources(self, resources: Resources[int]) -> None:
         self.reset_cache()
         not_added_resources = Resources()
         for resource, amount in resources.items():
             if amount > 0:
                 try:
                     self._storage[resource].add(amount)
-                except AddToDestroyedStorageException as exception:
+                except AddToDestroyedResourceStorageException as exception:
                     not_added_resources[exception.world_resource] = exception.amount
             elif amount < 0:
                 raise ValueError(f"Adding resource ({resource}) must be not negative ({amount}). {self}")
@@ -315,18 +341,26 @@ class StorageInterface(BodypartInterface):
             common_exception.resources = not_added_resources
             raise common_exception
 
-    def remove_resources(self, resources: Resources):
+    def remove_resources(self, resources: Resources[int]):
         self.reset_cache()
+        not_removed_resources = Resources()
         for resource, amount in resources.items():
             if amount > 0:
-                self._storage[resource].remove(amount)
+                try:
+                    self._storage[resource].remove(amount)
+                except RemoveFromDestroyedResourcesStorageException as exception:
+                    not_removed_resources[exception.world_resource] = exception.amount
             elif amount < 0:
                 raise ValueError(f"Removing resource ({resource}) must be not negative ({amount}). {self}")
+        if len(not_removed_resources) > 0:
+            common_exception = RemoveFromNonExistentStorageException(f"{not_removed_resources} "
+                                                                     f"can not be remove from {self}")
+            common_exception.resources = not_removed_resources
+            raise common_exception
 
     def reset_cache(self):
         self._stored_resources = None
         self._extra_resources = None
-        self._lack_resources = None
         self._fullness = None
 
 
@@ -372,44 +406,36 @@ class ResourceStorageInterface(BodypartInterface):
         return extra
 
     @property
-    def lack(self) -> int:
-        if self.empty:
-            lack = -self.current
-        else:
-            lack = 0
-        return lack
-
-    @property
-    def volume(self) -> int:
+    def volume(self) -> float:
         volume = super().volume
-        volume += int(self.world_resource.volume * self.capacity * self.extra_volume_coeff)
+        # self.capacity, а не self.current, чтобы не приходилось каждый раз пересчитывать изображение существа
+        volume += self.capacity * self.world_resource.volume * self.extra_volume_coeff
         return volume
 
     @property
-    def mass(self) -> int:
+    def mass(self) -> float:
         mass = super().mass
-        mass += self.world_resource.mass * self.current
+        mass += self.current * self.world_resource.mass
         return mass
 
-    def add(self, amount: int):
-        if not self.destroyed:
+    def add(self, amount: int) -> None:
+        if self.destroyed:
+            raise AddToDestroyedResourceStorageException(self.world_resource, amount, f"{self}")
+        else:
             self.current += amount
-        else:
-            raise AddToDestroyedStorageException(self.world_resource, amount, f"{self}")
 
-    def remove(self, amount: int):
-        if not self.destroyed:
+    def remove(self, amount: int) -> None:
+        if self.destroyed:
+            raise RemoveFromDestroyedResourcesStorageException(self.world_resource, amount, f"{self}")
+        else:
             self.current -= amount
-        else:
-            raise ValueError(f"{self}")
+            if self.current < 0:
+                raise ResourceStorageBelowZeroException(self.world_resource, self.current, f"{self}")
 
-    def reset(self):
-        self.current = 0
-
-    def destroy(self) -> Resources:
+    def destroy(self) -> Resources[int]:
         return_resources = super().destroy()
         return_resources[self.world_resource] += self.current
-        self.reset()
+        self.current = 0
         return return_resources
 
 
