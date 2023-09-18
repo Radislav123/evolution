@@ -27,6 +27,12 @@ class WorldResource(int):
         return self.name
 
     @property
+    def is_energy(self) -> bool:
+        """Является ли ресурс видом энергии."""
+
+        return self.name == "energy"
+
+    @property
     def sort_key(self) -> str:
         return self.formula.rjust(self.max_formula_length + 1, '_')
 

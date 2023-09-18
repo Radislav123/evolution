@@ -11,9 +11,10 @@ from core.physic import BaseWorldCharacteristics
 from core.service import EvolutionSpriteList, ObjectDescriptionReader
 from evolution import settings
 from simulator.creature import SimulationCreature
-from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources
+from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources, WorldResource
 
 
+Position = tuple[float, float]
 CREATURE_START_RESOURCES = Resources({resource: 100 for resource in RESOURCE_LIST})
 
 
@@ -212,20 +213,29 @@ class SimulationWorld(WorldObjectMixin):
             error.world = self
             raise error
 
-    def get_resources(self, position: tuple[float, float]) -> Resources:
+    def get_resources(self, position: Position) -> Resources[int]:
         """Возвращает ресурсы в чанке."""
 
         return self.position_to_chunk(position).get_resources()
 
-    def add_resources(self, position: tuple[float, float], resources: Resources) -> None:
+    def add_resources(self, position: Position, resources: Resources[int]) -> None:
         """Добавляет ресурсы в чанк."""
 
-        return self.position_to_chunk(position).add_resources(resources)
+        self.position_to_chunk(position).add_resources(resources)
 
-    def remove_resources(self, position: tuple[float, float], resources: Resources) -> None:
+    def remove_resources(self, position: Position, resources: Resources[int]) -> None:
         """Убирает ресурсы из чанка."""
 
-        return self.position_to_chunk(position).remove_resources(resources)
+        self.position_to_chunk(position).remove_resources(resources)
+
+    def get_resource(self, position: Position, resource: WorldResource) -> int:
+        return self.position_to_chunk(position).get_resource(resource)
+
+    def add_resource(self, position: Position, resource: WorldResource, amount: int) -> None:
+        self.position_to_chunk(position).add_resource(resource, amount)
+
+    def remove_resource(self, position: Position, resource: WorldResource, amount: int) -> None:
+        self.position_to_chunk(position).remove_resource(resource, amount)
 
     def draw(self) -> None:
         self.borders.draw()
@@ -238,7 +248,7 @@ class SimulationWorld(WorldObjectMixin):
             for chunk in self.chunk_list:
                 chunk.draw()
 
-    def position_to_chunk(self, position: tuple[float, float]) -> "SimulationWorldChunk":
+    def position_to_chunk(self, position: Position) -> "SimulationWorldChunk":
         x = int((position[0] - self.chunks[0][0].left) / self.chunk_width)
         y = int((position[1] - self.chunks[0][0].bottom) / self.chunk_height)
         if x < 0:
@@ -270,17 +280,28 @@ class SimulationWorldChunk:
     def on_update(self) -> None:
         self._resources[ENERGY] = self.default_resource_amount
 
-    def get_resources(self) -> Resources:
+    def get_resources(self) -> Resources[int]:
         return self._resources
 
-    def add_resources(self, resources: Resources) -> None:
+    def add_resources(self, resources: Resources[int]) -> None:
         self._resources += resources
 
-    def remove_resources(self, resources: Resources) -> None:
+    def remove_resources(self, resources: Resources[int]) -> None:
         self._resources -= resources
         for resource, amount in self._resources.items():
             if amount < 0:
                 raise ValueError(f"{resource} in {self} can not be lower than 0, current is {amount}")
+
+    def get_resource(self, resource: WorldResource) -> int:
+        return self._resources[resource]
+
+    def add_resource(self, resource: WorldResource, amount: int) -> None:
+        self._resources[resource] += amount
+
+    def remove_resource(self, resource: WorldResource, amount: int) -> None:
+        self._resources[resource] -= amount
+        if self._resources[resource] < 0:
+            raise ValueError(f"{resource} in {self} can not be lower than 0, current is {self._resources[resource]}")
 
     def draw(self) -> None:
         arcade.draw_xywh_rectangle_outline(

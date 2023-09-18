@@ -106,8 +106,10 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             # todo: привязать к генам
             # количество энергии, затрачиваемой на каждого потомка, при воспроизведении
             self.reproduction_energy_lost = 20
-            # количество ресурсов, потребляемых за тик
-            self.consumption_amount: Resources | None = None
+            # количество определенное ресурса, которое существо может потребить за тик
+            self.consumption_amount: Resources[int] | None = None
+            # количество всех ресурсов, которое существо может потребить за тик
+            self.consumption_limit: int | None = None
             self.apply_genes()
 
             # инициализация частей тела
@@ -242,6 +244,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
         self.children_amount = self.genome.effects.children_amount
         self.consumption_amount = self.genome.effects.consumption_amount
+        self.consumption_limit = self.genome.effects.consumption_limit
         self.color = self.genome.effects.color
 
     def apply_bodyparts(self) -> None:
@@ -373,27 +376,30 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
                 break
         return can_consume
 
-    # todo: переделать на потребление сразу нескольких веществ?
-    # todo: добавить уменьшение длительности действия, если полная длительность приведет к потреблению лишних ресурсов
     def consume(self) -> None:
         """Симулирует потребление веществ существом."""
 
-        resource = self.get_consumption_resource()
-        if resource is not None:
-            # забирает из мира ресурс
-            available_amount = self.world.get_resources(self.position)[resource]
-            consumption_amount = min(available_amount, int(self.consumption_amount[resource] * self.action.duration))
+        chunk_resources = self.world.get_resources(self.position)
+        chunk_resources_sum = sum(amount for resource, amount in chunk_resources.items() if not resource.is_energy)
+        consumption_resources = Resources[int](
+            {resource: min(int(amount / chunk_resources_sum * self.consumption_limit * self.action.duration), amount)
+             for resource, amount in chunk_resources.items() if not resource.is_energy}
+        )
+        for resource, amount in self.consumption_amount.items():
+            real_amount = amount * self.action.duration
+            if real_amount < consumption_resources[resource]:
+                consumption_resources[resource] = real_amount
 
-            consumption_resources = Resources({resource: consumption_amount})
-            self.world.remove_resources(self.position, consumption_resources)
+        # забирает ресурсы из мира
+        self.world.remove_resources(self.position, consumption_resources)
 
-            # добавляет в свое хранилище
-            self.storage.add_resources(consumption_resources)
+        # добавляет в свое хранилище
+        self.storage.add_resources(consumption_resources)
 
-            # тратит энергию за потребление ресурса
-            self.resources_loss_accumulated[ENERGY] += consumption_amount * 0.01
+        # тратит энергию за потребление ресурсов
+        self.resources_loss_accumulated[ENERGY] += sum(consumption_resources.values()) * 0.01
 
-    # todo: выбирать ресурс при начале действия (если существо не будет потреблять сразу все доступное)?
+    # оставлено, но не используется
     def get_consumption_resource(self) -> WorldResource | None:
         """Выбирает ресурс, который будет потреблен существом."""
 
@@ -462,9 +468,9 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
     def can_reproduce(self) -> bool:
         if self.children_amount > 0:
             for resource, amount in self.reproduction_resources.items():
-                bottom_line = amount * self.reproduction_reserve_coeff * self.reproduction_lost_coeff
-                if (resource not in self.storage or self.storage[resource].current <= bottom_line
-                        or self.storage[resource].capacity <= bottom_line):
+                lower_bound = amount * self.reproduction_reserve_coeff * self.reproduction_lost_coeff
+                if (resource not in self.storage or self.storage[resource].current <= lower_bound
+                        or self.storage[resource].capacity <= lower_bound):
                     can_reproduce = False
                     break
             else:
@@ -576,6 +582,14 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         return can_metabolize
 
     def metabolise(self) -> None:
+        # todo: вынести энергетический обмен в отдельный метод при добавлении других способов, кроме фотосинтеза
+        energy_consumption_amount = min(
+            self.world.get_resource(self.position, ENERGY),
+            int(self.consumption_amount[ENERGY] * self.action.duration)
+        )
+        self.storage.add_resource(ENERGY, energy_consumption_amount)
+        self.world.remove_resource(self.position, ENERGY, energy_consumption_amount)
+
         lack_resources = Resources(
             {resource: amount for resource, amount in
              (self.storage.stored_resources - self.resources_loss).items() if amount < 0}

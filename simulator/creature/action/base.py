@@ -118,6 +118,23 @@ class WaitAction(ActionInterface):
 class ConsumeAction(ActionInterface):
     name = "consume_action"
 
+    def prepare(self) -> None:
+        duration = 0
+        for resource in (x for x in self.creature.storage.available_space if not x.is_energy):
+            resource_duration = (self.creature.storage.available_space[resource] //
+                                 self.creature.consumption_amount[resource])
+            if resource_duration > duration:
+                duration = resource_duration
+
+        estimated_duration = int(self.estimated_duration * self.duration_coeff)
+        if duration < estimated_duration:
+            estimated_duration = duration
+
+        # длительность действия не может быть меньше 1 тика
+        self._estimated_duration = max(estimated_duration, 1)
+        self.estimated_stop_tick = self.start_tick + self.duration
+        self.world.active_creatures[self.estimated_stop_tick][self.creature.id] = self.creature
+
 
 class RegenerateAction(ActionInterface):
     name = "regenerate_action"

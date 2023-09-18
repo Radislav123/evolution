@@ -22,22 +22,22 @@ class GenomeEffects:
     def __init__(self) -> None:
         # не переносить определения в тело класса,
         # иначе не простые типы (list, dict...) используются всеми экземплярами совместно
+        # количество потомков, которые появляются при размножении
         self.children_amount = 0
         self.size_coeff = 0.0
         self.elasticity = 0.0
         self.metabolism = 0.0
         self.resources_loss_coeff = 0.0
         self.regeneration_amount = 0
-        # количество ресурса, которое существо может потребить за тик
-        self.consumption_amount = Resources()
+        # количество определенное ресурса, которое существо может потребить за тик
+        self.consumption_amount = Resources[int]()
+        # количество всех ресурсов, которое существо может потребить за тик
+        self.consumption_limit = 0
         # количество ресурсов, теряемых каждый тик
-        self.resources_loss = Resources()
+        self.resources_loss = Resources[float]()
         self.bodyparts: list[str] = []
-        self.resource_storages = Resources()
+        self.resource_storages = Resources[int]()
         self.color: list[int] = [0, 0, 0]
-
-    def prepare(self) -> None:
-        self.prepare_color()
 
     def prepare_color(self) -> None:
         other_color_numbers = {
@@ -70,9 +70,8 @@ class GenomeEffects:
         # нормализация цвета
         if max(self.color) > 255:
             maximum = max(self.color)
-            if maximum != 0:
-                for number in range(len(self.color)):
-                    self.color[number] = self.color[number] * 255 // maximum
+            for number in range(len(self.color)):
+                self.color[number] = int(self.color[number] * 255 // maximum)
 
 
 @dataclasses.dataclass
@@ -181,7 +180,7 @@ class Genome:
         for gene_class in gene_classes:
             gene_class.correct(self)
 
-        self.effects.prepare()
+        self.effects.prepare_color()
 
     @classmethod
     def get_child_genome(cls, parents: list["SimulationCreature"]) -> "Genome":
