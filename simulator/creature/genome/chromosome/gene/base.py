@@ -25,6 +25,10 @@ gene_descriptors = ObjectDescriptionReader[dict]().read_folder_to_dict(
 )
 
 
+# todo: если пропадает ген, который необходим для других генов, делать эти гены неактивными
+# todo: если появляется ген, которому необходим ген, которого еще нет, делать появившийся ген неактивным
+#  (переписать появление генов, уменьшить вероятность появления гена, если в геному отсутствуют необходимые ему гены)
+# todo: сделать ResourceStorageGene и ResourceConsumptionGene полностью динамическими
 class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, abc.ABC):
     name = "gene_interface"
     # название интерфейса, определяющего ген

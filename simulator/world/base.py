@@ -272,7 +272,7 @@ class SimulationWorldChunk:
         self.default_resource_amount = int(
             (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_coeff
         )
-        self._resources = Resources({x: self.default_resource_amount for x in RESOURCE_LIST})
+        self._resources = Resources[int]({x: self.default_resource_amount for x in RESOURCE_LIST})
 
     def __repr__(self) -> str:
         return f"{self.left, self.bottom, self.right, self.top}"

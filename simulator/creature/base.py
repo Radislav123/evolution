@@ -381,23 +381,27 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
         chunk_resources = self.world.get_resources(self.position)
         chunk_resources_sum = sum(amount for resource, amount in chunk_resources.items() if not resource.is_energy)
-        consumption_resources = Resources[int](
-            {resource: min(int(amount / chunk_resources_sum * self.consumption_limit * self.action.duration), amount)
-             for resource, amount in chunk_resources.items() if not resource.is_energy}
-        )
-        for resource, amount in self.consumption_amount.items():
-            real_amount = amount * self.action.duration
-            if real_amount < consumption_resources[resource]:
-                consumption_resources[resource] = real_amount
+        if chunk_resources_sum > 0:
+            consumption_resources = Resources[int](
+                {resource: min(
+                    int(amount / chunk_resources_sum * self.consumption_limit * self.action.duration),
+                    amount
+                ) for resource, amount in chunk_resources.items()
+                    if not self.storage[resource].destroyed and not resource.is_energy}
+            )
+            for resource, amount in self.consumption_amount.items():
+                real_amount = int(amount * self.action.duration)
+                if real_amount < consumption_resources[resource]:
+                    consumption_resources[resource] = real_amount
 
-        # забирает ресурсы из мира
-        self.world.remove_resources(self.position, consumption_resources)
+            # забирает ресурсы из мира
+            self.world.remove_resources(self.position, consumption_resources)
 
-        # добавляет в свое хранилище
-        self.storage.add_resources(consumption_resources)
+            # добавляет в свое хранилище
+            self.storage.add_resources(consumption_resources)
 
-        # тратит энергию за потребление ресурсов
-        self.resources_loss_accumulated[ENERGY] += sum(consumption_resources.values()) * 0.01
+            # тратит энергию за потребление ресурсов
+            self.resources_loss_accumulated[ENERGY] += sum(consumption_resources.values()) * 0.01
 
     # оставлено, но не используется
     def get_consumption_resource(self) -> WorldResource | None:
@@ -653,7 +657,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         # энергия не может возвращаться в мир
         self.returned_resources[ENERGY] = 0
         self.world.add_resources(self.position, self.returned_resources)
-        self.returned_resources = Resources()
+        self.returned_resources = Resources[int]()
 
     def update_physics(self) -> None:
         self.physics_body.mass = self.characteristics.mass

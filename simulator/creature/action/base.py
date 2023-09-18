@@ -121,10 +121,11 @@ class ConsumeAction(ActionInterface):
     def prepare(self) -> None:
         duration = 0
         for resource in (x for x in self.creature.storage.available_space if not x.is_energy):
-            resource_duration = (self.creature.storage.available_space[resource] //
-                                 self.creature.consumption_amount[resource])
-            if resource_duration > duration:
-                duration = resource_duration
+            if self.creature.consumption_amount[resource] > 0:
+                resource_duration = (self.creature.storage.available_space[resource] //
+                                     self.creature.consumption_amount[resource])
+                if resource_duration > duration:
+                    duration = resource_duration
 
         estimated_duration = int(self.estimated_duration * self.duration_coeff)
         if duration < estimated_duration:
