@@ -13,8 +13,6 @@ class WorldHistoryEndException(Exception):
     """Сигнализирует о том, что история мира дальше не написана и воспроизводить более нечего/"""
 
 
-# todo: добавить историю перемещений существам
-# todo: добавить воспроизведение перемещений существ
 class BasePlaybackWorld:
     db_model = models.World
     borders: arcade.SpriteList
@@ -74,13 +72,7 @@ class BasePlaybackWorld:
                 children = creature_parent.filter(parent_id = parent.id)
                 for child in children:
                     not_instantiated_creatures.remove(child)
-                    self.creatures.append(
-                        BasePlaybackCreature(
-                            child.id,
-                            [parent],
-                            self
-                        )
-                    )
+                    self.creatures.append(BasePlaybackCreature(child.id, [parent], self))
 
     def on_update(self, delta_time: float):
         try:

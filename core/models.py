@@ -69,12 +69,12 @@ class CreaturePositionHistory(HistoryModel):
     position_y = models.FloatField()
 
 
-# todo: исправить эту модель (history)
+# todo: сделать эту модель историей изменений (history)
 class CreatureStorage(EvolutionModel):
     creature = models.OneToOneField(Creature, models.PROTECT, primary_key = True)
 
 
-# todo: исправить эту модель (history)
+# todo: сделать эту модель историей (history)
 class StoredResource(EvolutionModel):
     creature_storage = models.ForeignKey(CreatureStorage, models.PROTECT)
     # формула ресурса

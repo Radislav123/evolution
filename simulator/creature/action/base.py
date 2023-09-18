@@ -30,8 +30,6 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
     duration_coeff: float
     # относительный вес при выборе следующего действия
     base_weight: float
-    _stop_tick = None
-    _duration = None
 
     def __init__(self, creature: "SimulationCreature") -> None:
         self.creature = creature
@@ -39,15 +37,17 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
 
         # действие выбирается в момент окончания предыдущего
         self.start_tick = self.world.age + 1
-        # todo: добавить коэффициент длительности действия из генома (например завязать на действие метаболизма)
-        # длительность действия не может быть меньше 1 тика
-        self._estimated_duration = max(int(self.estimated_duration * self.duration_coeff), 1)
-        # момент ожидаемого окончания действия
-        self.estimated_stop_tick = self.start_tick + self._estimated_duration
-        self.world.active_creatures[self.estimated_stop_tick][self.creature.id] = self.creature
 
         self.aborted = False
+        self._stop_tick: int | None = None
+        self._estimated_duration: int | None = None
+        # момент ожидаемого окончания действия
+        self.estimated_stop_tick: int | None = None
+        # устанавливается, если действие было прервано
+        self.aborted_duration = None
         self.type = ACTION_CLASS_TO_TYPE[self.__class__]
+
+        self.prepare()
 
     def __repr__(self) -> str:
         return f"{self.name}: {self.duration}"
@@ -71,8 +71,15 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
         if sum(weights) > 0:
             next_action = random.choices(action_list, weights)[0](creature)
         else:
-            next_action = WaitAction(creature)
+            next_action = cls.get_wait_action(creature)
         return next_action
+
+    def prepare(self) -> None:
+        # todo: добавить коэффициент длительности действия из генома (например завязать на действие метаболизма)
+        # длительность действия не может быть меньше 1 тика
+        self._estimated_duration = max(int(self.estimated_duration * self.duration_coeff), 1)
+        self.estimated_stop_tick = self.start_tick + self.duration
+        self.world.active_creatures[self.estimated_stop_tick][self.creature.id] = self.creature
 
     @property
     def stop_tick(self) -> int:
@@ -85,7 +92,7 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
     @property
     def duration(self) -> int:
         if self.aborted:
-            duration = self._duration
+            duration = self.aborted_duration
         else:
             duration = self._estimated_duration
         return duration
@@ -95,7 +102,7 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
 
         self.aborted = True
         self._stop_tick = self.creature.world
-        self._duration = self.world.age - self.start_tick
+        self.aborted_duration = self.world.age - self.start_tick
         del self.world.active_creatures[self.stop_tick][self.creature.id]
 
     @classmethod
