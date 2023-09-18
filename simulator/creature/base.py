@@ -354,6 +354,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
                 self.update_physics()
         except Exception as error:
             error.creature = self
+            error.next_children = self.next_children
             raise error
 
     def update_position_history(self) -> None:
@@ -367,12 +368,13 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
     def can_consume(self) -> bool:
         can_consume = False
         for resource, amount in self.storage.fullness.items():
-            if amount < 1:
+            if amount < 0.9:
                 can_consume = True
                 break
         return can_consume
 
     # todo: переделать на потребление сразу нескольких веществ?
+    # todo: добавить уменьшение длительности действия, если полная длительность приведет к потреблению лишних ресурсов
     def consume(self) -> None:
         """Симулирует потребление веществ существом."""
 
@@ -409,7 +411,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         return resource
 
     def can_regenerate(self) -> bool:
-        return ENERGY in self.storage and not self.storage[ENERGY].empty
+        return ENERGY in self.storage and not self.storage[ENERGY].empty and len(self.damaged_bodyparts) > 0
 
     def regenerate(self) -> None:
         # выбирается часть тела для регенерации
@@ -459,13 +461,14 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
     def can_reproduce(self) -> bool:
         if self.children_amount > 0:
-            can_reproduce = True
             for resource, amount in self.reproduction_resources.items():
-                if resource not in self.storage or \
-                        self.storage[resource].current <= amount * \
-                        self.reproduction_reserve_coeff * self.reproduction_lost_coeff:
+                bottom_line = amount * self.reproduction_reserve_coeff * self.reproduction_lost_coeff
+                if (resource not in self.storage or self.storage[resource].current <= bottom_line
+                        or self.storage[resource].capacity <= bottom_line):
                     can_reproduce = False
                     break
+            else:
+                can_reproduce = True
         else:
             can_reproduce = False
         return can_reproduce

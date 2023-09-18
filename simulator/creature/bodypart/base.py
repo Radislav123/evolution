@@ -430,7 +430,8 @@ class ResourceStorageInterface(BodypartInterface):
         else:
             self.current -= amount
             if self.current < 0:
-                raise ResourceStorageBelowZeroException(self.world_resource, self.current, f"{self}")
+                message = f"{self.current + amount} - {amount} = {self.current}"
+                raise ResourceStorageBelowZeroException(self.world_resource, self.current, message)
 
     def destroy(self) -> Resources[int]:
         return_resources = super().destroy()

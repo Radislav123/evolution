@@ -37,9 +37,9 @@ def log_creature(creature: SimulationCreature, file: TextIO):
         file.write(f"bodyparts: {creature.bodyparts}\n")
     except Exception as error:
         log_error(error, file)
-    log_attributes(error.creature, file)
-    log_genome_effects(error.creature, file)
-    log_action(error.creature, file)
+    log_attributes(creature, file)
+    log_genome_effects(creature, file)
+    log_action(creature, file)
 
 
 def log_genome_effects(creature: SimulationCreature, file: TextIO):
@@ -80,6 +80,12 @@ def log_error_info(error: Exception):
             file.write("========== Child info ==========\n")
             log_creature(error.child, file)
             file.write(SECTION_DELIMITER)
+        if hasattr(error, "next_children"):
+            file.write("========== Next children info ==========\n")
+            for mext_child in error.next_children:
+                file.write("========== next child info ==========\n")
+                log_creature(mext_child, file)
+                file.write(SECTION_DELIMITER)
         if hasattr(error, "init_creature"):
             file.write("========== Init creature info ==========\n")
             log_creature(error.init_creature, file)

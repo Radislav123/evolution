@@ -50,7 +50,7 @@
             "interface": "resource_storage_gene_interface",
             "required_for_creature": true,
             "resource": "hydrogen",
-            "default_capacity": 150
+            "default_capacity": 200
         },
         "energy_storage_gene": {
             "name": "energy_storage_gene",

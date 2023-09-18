@@ -196,7 +196,7 @@ class ResourceConsumptionGeneInterface(StepGeneMixin, GeneInterface):
         super().__init__(first)
 
     def __repr__(self) -> str:
-        return f"{super().__repr__()}: {RESOURCE_DICT[self.resource]}"
+        return f"{super().__repr__()}: {self.consumption}"
 
     def mutate(self, genome: "Genome") -> None:
         self.consumption += self.make_step()

@@ -69,7 +69,7 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
 
         weights = [x.get_weight(creature) for x in action_list]
         if sum(weights) > 0:
-            next_action = random.choices(action_list, weights, k = 1)[0](creature)
+            next_action = random.choices(action_list, weights)[0](creature)
         else:
             next_action = WaitAction(creature)
         return next_action
