@@ -145,9 +145,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         bodypart_names = copy.copy(bodypart_names)
         for bodypart_name in bodypart_names:
             if (body_part_class := BODYPART_CLASSES[bodypart_name]).required_bodypart == self.name:
-                self.dependent_bodyparts.append(
-                    body_part_class(self.creature, self)
-                )
+                self.dependent_bodyparts.append(body_part_class(self.creature, self))
 
         for bodypart in self.dependent_bodyparts:
             bodypart_names.remove(bodypart.name)
@@ -175,21 +173,22 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         for resource, amount in self.damage.items():
             if amount > self.resources[resource]:
                 raise ValueError(f"Bodypart damage {self.damage} can not be greater then resources {self.resources}.")
+
         # часть тела не выдержала урона и была уничтожена
         if not self.present:
             return_resources = self.destroy()
         # часть тела осталась не уничтоженной
         else:
-            return_resources = Resources()
+            return_resources = Resources[int]()
+
         return return_resources
 
     # если возвращаемые ресурсы != 0, значит эти ресурсы не израсходованы при регенерации
     def regenerate(self, resources: Resources[int]) -> Resources[int]:
         self._remaining_resources = None
-        regenerating_resources = copy.copy(resources)
-        for resource, amount in resources.items():
-            if self.damage[resource] < amount:
-                regenerating_resources[resource] = self.damage[resource]
+        regenerating_resources = Resources[int](
+            {resource: min(amount, self.damage[resource]) for resource, amount in resources.items()}
+        )
 
         self.damage -= regenerating_resources
         if self.present:
@@ -198,19 +197,19 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return resources - regenerating_resources
 
 
-class StoragesException(Exception):
+class StorageException(Exception):
     """Исключение для Storage."""
 
     def __init__(self, message: str):
         super().__init__(message)
-        self.resources = Resources()
+        self.resources = Resources[int]()
 
 
-class AddToNonExistentStoragesException(StoragesException):
+class AddToNonExistentStorageException(StorageException):
     pass
 
 
-class RemoveFromNonExistentStorageException(StoragesException):
+class RemoveFromNonExistentStorageException(StorageException):
     pass
 
 
@@ -350,7 +349,7 @@ class StorageInterface(BodypartInterface):
                     not_added_resources = Resources[int]()
                 not_added_resources[exception.world_resource] = exception.amount
         if not_added_resources is not None:
-            common_exception = AddToNonExistentStoragesException(f"{not_added_resources} can not be added to {self}")
+            common_exception = AddToNonExistentStorageException(f"{not_added_resources} can not be added to {self}")
             common_exception.resources = not_added_resources
             raise common_exception
 

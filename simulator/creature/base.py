@@ -15,7 +15,7 @@ from core.physic import CreatureCharacteristics
 from core.service import ObjectDescriptionReader
 from evolution import settings
 from simulator.creature.action import ActionInterface
-from simulator.creature.bodypart import AddToNonExistentStoragesException, BodypartInterface, \
+from simulator.creature.bodypart import AddToNonExistentStorageException, BodypartInterface, \
     RemoveFromNonExistentStorageException, StorageInterface
 from simulator.creature.genome import Genome
 from simulator.world_resource import ENERGY, Resources, WorldResource
@@ -116,9 +116,10 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.body: BodypartInterface | None = None
             self.storage: StorageInterface | None = None
             self._bodyparts: list[BodypartInterface] | None = None
+            self._regenerating_bodypart: BodypartInterface | None = None
             self.apply_bodyparts()
             # ресурсы, необходимые для воспроизводства существа
-            self.resources = Resources.sum(x.resources for x in self.bodyparts)
+            self.resources = Resources[int].sum(x.resources for x in self.bodyparts)
 
             # инициализация физических характеристик
             self.characteristics: CreatureCharacteristics | None = None
@@ -180,18 +181,18 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
     @property
     def damage(self) -> Resources[int]:
-        return Resources.sum(x.damage for x in self.bodyparts)
+        return Resources[int].sum(x.damage for x in self.bodyparts)
 
     @property
     def remaining_resources(self) -> Resources[int]:
         """Ресурсы, которые сейчас находятся в частях тела, как их части."""
         # ресурсы существа, без тех, что хранятся в хранилищах
 
-        return Resources.sum(x.remaining_resources for x in self.bodyparts)
+        return Resources[int].sum(x.remaining_resources for x in self.bodyparts)
 
     @property
     def extra_storage(self) -> Resources[int]:
-        return Resources.sum(x.extra_storage for x in self.bodyparts)
+        return Resources[int].sum(x.extra_storage for x in self.bodyparts)
 
     @property
     def bodyparts(self) -> list[BodypartInterface]:
@@ -264,9 +265,9 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
                 self.storage.add_resource_storage(resource)
 
         # задаются емкости хранилищ ресурсов
+        extra_storage = self.extra_storage
         for resource, resource_storage in self.storage.items():
-            extra_amount = self.extra_storage[resource]
-            resource_storage.capacity = self.genome.effects.resource_storages[resource] + extra_amount
+            resource_storage.capacity = self.genome.effects.resource_storages[resource] + extra_storage[resource]
 
         # необходимо, чтобы список частей тела был пересобран, так как только в данной точке исполнения тело,
         # со всеми частями, собрано
@@ -367,7 +368,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
     def can_consume(self) -> bool:
         can_consume = False
         for resource, amount in self.storage.fullness.items():
-            if amount < 0.9:
+            if amount < 0.9 and resource != ENERGY:
                 can_consume = True
                 break
         return can_consume
@@ -417,53 +418,48 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         return resource
 
     def can_regenerate(self) -> bool:
-        return ENERGY in self.storage and not self.storage[ENERGY].empty and len(self.damaged_bodyparts) > 0
+        return (self.genome.effects.regeneration_amount > 0 and ENERGY in self.storage and
+                not self.storage[ENERGY].empty and self.regenerating_bodypart is not None)
 
     def regenerate(self) -> None:
-        # выбирается часть тела для регенерации
-        bodypart = self.get_regeneration_bodypart()
+        regenerating_resources = Resources[int](
+            {resource: min(
+                int(self.genome.effects.regeneration_amount * self.action.duration),
+                # делается поправка на количество ресурса в хранилище существа
+                self.storage.stored_resources[resource]
+            ) for resource in self.regenerating_bodypart.damage}
+        )
+        energy_cost = (regenerating_resources[ENERGY] + sum(regenerating_resources.values()) *
+                       self.energy_regenerate_cost)
+        # проверяется доступное количество энергии
+        if self.storage.stored_resources[ENERGY] < energy_cost:
+            reduction_coeff = self.storage.stored_resources[ENERGY] / energy_cost
+            regenerating_resources *= reduction_coeff
+            regenerating_resources = regenerating_resources.round()
 
-        if bodypart is not None:
-            regenerating_resources = Resources(
-                {resource: int(self.genome.effects.regeneration_amount * self.action.duration)
-                 for resource in self.storage.stored_resources}
-            )
+        extra_resources = self.regenerating_bodypart.regenerate(regenerating_resources)
+        spent_resources = regenerating_resources - extra_resources
+        spent_resources[ENERGY] += int(sum(spent_resources.values()) * self.energy_regenerate_cost)
+        self.storage.remove_resources(spent_resources)
 
-            for resource in regenerating_resources:
-                # делается поправка на количество ресурса в хранилище
-                if regenerating_resources[resource] > self.storage.stored_resources[resource]:
-                    regenerating_resources[resource] = self.storage.stored_resources[resource]
+        self._regenerating_bodypart = None
 
-            # проверяется доступное количество энергии
-            if self.storage.stored_resources[ENERGY] < regenerating_resources[ENERGY] + \
-                    sum(regenerating_resources.values()) * self.energy_regenerate_cost:
-                reduction_coeff = (self.storage.stored_resources[ENERGY] /
-                                   (regenerating_resources[ENERGY] +
-                                    sum(regenerating_resources.values()) * self.energy_regenerate_cost))
-                regenerating_resources = (regenerating_resources * reduction_coeff).round()
+    @property
+    def regenerating_bodypart(self) -> BodypartInterface | None:
+        if self._regenerating_bodypart is None:
+            bodyparts = []
+            for bodypart in self.damaged_bodyparts:
+                for resource, damage_amount in bodypart.damage.items():
+                    if damage_amount > 0 and not self.storage[resource].empty:
+                        bodyparts.append(bodypart)
+                        break
 
-            extra_resources = bodypart.regenerate(regenerating_resources)
-            spent_resources = regenerating_resources - extra_resources
-            spent_resources[ENERGY] += int(sum(spent_resources.values()) * self.energy_regenerate_cost)
-            self.storage.remove_resources(spent_resources)
-
-    def get_regeneration_bodypart(self) -> BodypartInterface | None:
-        bodyparts = []
-        for bodypart in self.damaged_bodyparts:
-            append = False
-            for resource, damage_amount in bodypart.damage.items():
-                if damage_amount > 0 and not self.storage[resource].empty:
-                    append = True
-                    break
-            if append:
-                bodyparts.append(bodypart)
-
-        random.shuffle(bodyparts)
-        if len(bodyparts) > 0:
-            bodypart = bodyparts[0]
-        else:
-            bodypart = None
-        return bodypart
+            if len(bodyparts) > 0:
+                random.shuffle(bodyparts)
+                self._regenerating_bodypart = bodyparts[0]
+            else:
+                self._regenerating_bodypart = None
+        return self._regenerating_bodypart
 
     def can_reproduce(self) -> bool:
         if self.children_amount > 0:
@@ -629,7 +625,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
                 self.storage.add_resources(resource_increment)
             # ресурсы, которые не могут быть добавлены в хранилища существа,
             # так как хранилища были уничтожены, будут возвращены в мир
-            except AddToNonExistentStoragesException as exception:
+            except AddToNonExistentStorageException as exception:
                 self.returned_resources += exception.resources
         return lack_resources
 

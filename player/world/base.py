@@ -42,7 +42,7 @@ class BasePlaybackWorld:
             characteristics.viscosity,
             characteristics.borders_friction,
             characteristics.borders_thickness,
-            characteristics.resource_coeff
+            characteristics.resource_density
         )
         self.get_borders_coordinates = functools.partial(getattr(SimulationWorld, "get_borders_coordinates"), self)
         self.prepare_borders = functools.partial(getattr(SimulationWorld, "prepare_borders"), self)

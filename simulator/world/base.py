@@ -27,7 +27,7 @@ class WorldDescriptor:
     viscosity: float
     boarders_friction: float
     borders_thickness: int
-    resource_coeff: float
+    resource_density: float
     chunk_width: int
     chunk_height: int
     seed: int
@@ -67,7 +67,7 @@ class SimulationWorld(WorldObjectMixin):
             world_descriptor.viscosity,
             world_descriptor.boarders_friction,
             world_descriptor.borders_thickness,
-            world_descriptor.resource_coeff
+            world_descriptor.resource_density
         )
         self.prepare_borders()
         self.prepare_physics_engine()
@@ -288,7 +288,7 @@ class SimulationWorldChunk:
         self.top = self.bottom + height - 1
         self.color = (100, 100, 100, 255)
         self.default_resource_amount = int(
-            (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_coeff
+            (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_density
         )
         self._resources = Resources[int]({x: self.default_resource_amount for x in RESOURCE_LIST})
 
