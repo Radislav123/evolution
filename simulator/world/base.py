@@ -2,6 +2,7 @@ import copy
 import dataclasses
 import random
 from collections import defaultdict
+from typing import Type
 
 import arcade
 
@@ -74,6 +75,12 @@ class SimulationWorld(WorldObjectMixin):
         self.chunks = SimulationWorldChunk.cut_world(self)
         # список всех чанков мира
         self.chunk_list = [chunk for line in self.chunks for chunk in line]
+
+        # все объекты, которые должны сохраняться в БД, должны складываться сюда для ускорения записи в БД
+        self.object_to_save_to_db: defaultdict[
+            Type[models.EvolutionModel],
+            list[models.EvolutionModel]
+        ] = defaultdict(list)
 
     def __repr__(self) -> str:
         return f"{self.object_id}"
@@ -155,11 +162,22 @@ class SimulationWorld(WorldObjectMixin):
             body_type = arcade.PymunkPhysicsEngine.STATIC
         )
 
+    def save_objects_to_db(self) -> None:
+        for model, objects in self.object_to_save_to_db.items():
+            model.objects.bulk_create(
+                objects,
+                update_conflicts = True,
+                update_fields = model.get_update_fields(),
+                unique_fields = model.unique_fields
+            )
+        self.object_to_save_to_db = defaultdict(list)
+
     def start(self) -> None:
         """Выполняет подготовительные действия при начале симуляции."""
 
         self.save_to_db()
         self.spawn_start_creature()
+        self.save_objects_to_db()
 
     def stop(self) -> None:
         """Выполняет завершающие действия при окончании симуляции."""
@@ -167,6 +185,7 @@ class SimulationWorld(WorldObjectMixin):
         self.save_to_db()
         for creature in self.creatures:
             creature.stop()
+        self.save_objects_to_db()
 
     def spawn_start_creature(self) -> None:
         creature = SimulationCreature(
@@ -209,6 +228,9 @@ class SimulationWorld(WorldObjectMixin):
             # не передавать delta_time, так как физические расчеты должны быть привязаны не ко времени, а к тикам
             self.physics_engine.step()
             self.age += 1
+
+            if self.age % 10000 == 0:
+                self.save_objects_to_db()
         except Exception as error:
             error.world = self
             raise error

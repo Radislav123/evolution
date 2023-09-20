@@ -7,6 +7,15 @@ class EvolutionModel(models.Model):
     class Meta:
         abstract = True
 
+    _update_fields: list[str] = None
+    unique_fields: list[str] = ["id"]
+
+    @classmethod
+    def get_update_fields(cls) -> list[str]:
+        if cls._update_fields is None:
+            cls._update_fields = [x.name for x in cls._meta.fields if x.name != "id"]
+        return cls._update_fields
+
 
 class HistoryModel(EvolutionModel):
     """Базовый класс для моделей представляющих историю изменений."""

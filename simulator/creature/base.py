@@ -46,6 +46,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         AUTOPHAGE_STORAGE = 3
 
     db_model = models.Creature
+    position_history_db_model = models.CreaturePositionHistory
     db_instance: db_model
     counter = 0
     birth_counter = 0
@@ -222,20 +223,17 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             stop_tick = self.stop_tick,
             death_tick = self.death_tick
         )
-        self.db_instance.save()
+        self.world.object_to_save_to_db[self.db_model].append(self.db_instance)
 
-    def save_position_history_to_db(self) -> None:
-        position_history = []
-        for tick in self.position_history:
-            position_history.append(
-                models.CreaturePositionHistory(
-                    creature = self.db_instance,
-                    age = tick,
-                    position_x = self.position_history[tick][0],
-                    position_y = self.position_history[tick][1]
-                )
-            )
-        models.CreaturePositionHistory.objects.bulk_create(position_history)
+        position_history = [
+            self.position_history_db_model(
+                creature = self.db_instance,
+                age = tick,
+                position_x = position[0],
+                position_y = position[1]
+            ) for tick, position in self.position_history.items()
+        ]
+        self.world.object_to_save_to_db[self.position_history_db_model].extend(position_history)
 
     def apply_genes(self) -> None:
         """Применяет эффекты генов на существо."""
@@ -285,7 +283,6 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
         self.prepare_physics()
         self.start_tick = self.world.age
-        self.save_to_db()
         # todo: изменить логику оплодотворения после введения полового размножения
         self.fertilize()
         self.world.add_creature(self)
@@ -294,7 +291,6 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
     def stop(self) -> None:
         self.stop_tick = self.world.age
         self.save_to_db()
-        self.save_position_history_to_db()
 
     # noinspection PyMethodOverriding
     def kill(self, death_cause: DeathCause) -> None:
