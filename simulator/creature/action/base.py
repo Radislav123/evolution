@@ -34,8 +34,12 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
     def __init__(self, creature: "SimulationCreature") -> None:
         self.creature = creature
         self.world = self.creature.world
-
-        # действие выбирается в момент окончания предыдущего
+        # длительность действия накопленная из-за округлений предыдущих действий (всегда должна быть < 1)
+        if creature.action is None:
+            self.duration_accumulated = 0
+        else:
+            self.duration_accumulated = self.creature.action.duration_accumulated
+        # действие выбирается в момент окончания предыдущего, а начинается лишь в следующий тик
         self.start_tick = self.world.age + 1
 
         self.aborted = False
@@ -77,7 +81,12 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
     def prepare(self) -> None:
         # todo: добавить коэффициент длительности действия из генома (например завязать на действие метаболизма)
         # длительность действия не может быть меньше 1 тика
-        self._estimated_duration = max(int(self.estimated_duration * self.duration_coeff), 1)
+        estimated_duration = self.estimated_duration * self.duration_coeff + self.duration_accumulated
+        self._estimated_duration = max(int(estimated_duration), 1)
+        if self._estimated_duration == 1:
+            self.duration_accumulated = 0
+        else:
+            self.duration_accumulated = estimated_duration % 1
         self.estimated_stop_tick = self.start_tick + self.duration
         self.world.active_creatures[self.estimated_stop_tick][self.creature.id] = self.creature
 
@@ -122,21 +131,27 @@ class ConsumeAction(ActionInterface):
         duration = 0
         for resource in (x for x in self.creature.storage.available_space if not x.is_energy):
             if self.creature.consumption_amount[resource] > 0:
-                resource_duration = (self.creature.storage.available_space[resource] //
+                resource_duration = (self.creature.storage.available_space[resource] /
                                      self.creature.consumption_amount[resource])
                 if resource_duration > duration:
                     duration = resource_duration
 
-        estimated_duration = int(self.estimated_duration * self.duration_coeff)
+        estimated_duration = self.estimated_duration * self.duration_coeff
         if duration < estimated_duration:
             estimated_duration = duration
+        estimated_duration += self.duration_accumulated
 
         # длительность действия не может быть меньше 1 тика
-        self._estimated_duration = max(estimated_duration, 1)
+        self._estimated_duration = max(int(estimated_duration), 1)
+        if self._estimated_duration == 1:
+            self.duration_accumulated = 0
+        else:
+            self.duration_accumulated = estimated_duration % 1
         self.estimated_stop_tick = self.start_tick + self.duration
         self.world.active_creatures[self.estimated_stop_tick][self.creature.id] = self.creature
 
 
+# todo: добавить изменение длительности действия на подобии ConsumeAction
 class RegenerateAction(ActionInterface):
     name = "regenerate_action"
 

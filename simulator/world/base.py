@@ -8,7 +8,7 @@ import arcade
 
 from core import models
 from core.mixin import WorldObjectMixin
-from core.physic import BaseWorldCharacteristics
+from core.physic import WorldCharacteristics
 from core.service import EvolutionSpriteList, ObjectDescriptionReader
 from evolution import settings
 from simulator.creature import SimulationCreature
@@ -63,7 +63,7 @@ class SimulationWorld(WorldObjectMixin):
         # {creature.object_id: creature}
         self.creatures = EvolutionSpriteList[SimulationCreature]()
         self.active_creatures: defaultdict[int, dict[int, SimulationCreature]] = defaultdict(dict)
-        self.characteristics = BaseWorldCharacteristics(
+        self.characteristics = WorldCharacteristics(
             world_descriptor.viscosity,
             world_descriptor.boarders_friction,
             world_descriptor.borders_thickness,

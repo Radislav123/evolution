@@ -4,7 +4,7 @@ from typing import Iterable
 import arcade
 
 from core import models
-from core.physic import BaseWorldCharacteristics
+from core.physic import WorldCharacteristics
 from player.creature import BasePlaybackCreature
 from simulator.world import SimulationWorld
 
@@ -38,7 +38,7 @@ class BasePlaybackWorld:
         self.load_creatures(creature_db_instances)
 
         characteristics = models.WorldCharacteristics.objects.get(world_id = self.id)
-        self.characteristics = BaseWorldCharacteristics(
+        self.characteristics = WorldCharacteristics(
             characteristics.viscosity,
             characteristics.borders_friction,
             characteristics.borders_thickness,

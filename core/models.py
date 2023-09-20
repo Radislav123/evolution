@@ -43,32 +43,14 @@ class WorldCharacteristics(EvolutionModel):
     resource_coeff = models.FloatField()
 
 
-class WorldChunk(EvolutionModel):
-    # левая граница
-    left = models.PositiveIntegerField()
-    # нижняя граница
-    bottom = models.PositiveIntegerField()
-    color_red = models.PositiveIntegerField()
-    color_green = models.PositiveIntegerField()
-    color_blue = models.PositiveIntegerField()
-
-
 class Creature(EvolutionModel):
     world = models.ForeignKey(World, models.PROTECT)
     # существо появилось
-    start_tick = models.PositiveIntegerField()
+    start_tick = models.PositiveIntegerField(null = True)
     # существо перестало существовать или симуляция приостановлена
-    stop_tick = models.IntegerField()
+    stop_tick = models.IntegerField(null = True)
     # существо умерло
-    # -1 == существо не умирало в симуляции
-    death_tick = models.IntegerField()
-
-
-# родителей может быть разное количество
-class CreatureParent(EvolutionModel):
-    world = models.ForeignKey(World, models.PROTECT)
-    creature = models.ForeignKey(Creature, models.PROTECT, related_name = "creature_itself", primary_key = True)
-    parent = models.ForeignKey(Creature, models.PROTECT, related_name = "creature_parent")
+    death_tick = models.IntegerField(null = True)
 
 
 class CreaturePositionHistory(HistoryModel):
@@ -76,18 +58,3 @@ class CreaturePositionHistory(HistoryModel):
     age = models.PositiveIntegerField()
     position_x = models.FloatField()
     position_y = models.FloatField()
-
-
-# todo: сделать эту модель историей изменений (history)
-class CreatureStorage(EvolutionModel):
-    creature = models.OneToOneField(Creature, models.PROTECT, primary_key = True)
-
-
-# todo: сделать эту модель историей (history)
-class StoredResource(EvolutionModel):
-    creature_storage = models.ForeignKey(CreatureStorage, models.PROTECT)
-    # формула ресурса
-    # O/C/H/light
-    resource = models.CharField(max_length = 10)
-    capacity = models.IntegerField()
-    current = models.IntegerField()

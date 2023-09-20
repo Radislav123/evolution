@@ -1,1 +1,1 @@
-from core.physic.base import CreatureCharacteristics, BaseWorldCharacteristics
+from core.physic.base import CreatureCharacteristics, WorldCharacteristics

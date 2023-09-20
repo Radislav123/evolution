@@ -78,13 +78,12 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
             # общая инициализация
             self.world = world
-            # todo: заменить -1 на None в *_tick
-            # -1 == существо не стартовало (start()) в симуляции
-            self.start_tick = -1
-            # -1 == существо не остановлено (stop()) в симуляции
-            self.stop_tick = -1
-            # -1 == существо не умирало (kill()) в симуляции
-            self.death_tick = -1
+            # None == существо не стартовало (start()) в симуляции
+            self.start_tick = None
+            # None == существо не остановлено (stop()) в симуляции
+            self.stop_tick = None
+            # None == существо не умирало (kill()) в симуляции
+            self.death_tick = None
             self.death_cause: SimulationCreature.DeathCause | None = None
             self.alive = True
             self.action: ActionInterface | None = None
@@ -129,8 +128,8 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
             # (забираются из хранилища, добавляются в returned_resources,
             # а потом (через returned_resources) возвращаются в мир)
-            self.resources_loss_accumulated: Resources = Resources()
-            self._resources_loss: Resources | None = None
+            self.resources_loss_accumulated: Resources[float] = Resources[float]()
+            self._resources_loss: Resources[int] | None = None
             # todo: привязать к генам
             # отношение количества регенерируемых ресурсов и энергии
             # (сколько энергии стоит восстановление единицы ресурса)

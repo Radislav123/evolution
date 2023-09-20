@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from simulator.creature import SimulationCreature
 
 
-class BaseWorldCharacteristics:
+class WorldCharacteristics:
     """Физические характеристики мира."""
 
     db_model = models.WorldCharacteristics

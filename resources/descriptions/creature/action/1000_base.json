@@ -15,8 +15,7 @@
             "name": "consume_action"
         },
         "regenerate_action": {
-            "name": "regenerate_action",
-            "duration_coeff": 0.5
+            "name": "regenerate_action"
         },
         "reproduce_action": {
             "name": "reproduce_action",
