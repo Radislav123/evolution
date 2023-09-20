@@ -76,15 +76,21 @@ def log_error_info(error: Exception):
             file.write("========== Creature info ==========\n")
             log_creature(error.creature, file)
             file.write(SECTION_DELIMITER)
+        if hasattr(error, "parents"):
+            file.write("========== Parents info ==========\n")
+            for parent in error.parents:
+                file.write("========== parent info ==========\n")
+                log_creature(parent, file)
+                file.write(SECTION_DELIMITER)
         if hasattr(error, "child"):
             file.write("========== Child info ==========\n")
             log_creature(error.child, file)
             file.write(SECTION_DELIMITER)
         if hasattr(error, "next_children"):
             file.write("========== Next children info ==========\n")
-            for mext_child in error.next_children:
+            for next_child in error.next_children:
                 file.write("========== next child info ==========\n")
-                log_creature(mext_child, file)
+                log_creature(next_child, file)
                 file.write(SECTION_DELIMITER)
         if hasattr(error, "init_creature"):
             file.write("========== Init creature info ==========\n")

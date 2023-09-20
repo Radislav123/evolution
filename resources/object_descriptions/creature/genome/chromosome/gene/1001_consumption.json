@@ -9,7 +9,8 @@
             ],
             "step": 1,
             "attribute_default": 10,
-            "attribute_name": "consumption_limit"
+            "attribute_name": "consumption_limit",
+            "common_min_limit": 0
         },
         "oxygen_consumption_gene": {
             "name": "oxygen_consumption_gene",

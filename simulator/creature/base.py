@@ -354,6 +354,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         except Exception as error:
             error.creature = self
             error.next_children = self.next_children
+            error.parents = self.parents
             raise error
 
     def update_position_history(self) -> None:

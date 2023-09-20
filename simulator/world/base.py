@@ -188,11 +188,7 @@ class SimulationWorld(WorldObjectMixin):
         self.save_objects_to_db()
 
     def spawn_start_creature(self) -> None:
-        creature = SimulationCreature(
-            self,
-            None,
-            world_generation = True
-        )
+        creature = SimulationCreature(self, None, True)
         creature.position = self.center
         creature.storage.add_resources(CREATURE_START_RESOURCES)
         creature.start()
@@ -229,7 +225,7 @@ class SimulationWorld(WorldObjectMixin):
             self.physics_engine.step()
             self.age += 1
 
-            if self.age % 10000 == 0:
+            if self.age % 100 == 0:
                 self.save_objects_to_db()
         except Exception as error:
             error.world = self

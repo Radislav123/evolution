@@ -54,7 +54,6 @@ ENERGY = RESOURCE_DICT["energy"]
 VT = TypeVar("VT", int, float)
 
 
-# todo: проверить будет ли Resources быстрее работать, если унаследовать его от collections.Counter
 class Resources(Dict[WorldResource, VT]):
     """Обертка-контейнер для удобной работы с ресурсами."""
 
