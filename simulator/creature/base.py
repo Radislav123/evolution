@@ -91,8 +91,6 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             # инициализация генов
             self.parents = parents
             self.genome = genome
-            # количество потомков, которые появляются при размножении
-            self.children_amount: int | None = None
             # список потомков, которые появятся при следующем размножении
             self.next_children: list[SimulationCreature] | None = None
             self._reproduction_resources: Resources | None = None
@@ -106,11 +104,8 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             # todo: привязать к генам
             # количество энергии, затрачиваемой на каждого потомка, при воспроизведении
             self.reproduction_energy_lost = 20
-            # количество определенное ресурса, которое существо может потребить за тик
-            self.consumption_amount: Resources[int] | None = None
-            # количество всех ресурсов, которое существо может потребить за тик
-            self.consumption_limit: int | None = None
-            self.apply_genes()
+            self.genome.apply_genes()
+            self.color = self.genome.effects.color
 
             # инициализация частей тела
             self.body: BodypartInterface | None = None
@@ -161,7 +156,9 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
         if self._reproduction_resources is None:
             self._reproduction_resources = Resources.sum(child.resources for child in self.next_children)
-            self.reproduction_resources[ENERGY] += int(self.reproduction_energy_lost * self.children_amount)
+            self.reproduction_resources[ENERGY] += int(
+                self.reproduction_energy_lost * self.genome.effects.children_amount
+            )
         return self._reproduction_resources
 
     @property
@@ -234,16 +231,6 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             ) for tick, position in self.position_history.items()
         ]
         self.world.object_to_save_to_db[self.position_history_db_model].extend(position_history)
-
-    def apply_genes(self) -> None:
-        """Применяет эффекты генов на существо."""
-
-        self.genome.apply_genes()
-
-        self.children_amount = self.genome.effects.children_amount
-        self.consumption_amount = self.genome.effects.consumption_amount
-        self.consumption_limit = self.genome.effects.consumption_limit
-        self.color = self.genome.effects.color
 
     def apply_bodyparts(self) -> None:
         """Собирает тело и применяет эффекты частей тела на существо."""
@@ -318,7 +305,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
     def fertilize(self) -> None:
         # todo: переделать этот метод при добавлении полового размножения
-        self.next_children = [SimulationCreature(self.world, [self]) for _ in range(self.children_amount)]
+        self.next_children = [SimulationCreature(self.world, [self]) for _ in range(self.genome.effects.children_amount)]
 
     # todo: добавить обработку случаев, когда существо прерывается во время выполнения действия
     #  (возможно, в другом методе)
@@ -381,12 +368,12 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         if chunk_resources_sum > 0:
             consumption_resources = Resources[int](
                 {resource: min(
-                    int(amount / chunk_resources_sum * self.consumption_limit * self.action.duration),
+                    int(amount / chunk_resources_sum * self.genome.effects.consumption_limit * self.action.duration),
                     amount
                 ) for resource, amount in chunk_resources.items()
                     if not self.storage[resource].destroyed and not resource.is_energy}
             )
-            for resource, amount in self.consumption_amount.items():
+            for resource, amount in self.genome.effects.consumption_amount.items():
                 real_amount = int(amount * self.action.duration)
                 if real_amount < consumption_resources[resource]:
                     consumption_resources[resource] = real_amount
@@ -462,7 +449,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         return self._regenerating_bodypart
 
     def can_reproduce(self) -> bool:
-        if self.children_amount > 0:
+        if self.genome.effects.children_amount > 0:
             for resource, amount in self.reproduction_resources.items():
                 lower_bound = amount * self.reproduction_reserve_coeff * self.reproduction_lost_coeff
                 if (resource not in self.storage or self.storage[resource].current <= lower_bound
@@ -531,15 +518,15 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         # https://ru.wikipedia.org/wiki/%D0%A3%D0%BF%D0%B0%D0%BA%D0%BE%D0%B2%D0%BA%D0%B0_%D0%BA%D1%80%D1%83%D0%B3%D0%BE%D0%B2
         children_in_layer = 6
         layers = []
-        while sum(layers) < self.children_amount:
+        while sum(layers) < self.genome.effects.children_amount:
             layers.append(len(layers) * children_in_layer)
         layers = layers[1:-1]
-        if sum(layers) != self.children_amount:
-            layers.append(self.children_amount - sum(layers))
+        if sum(layers) != self.genome.effects.children_amount:
+            layers.append(self.genome.effects.children_amount - sum(layers))
         return layers
 
     def get_children_sharing_resources(self) -> list[Resources]:
-        if self.children_amount > 0:
+        if self.genome.effects.children_amount > 0:
             sharing_resources_map = {}
             for resource in self.storage:
                 sharing_resources_map.update(
@@ -581,7 +568,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         # todo: вынести энергетический обмен в отдельный метод при добавлении других способов, кроме фотосинтеза
         energy_consumption_amount = min(
             self.world.get_resource(self.position, ENERGY),
-            int(self.consumption_amount[ENERGY] * self.action.duration)
+            int(self.genome.effects.consumption_amount[ENERGY] * self.action.duration)
         )
         self.storage.add_resource(ENERGY, energy_consumption_amount)
         self.world.remove_resource(self.position, ENERGY, energy_consumption_amount)

@@ -131,9 +131,9 @@ class ConsumeAction(ActionInterface):
 
     def prepare(self) -> None:
         resource_durations = (
-            self.creature.storage.available_space[resource] / self.creature.consumption_amount[resource]
+            self.creature.storage.available_space[resource] / self.creature.genome.effects.consumption_amount[resource]
             for resource in (x for x in self.creature.storage.available_space
-                             if not x.is_energy and self.creature.consumption_amount[x] > 0)
+                             if not x.is_energy and self.creature.genome.effects.consumption_amount[x] > 0)
         )
         estimated_duration = min(
             *resource_durations,
