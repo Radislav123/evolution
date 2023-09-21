@@ -29,7 +29,7 @@
             "attribute_name": "elasticity"
         },
         "metabolism_gene": {
-            "_todo": "добавить бонусы за высокое значение метаболизма, возможно, связанные с другими генами (температура, скорость...)",
+            "_description": "отвечает за количество теряемой энергии",
             "name": "metabolism_gene",
             "interface": "number_gene_interface",
             "required_for_creature": true,
@@ -39,7 +39,7 @@
             "attribute_name": "metabolism"
         },
         "resources_loss_coeff_gene": {
-            "_todo": "todo: добавить бонусы за высокое значение потери ресурсов, возможно, связанные с другими генами",
+            "_description": "отвечает за количество теряемых ресурсов, кроме энергии",
             "name": "resources_loss_coeff_gene",
             "interface": "number_gene_interface",
             "required_for_creature": true,

@@ -46,7 +46,8 @@
             "required_genes": [
                 "energy_storage_gene"
             ],
-            "resource": "energy"
+            "resource": "energy",
+            "default_consumption": 5
         }
     }
 }

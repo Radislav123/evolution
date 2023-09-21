@@ -7,7 +7,7 @@ from typing import Self, TYPE_CHECKING, Type
 from core.service import ObjectDescriptionReader
 from evolution import settings
 from simulator.creature.genome.chromosome import Chromosome
-from simulator.creature.genome.chromosome.gene import GeneInterface
+from simulator.creature.genome.chromosome.gene import GENE_CLASSES, GeneInterface, NumberGeneInterface
 from simulator.world_resource import Resources
 
 
@@ -29,16 +29,33 @@ class GenomeEffects:
         self.metabolism = 0.0
         self.resources_loss_coeff = 0.0
         self.regeneration_amount = 0
+        self.regeneration_amount_coeff: float | None = None
         # количество определенное ресурса, которое существо может потребить за тик
         self.consumption_amount = Resources[int]()
         # количество всех ресурсов, которое существо может потребить за тик
         self.consumption_limit = 0
-        # количество ресурсов, теряемых каждый тик
-        self.resources_loss = Resources[float]()
         self.bodyparts: list[str] = []
         self.resource_storages = Resources[int]()
         self.color: list[int] = [0, 0, 0]
         self.action_weights: defaultdict[str, float] = defaultdict(lambda: 0)
+        self.action_duration_coeff: float | None = None
+
+    def prepare(self) -> None:
+        self.prepare_color()
+
+        # устанавливается влияние генов на длительность действий
+        # noinspection PyTypeChecker
+        metabolism_gene_class: Type[NumberGeneInterface] = GENE_CLASSES["metabolism_gene"]
+        # noinspection PyTypeChecker
+        resources_loss_coeff_gene_class: Type[NumberGeneInterface] = GENE_CLASSES["resources_loss_coeff_gene"]
+        self.action_duration_coeff = (metabolism_gene_class.attribute_default / self.metabolism *
+                                      resources_loss_coeff_gene_class.attribute_default / self.resources_loss_coeff)
+
+        # устанавливается влияние сторонних генов на скорость регенерации
+        self.regeneration_amount_coeff = (
+                (1 / metabolism_gene_class.attribute_default)**self.metabolism *
+                (1 / resources_loss_coeff_gene_class.attribute_default)**self.resources_loss_coeff
+        )
 
     def prepare_color(self) -> None:
         other_color_numbers = {
@@ -181,7 +198,7 @@ class Genome:
         for gene_class in gene_classes:
             gene_class.correct(self)
 
-        self.effects.prepare_color()
+        self.effects.prepare()
 
     @classmethod
     def get_child_genome(cls, parents: list["SimulationCreature"]) -> "Genome":

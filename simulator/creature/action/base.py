@@ -83,9 +83,9 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
         return next_action
 
     def prepare(self) -> None:
-        # todo: добавить коэффициент длительности действия из генома (например завязать на действие метаболизма)
         # длительность действия не может быть меньше 1 тика
-        estimated_duration = self.estimated_duration * self.duration_coeff + self.duration_accumulated
+        estimated_duration = (self.estimated_duration * self.duration_coeff *
+                              self.creature.genome.effects.action_duration_coeff + self.duration_accumulated)
         self._estimated_duration = max(int(estimated_duration), 1)
         if self._estimated_duration == 1:
             self.duration_accumulated = 0
@@ -137,7 +137,7 @@ class ConsumeAction(ActionInterface):
         )
         estimated_duration = min(
             *resource_durations,
-            self.estimated_duration * self.duration_coeff
+            self.estimated_duration * self.duration_coeff * self.creature.genome.effects.action_duration_coeff
         ) + self.duration_accumulated
 
         # длительность действия не может быть меньше 1 тика
@@ -153,12 +153,13 @@ class RegenerateAction(ActionInterface):
 
     def prepare(self) -> None:
         resource_durations = (
-            amount / self.creature.genome.effects.regeneration_amount
+            amount /
+            (self.creature.genome.effects.regeneration_amount * self.creature.genome.effects.regeneration_amount_coeff)
             for resource, amount in self.creature.regenerating_bodypart.damage.items() if amount > 0
         )
         estimated_duration = min(
             *resource_durations,
-            self.estimated_duration * self.duration_coeff
+            self.estimated_duration * self.duration_coeff * self.creature.genome.effects.action_duration_coeff
         ) + self.duration_accumulated
 
         # длительность действия не может быть меньше 1 тика

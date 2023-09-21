@@ -164,11 +164,9 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
     @property
     def resources_loss(self) -> Resources[int]:
         if self._resources_loss is None:
-            resources_loss = self.resources * self.genome.effects.resources_loss_coeff + \
-                             self.resources_loss_accumulated + self.genome.effects.resources_loss
-
-            resources_loss[ENERGY] = self.genome.effects.resources_loss[ENERGY] + \
-                                     self.characteristics.volume * self.genome.effects.metabolism
+            resources_loss = self.resources * self.genome.effects.resources_loss_coeff + self.resources_loss_accumulated
+            resources_loss[ENERGY] = (sum(self.remaining_resources.values()) * self.genome.effects.metabolism
+                                      + self.resources_loss_accumulated[ENERGY])
 
             resources_loss *= self.action.duration
             resources_loss_rounded = resources_loss.round()
@@ -305,7 +303,8 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
     def fertilize(self) -> None:
         # todo: переделать этот метод при добавлении полового размножения
-        self.next_children = [SimulationCreature(self.world, [self]) for _ in range(self.genome.effects.children_amount)]
+        self.next_children = [SimulationCreature(self.world, [self])
+                              for _ in range(self.genome.effects.children_amount)]
 
     # todo: добавить обработку случаев, когда существо прерывается во время выполнения действия
     #  (возможно, в другом методе)
@@ -405,13 +404,18 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         return resource
 
     def can_regenerate(self) -> bool:
-        return (self.genome.effects.regeneration_amount > 0 and ENERGY in self.storage and
-                not self.storage[ENERGY].empty and self.regenerating_bodypart is not None)
+        return (self.genome.effects.regeneration_amount * self.genome.effects.regeneration_amount_coeff > 0
+                and ENERGY in self.storage and not self.storage[ENERGY].empty
+                and self.regenerating_bodypart is not None)
 
     def regenerate(self) -> None:
+        regenerating_resource_amount = int(
+            self.genome.effects.regeneration_amount * self.genome.effects.regeneration_amount_coeff
+            * self.action.duration
+        )
         regenerating_resources = Resources[int](
             {resource: min(
-                int(self.genome.effects.regeneration_amount * self.action.duration),
+                regenerating_resource_amount,
                 # делается поправка на количество ресурса в хранилище существа
                 self.storage.stored_resources[resource]
             ) for resource in self.regenerating_bodypart.damage}
