@@ -1,7 +1,7 @@
 import abc
 import enum
 import random
-from typing import TYPE_CHECKING, Type
+from typing import Callable, TYPE_CHECKING, Type
 
 from core.mixin import ApplyDescriptorMixin, GetSubclassesMixin
 from core.service import ObjectDescriptionReader
@@ -30,6 +30,7 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
     duration_coeff: float
     # относительный вес при выборе следующего действия
     base_weight: float
+    _can_perform: Callable[["SimulationCreature"], bool] = None
 
     def __init__(self, creature: "SimulationCreature") -> None:
         self.creature = creature
@@ -64,18 +65,19 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
         return ACTION_CLASSES["wait_action"](creature)
 
     @classmethod
-    def get_next_action(cls, creature: "SimulationCreature") -> "ActionInterface":
-        action_list: list[ActionInterface] = []
-        if creature.can_consume():
-            action_list.append(ACTION_CLASSES[ConsumeAction.name])
-        if creature.can_regenerate():
-            action_list.append(ACTION_CLASSES[RegenerateAction.name])
-        if creature.can_reproduce():
-            action_list.append(ACTION_CLASSES[ReproduceAction.name])
+    def can_perform(cls, creature: "SimulationCreature") -> bool:
+        if cls._can_perform is None:
+            method_name = f"can_{'_'.join(cls.name.split('_')[:-1])}"
+            cls._can_perform = getattr(creature.__class__, method_name)
+        return cls._can_perform(creature)
 
-        weights = [x.get_weight(creature) for x in action_list]
-        if sum(weights) > 0:
-            next_action = random.choices(action_list, weights)[0](creature)
+    @classmethod
+    def get_next_action(cls, creature: "SimulationCreature") -> "ActionInterface":
+        actions = {action: weight for action in ACTION_CLASSES.values()
+                   if (weight := action.get_weight(creature)) > 0 and action.can_perform(creature)}
+
+        if len(actions) > 0:
+            next_action = random.choices(list(actions), list(actions.values()))[0](creature)
         else:
             next_action = cls.get_wait_action(creature)
         return next_action
@@ -116,8 +118,8 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
 
     @classmethod
     def get_weight(cls, creature: "SimulationCreature") -> float:
-        # todo: реализовать изменение веса из-за влияния генов и других факторов
-        return cls.base_weight
+        # todo: реализовать изменение веса из-за влияния других факторов
+        return cls.base_weight * creature.genome.effects.action_weights[cls.name]
 
 
 class WaitAction(ActionInterface):
@@ -172,7 +174,7 @@ class ReproduceAction(ActionInterface):
 
 
 ActionInterface.apply_descriptor(action_descriptors[ActionInterface.name])
-ACTION_CLASSES = {x.name: x for x in ActionInterface.get_all_subclasses()}
+ACTION_CLASSES: dict[str, Type[ActionInterface]] = {x.name: x for x in ActionInterface.get_all_subclasses()}
 # обновляются данные в классах действий
 for name, action_class in ACTION_CLASSES.items():
     action_class.apply_descriptor(action_descriptors[name])

@@ -170,7 +170,7 @@ class ResourceStorageGeneInterface(StepGeneMixin, BodyPartGeneInterface):
         super().__init__(first)
 
     def __repr__(self) -> str:
-        return f"{super().__repr__()}: {self.capacity}"
+        return f"{self.__class__.__name__}: {self.capacity}"
 
     def mutate(self, genome: "Genome") -> None:
         self.capacity += self.make_step()
@@ -200,7 +200,7 @@ class ResourceConsumptionGeneInterface(StepGeneMixin, GeneInterface):
         super().__init__(first)
 
     def __repr__(self) -> str:
-        return f"{super().__repr__()}: {self.consumption}"
+        return f"{self.__class__.__name__}: {self.consumption}"
 
     def mutate(self, genome: "Genome") -> None:
         self.consumption += self.make_step()
@@ -230,7 +230,7 @@ class NumberGeneInterface(StepGeneMixin[ST], GeneInterface):
             self.attribute_value = self.make_step()
 
     def __repr__(self) -> str:
-        return f"{super().__repr__()}: {self.attribute_value}"
+        return f"{self.__class__.__name__}: {self.attribute_value}"
 
     def mutate(self, genome: "Genome") -> None:
         step = self.make_step()
@@ -257,35 +257,55 @@ class NumberGeneInterface(StepGeneMixin[ST], GeneInterface):
             setattr(genome.effects, cls.attribute_name, cls.common_max_limit)
 
 
-class ColorGeneInterface(StepGeneMixin, GeneInterface):
+class ColorGeneInterface(StepGeneMixin[int], GeneInterface):
     name = "color_gene_interface"
-    step: int
-    # количество пигмента
-    # сейчас вырабатываемый пигмент не дает расхода ресурсов
-    # потом можно будет добавить следующее - пигмент является синтезируемым веществом, накапливаемом в организме
-    current = 0
     # RGB - red, green, blue - 0, 1, 2
     # разложение цвета на базовые (предполагается, что их сумма равна 1)
     red: float
     green: float
     blue: float
+    # количество пигмента
+    # сейчас вырабатываемый пигмент не дает расхода ресурсов
+    # потом можно будет добавить следующее - пигмент является синтезируемым веществом, накапливаемом в организме
+    pigment_amount: float
 
     def __repr__(self) -> str:
-        return f"{super().__repr__()}: {self.current}"
+        return f"{self.__class__.__name__}: {self.pigment_amount}"
 
     def mutate(self, genome: "Genome"):
-        self.current += self.make_step()
-        if self.current < 0:
-            self.current = 0
+        self.pigment_amount += self.make_step()
+        if self.pigment_amount < 0:
+            self.pigment_amount = 0
 
     def apply(self, genome: "Genome"):
-        genome.effects.color[0] += int(self.current * self.red)
-        genome.effects.color[1] += int(self.current * self.green)
-        genome.effects.color[2] += int(self.current * self.blue)
+        genome.effects.color[0] += int(self.pigment_amount * self.red)
+        genome.effects.color[1] += int(self.pigment_amount * self.green)
+        genome.effects.color[2] += int(self.pigment_amount * self.blue)
 
     @classmethod
     def correct(cls, genome: "Genome"):
+        # обработка цветов производится в Genome.apply_color
         pass
+
+
+class ActionWeightCoeffGeneInterface(StepGeneMixin[int], GeneInterface):
+    name = "action_weight_gene_interface"
+    action: str
+    weight_coeff: float
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}: {self.weight_coeff}"
+
+    def mutate(self, genome: "Genome") -> None:
+        self.weight_coeff += self.make_step()
+
+    def apply(self, genome: "Genome") -> None:
+        genome.effects.action_weights[self.action] += self.weight_coeff
+
+    @classmethod
+    def correct(cls, genome: "Genome") -> None:
+        if hasattr(cls, "common_min_limit") and genome.effects.action_weights[cls.action] < cls.common_min_limit:
+            genome.effects.action_weights[cls.action] = cls.common_min_limit
 
 
 # noinspection DuplicatedCode

@@ -1,7 +1,7 @@
 import copy
 import dataclasses
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Self, TYPE_CHECKING, Type
 
 from core.service import ObjectDescriptionReader
@@ -38,6 +38,7 @@ class GenomeEffects:
         self.bodyparts: list[str] = []
         self.resource_storages = Resources[int]()
         self.color: list[int] = [0, 0, 0]
+        self.action_weights: defaultdict[str, float] = defaultdict(lambda: 0)
 
     def prepare_color(self) -> None:
         other_color_numbers = {

@@ -32,7 +32,13 @@
         "color_gene_interface": {
             "name": "color_gene_interface",
             "step": 10,
-            "current": 0
+            "pigment_amount": 0
+        },
+        "action_weight_gene_interface": {
+            "name": "action_weight_gene_interface",
+            "common_min_limit": 0,
+            "step": 0.1,
+            "weight_coeff": 1
         }
     }
 }
