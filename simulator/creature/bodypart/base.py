@@ -31,14 +31,14 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
     required_bodypart: str
     extra_storage_coeff: float
 
-    def __init__(self, creature: "SimulationCreature", required_bodypart: Optional["BodypartInterface"]) -> None:
+    def __init__(self, creature: "SimulationCreature", required_bodypart: Optional["BodypartInterfaceClass"]) -> None:
         self.creature = creature
         self.size_coeff = self.creature.genome.effects.size_coeff
         # часть тела, к которой крепится данная
-        self.required_bodypart: "BodypartInterface" = required_bodypart
-        self.dependent_bodyparts: list["BodypartInterface"] = []
-        self._all_dependent: list["BodypartInterface"] | None = None
-        self._all_required: list["BodypartInterface"] | None = None
+        self.required_bodypart: BodypartInterfaceClass = required_bodypart
+        self.dependent_bodyparts: list["BodypartInterfaceClass"] = []
+        self._all_dependent: list["BodypartInterfaceClass"] | None = None
+        self._all_required: list["BodypartInterfaceClass"] | None = None
 
         # уничтожена ли часть тела полностью
         self.destroyed = False
@@ -101,7 +101,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return self._remaining_resources
 
     @property
-    def all_required(self) -> list["BodypartInterface"]:
+    def all_required(self) -> list["BodypartInterfaceClass"]:
         """Цепочка частей тела, к которой прикреплена данная часть тела."""
 
         if self._all_required is None or not self.constructed:
@@ -113,7 +113,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return self._all_required
 
     @property
-    def all_dependent(self) -> list["BodypartInterface"]:
+    def all_dependent(self) -> list["BodypartInterfaceClass"]:
         """Список частей тела, прикрепленных к данной напрямую или через другие части тела."""
 
         if self._all_dependent is None or not self.constructed:
@@ -126,7 +126,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
     def volume(self) -> float:
         if not self.destroyed:
             # todo: можно добавить кэширование (аккуратнее с хранилищами)
-            volume = sum(resource.volume * amount for resource, amount in self.resources.items())
+            volume = sum(resource.volume * amount for resource, amount in self.remaining_resources.items())
         else:
             volume = 0
         return volume
@@ -482,8 +482,10 @@ class ResourceStorageInterface(BodypartInterface):
         return return_resources
 
 
+BodypartInterfaceClass = (BodypartInterface | StorageInterface | ResourceStorageInterface)
+
 # noinspection DuplicatedCode
-BODYPART_INTERFACE_CLASSES: dict[str, Type[BodypartInterface]] = {
+BODYPART_INTERFACE_CLASSES: dict[str, Type[BodypartInterfaceClass]] = {
     x.name: x for x in BodypartInterface.get_all_subclasses()
 }
 BODYPART_INTERFACE_CLASSES[BodypartInterface.name] = BodypartInterface
@@ -493,7 +495,7 @@ for name, bodypart_interface_class in BODYPART_INTERFACE_CLASSES.items():
     bodypart_interface_class.apply_descriptor(bodypart_interface_descriptors[name])
 
 # создаются классы частей тела
-BODYPART_CLASSES: dict[str, Type[BodypartInterface]] = {
+BODYPART_CLASSES: dict[str, Type[BodypartInterfaceClass]] = {
     x["name"]: type(x["name"], (BODYPART_INTERFACE_CLASSES[x["interface"]],), x)
     for x in bodypart_descriptors.values()
 }

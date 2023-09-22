@@ -54,9 +54,8 @@ class CreatureCharacteristics:
         self.size_coeff = self.creature.genome.effects.size_coeff
 
     def __repr__(self) -> str:
-        string = (f"elasticity: {self.elasticity}, size coef: {self.size_coeff}, radius: {self.radius}, "
-                  f"volume: {self.volume}, mass: {self.mass}")
-        return string
+        return (f"elasticity: {self.elasticity}, size coef: {self.size_coeff}, radius: {self.radius}, "
+                f"volume: {self.volume}, mass: {self.mass}")
 
     # объем == площадь
     @property

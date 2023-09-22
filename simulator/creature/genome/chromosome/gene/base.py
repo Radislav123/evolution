@@ -43,7 +43,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     mutation_chance: float
     base_disappearance_chance: float
     appearance_chance: float
-    _required_for_creature_gene_classes: list[Type["GeneInterface"]] = None
+    _required_for_creature_gene_classes: list[Type["GeneInterfaceType"]] = None
 
     # интерфейсы не должны использовать конструктор
     # не использовать обратные ссылки (gene -> chromosome -> genome),
@@ -56,7 +56,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
         return f"{self.__class__.__name__}"
 
     @classmethod
-    def construct_genes(cls, first: bool, gene_classes: list[Type["GeneInterface"]]) -> list["GeneInterface"]:
+    def construct_genes(cls, first: bool, gene_classes: list[Type["GeneInterfaceType"]]) -> list["GeneInterfaceType"]:
         return [x(first) for x in gene_classes]
 
     # результат должен вычисляться каждый раз, так как геном меняется
@@ -93,7 +93,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
         raise NotImplementedError()
 
     @classmethod
-    def get_required_for_creature_gene_classes(cls) -> list[Type["GeneInterface"]]:
+    def get_required_for_creature_gene_classes(cls) -> list[Type["GeneInterfaceType"]]:
         """Возвращает классы генов, необходимые для любого существа."""
 
         if cls._required_for_creature_gene_classes is None:
@@ -101,11 +101,11 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
         return cls._required_for_creature_gene_classes
 
     @classmethod
-    def get_available_gene_classes(cls, genome: "Genome") -> list[Type["GeneInterface"]]:
+    def get_available_gene_classes(cls, genome: "Genome") -> list[Type["GeneInterfaceType"]]:
         """Возвращает классы генов, возможных для добавления в процессе мутации."""
 
-        # todo: убрать отсюда классы генов, которые точно не могут появиться, и это известно при генерации мира
-        return [x for x in GENE_CLASSES.values() if x.appearance_chance > 0 and genome.contains_all(x.required_genes)]
+        return [x for x in GENE_CLASSES_CAN_APPEAR.values()
+                if x.appearance_chance > 0 and genome.contains_all(x.required_genes)]
 
 
 class StepGeneMixin(Generic[ST]):
@@ -308,8 +308,12 @@ class ActionWeightCoeffGeneInterface(StepGeneMixin[int], GeneInterface):
             genome.effects.action_weights[cls.action] = cls.common_min_limit
 
 
+GeneInterfaceClass = (GeneInterface | BodyPartGeneInterface | ResourceStorageGeneInterface |
+                      ResourceConsumptionGeneInterface | NumberGeneInterface | ColorGeneInterface |
+                      ActionWeightCoeffGeneInterface)
+
 # noinspection DuplicatedCode
-GENE_INTERFACE_CLASSES: dict[str, Type[GeneInterface]] = {x.name: x for x in GeneInterface.get_all_subclasses()}
+GENE_INTERFACE_CLASSES: dict[str, Type[GeneInterfaceClass]] = {x.name: x for x in GeneInterface.get_all_subclasses()}
 GENE_INTERFACE_CLASSES[GeneInterface.name] = GeneInterface
 # обновляются данные в интерфейсах
 GeneInterface.apply_descriptor(gene_interface_descriptors[GeneInterface.name])
@@ -317,10 +321,15 @@ for name, gene_interface_class in GENE_INTERFACE_CLASSES.items():
     gene_interface_class.apply_descriptor(gene_interface_descriptors[name])
 
 # создаются классы генов
-GENE_CLASSES: dict[str, Type[GeneInterface]] = {
+GENE_CLASSES: dict[str, Type[GeneInterfaceClass]] = {
     x["name"]: type(x["name"], (GENE_INTERFACE_CLASSES[x["interface"]],), x)
     for x in gene_descriptors.values()
 }
 # обновляются данные в классах генов
 for name, gene_class in GENE_CLASSES.items():
     gene_class.apply_descriptor(gene_descriptors[name])
+
+# классы генов, которые могут появиться
+GENE_CLASSES_CAN_APPEAR: dict[str, Type[GeneInterfaceClass]] = {name: gene_class for name, gene_class in
+                                                                GENE_CLASSES.items()
+                                                                if gene_class.appearance_chance > 0}

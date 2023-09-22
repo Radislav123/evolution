@@ -6,7 +6,7 @@ from typing import Callable, TYPE_CHECKING, Type
 from core.mixin import ApplyDescriptorMixin, GetSubclassesMixin
 from core.service import ObjectDescriptionReader
 from evolution import settings
-from simulator.creature.genome.chromosome.gene import GENE_CLASSES, NumberGeneInterface
+from simulator.creature.genome.chromosome.gene import GENE_CLASSES
 from simulator.world_resource import ENERGY
 
 
@@ -156,8 +156,7 @@ class ConsumeAction(ActionInterface):
         if x >= k:
             coeff = -(1 / (k**2)) * (x + (1 - 2 * k)) * (x - 1)
         else:
-            # noinspection PyTypeChecker
-            gene_class: NumberGeneInterface = GENE_CLASSES["consumption_weight_from_fullness_gene"]
+            gene_class = GENE_CLASSES["consumption_weight_from_fullness_gene"]
             # 10 - максимальное влияние
             p = (10 - 1) / (gene_class.common_min_limit - k)**2
             coeff = 1 + p * (x - k)**2
@@ -192,8 +191,7 @@ class RegenerateAction(ActionInterface):
         if x >= k:
             coeff = -(1 / (k**2)) * (x + (1 - 2 * k)) * (x - 1)
         else:
-            # noinspection PyTypeChecker
-            gene_class: NumberGeneInterface = GENE_CLASSES["regeneration_weight_from_fullness_gene"]
+            gene_class = GENE_CLASSES["regeneration_weight_from_fullness_gene"]
             # 10 - максимальное влияние
             p = (10 - 1) / (gene_class.common_min_limit - k)**2
             coeff = 1 + p * (x - k)**2
@@ -210,8 +208,7 @@ class ReproduceAction(ActionInterface):
         if x >= k:
             coeff = -(1 / (k**2)) * (x + (1 - 2 * k)) * (x - 1)
         else:
-            # noinspection PyTypeChecker
-            gene_class: NumberGeneInterface = GENE_CLASSES["reproduction_weight_from_fullness_gene"]
+            gene_class = GENE_CLASSES["reproduction_weight_from_fullness_gene"]
             # 10 - максимальное влияние
             p = (10 - 1) / (gene_class.common_min_limit - k)**2
             coeff = 1 + p * (x - k)**2

@@ -7,7 +7,7 @@ from typing import Self, TYPE_CHECKING, Type
 from core.service import ObjectDescriptionReader
 from evolution import settings
 from simulator.creature.genome.chromosome import Chromosome
-from simulator.creature.genome.chromosome.gene import GENE_CLASSES, GeneInterface, NumberGeneInterface
+from simulator.creature.genome.chromosome.gene import GENE_CLASSES, GeneInterface
 from simulator.world_resource import Resources
 
 
@@ -48,10 +48,8 @@ class GenomeEffects:
         self.prepare_color()
 
         # устанавливается влияние генов на длительность действий
-        # noinspection PyTypeChecker
-        metabolism_gene_class: Type[NumberGeneInterface] = GENE_CLASSES["metabolism_gene"]
-        # noinspection PyTypeChecker
-        resources_loss_coeff_gene_class: Type[NumberGeneInterface] = GENE_CLASSES["resources_loss_coeff_gene"]
+        metabolism_gene_class = GENE_CLASSES["metabolism_gene"]
+        resources_loss_coeff_gene_class = GENE_CLASSES["resources_loss_coeff_gene"]
         self.action_duration_coeff = (metabolism_gene_class.attribute_default / self.metabolism *
                                       resources_loss_coeff_gene_class.attribute_default / self.resources_loss_coeff)
 

@@ -194,8 +194,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         """Все части тела существа."""
 
         if self._bodyparts is None:
-            self._bodyparts = [self.body]
-            self._bodyparts.extend(self.body.all_dependent)
+            self._bodyparts = [self.body, *self.body.all_dependent]
         return self._bodyparts
 
     @property
