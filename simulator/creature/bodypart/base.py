@@ -1,5 +1,6 @@
 import copy
-from typing import Optional, TYPE_CHECKING, Type
+import statistics
+from typing import ItemsView, KeysView, Optional, TYPE_CHECKING, Type, ValuesView
 
 from core.mixin import ApplyDescriptorMixin, GetSubclassesMixin
 from core.service import ObjectDescriptionReader
@@ -248,6 +249,7 @@ class StorageInterface(BodypartInterface):
         self._available_space: Resources[int] | None = None
         self._extra_resources: Resources[int] | None = None
         self._fullness: Resources[float] | None = None
+        self._mean_fullness: float | None = None
 
     def __repr__(self) -> str:
         string = f"{super().__repr__()}: "
@@ -317,16 +319,19 @@ class StorageInterface(BodypartInterface):
             self._fullness = Resources[float]({x.world_resource: x.fullness for x in self._storage.values()})
         return self._fullness
 
-    # todo: добавить возвращаемый тип
-    def items(self):
+    @property
+    def mean_fullness(self) -> float:
+        if self._mean_fullness is None:
+            self._mean_fullness = statistics.mean(x.fullness for x in self._storage.values())
+        return self._mean_fullness
+
+    def items(self) -> ItemsView[WorldResource, "ResourceStorageInterface"]:
         return self._storage.items()
 
-    # todo: добавить возвращаемый тип
-    def keys(self):
+    def keys(self) -> KeysView[WorldResource]:
         return self._storage.keys()
 
-    # todo: добавить возвращаемый тип
-    def values(self):
+    def values(self) -> ValuesView["ResourceStorageInterface"]:
         return self._storage.values()
 
     def add_resource_storage(self, resource: WorldResource) -> None:
@@ -384,6 +389,7 @@ class StorageInterface(BodypartInterface):
         self._available_space = None
         self._extra_resources = None
         self._fullness = None
+        self._mean_fullness = None
 
 
 class ResourceStorageInterface(BodypartInterface):

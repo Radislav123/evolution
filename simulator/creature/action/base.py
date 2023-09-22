@@ -6,6 +6,8 @@ from typing import Callable, TYPE_CHECKING, Type
 from core.mixin import ApplyDescriptorMixin, GetSubclassesMixin
 from core.service import ObjectDescriptionReader
 from evolution import settings
+from simulator.creature.genome.chromosome.gene import GENE_CLASSES, NumberGeneInterface
+from simulator.world_resource import ENERGY
 
 
 if TYPE_CHECKING:
@@ -118,7 +120,6 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
 
     @classmethod
     def get_weight(cls, creature: "SimulationCreature") -> float:
-        # todo: реализовать изменение веса из-за влияния других факторов
         return cls.base_weight * creature.genome.effects.action_weights[cls.name]
 
 
@@ -130,10 +131,11 @@ class ConsumeAction(ActionInterface):
     name = "consume_action"
 
     def prepare(self) -> None:
+        available_space = self.creature.storage.available_space
         resource_durations = (
-            self.creature.storage.available_space[resource] / self.creature.genome.effects.consumption_amount[resource]
-            for resource in (x for x in self.creature.storage.available_space
-                             if not x.is_energy and self.creature.genome.effects.consumption_amount[x] > 0)
+            available_space[resource] / self.creature.genome.effects.consumption_amount[resource]
+            for resource in (x for x in available_space
+                             if x != ENERGY and self.creature.genome.effects.consumption_amount[x] > 0)
         )
         estimated_duration = min(
             *resource_durations,
@@ -146,6 +148,20 @@ class ConsumeAction(ActionInterface):
             self.duration_accumulated = 0
         else:
             self.duration_accumulated = estimated_duration % 1
+
+    @classmethod
+    def get_weight(cls, creature: "SimulationCreature") -> float:
+        x = creature.storage.mean_fullness
+        k = creature.genome.effects.consumption_weight_from_fullness
+        if x >= k:
+            coeff = -(1 / (k**2)) * (x + (1 - 2 * k)) * (x - 1)
+        else:
+            # noinspection PyTypeChecker
+            gene_class: NumberGeneInterface = GENE_CLASSES["consumption_weight_from_fullness_gene"]
+            # 10 - максимальное влияние
+            p = (10 - 1) / (gene_class.common_min_limit - k)**2
+            coeff = 1 + p * (x - k)**2
+        return cls.base_weight * creature.genome.effects.action_weights[cls.name] * coeff
 
 
 class RegenerateAction(ActionInterface):
@@ -169,9 +185,37 @@ class RegenerateAction(ActionInterface):
         else:
             self.duration_accumulated = estimated_duration % 1
 
+    @classmethod
+    def get_weight(cls, creature: "SimulationCreature") -> float:
+        x = creature.storage.mean_fullness
+        k = creature.genome.effects.regeneration_weight_from_fullness
+        if x >= k:
+            coeff = -(1 / (k**2)) * (x + (1 - 2 * k)) * (x - 1)
+        else:
+            # noinspection PyTypeChecker
+            gene_class: NumberGeneInterface = GENE_CLASSES["regeneration_weight_from_fullness_gene"]
+            # 10 - максимальное влияние
+            p = (10 - 1) / (gene_class.common_min_limit - k)**2
+            coeff = 1 + p * (x - k)**2
+        return cls.base_weight * creature.genome.effects.action_weights[cls.name] * coeff
+
 
 class ReproduceAction(ActionInterface):
     name = "reproduce_action"
+
+    @classmethod
+    def get_weight(cls, creature: "SimulationCreature") -> float:
+        x = creature.storage.mean_fullness
+        k = creature.genome.effects.reproduction_weight_from_fullness
+        if x >= k:
+            coeff = -(1 / (k**2)) * (x + (1 - 2 * k)) * (x - 1)
+        else:
+            # noinspection PyTypeChecker
+            gene_class: NumberGeneInterface = GENE_CLASSES["reproduction_weight_from_fullness_gene"]
+            # 10 - максимальное влияние
+            p = (10 - 1) / (gene_class.common_min_limit - k)**2
+            coeff = 1 + p * (x - k)**2
+        return cls.base_weight * creature.genome.effects.action_weights[cls.name] * coeff
 
 
 ActionInterface.apply_descriptor(action_descriptors[ActionInterface.name])

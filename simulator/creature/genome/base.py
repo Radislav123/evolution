@@ -37,8 +37,12 @@ class GenomeEffects:
         self.bodyparts: list[str] = []
         self.resource_storages = Resources[int]()
         self.color: list[int] = [0, 0, 0]
-        self.action_weights: defaultdict[str, float] = defaultdict(lambda: 0)
+        self.action_weights: defaultdict[str, float] = defaultdict(lambda: 0.0)
         self.action_duration_coeff: float | None = None
+
+        self.consumption_weight_from_fullness = 0.0
+        self.regeneration_weight_from_fullness = 0.0
+        self.reproduction_weight_from_fullness = 0.0
 
     def prepare(self) -> None:
         self.prepare_color()
@@ -52,10 +56,11 @@ class GenomeEffects:
                                       resources_loss_coeff_gene_class.attribute_default / self.resources_loss_coeff)
 
         # устанавливается влияние сторонних генов на скорость регенерации
-        self.regeneration_amount_coeff = (
-                (1 / metabolism_gene_class.attribute_default)**self.metabolism *
-                (1 / resources_loss_coeff_gene_class.attribute_default)**self.resources_loss_coeff
-        )
+        self.regeneration_amount_coeff = ((1 + (1 / metabolism_gene_class.attribute_default**3) *
+                                           (self.metabolism - metabolism_gene_class.attribute_default)**3) *
+                                          (1 + (1 / resources_loss_coeff_gene_class.attribute_default**3) *
+                                           (self.resources_loss_coeff -
+                                            resources_loss_coeff_gene_class.attribute_default)**3))
 
     def prepare_color(self) -> None:
         other_color_numbers = {

@@ -276,11 +276,11 @@ class SimulationWindow(arcade.Window):
     def count_resources(self) -> None:
         # циклы не заменить на map, так как map работает только с числами
         if self.map_resources_tab or self.world_resources_tab:
-            self.map_resources = Resources.sum(x.get_resources() for x in self.world.chunk_list)
+            self.map_resources = Resources[int].sum(x.get_resources() for x in self.world.chunk_list)
 
         if self.creature_resources_tab or self.world_resources_tab:
-            self.creature_resources = Resources.sum(x.remaining_resources for x in self.world.creatures) \
-                                      + Resources.sum(x.storage.stored_resources for x in self.world.creatures)
+            self.creature_resources = Resources[int].sum(x.remaining_resources for x in self.world.creatures) \
+                                      + Resources[int].sum(x.storage.stored_resources for x in self.world.creatures)
 
         if self.world_resources_tab:
             self.world_resources = self.map_resources + self.creature_resources

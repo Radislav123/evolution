@@ -18,7 +18,7 @@ from simulator.creature.action import ActionInterface
 from simulator.creature.bodypart import AddToNonExistentStorageException, BodypartInterface, \
     RemoveFromNonExistentStorageException, StorageInterface
 from simulator.creature.genome import Genome
-from simulator.world_resource import ENERGY, Resources, WorldResource
+from simulator.world_resource import ENERGY, Resources
 
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
@@ -128,7 +128,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             self._resources_loss: Resources[int] | None = None
             # todo: привязать к генам
             # отношение количества регенерируемых ресурсов и энергии
-            # (сколько энергии стоит восстановление единицы ресурса)
+            # (сколько энергии стоит регенерация единицы ресурса)
             self.energy_regenerate_cost = 1
             # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир)
             self.returned_resources = Resources[int]()
@@ -354,7 +354,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
     def can_consume(self) -> bool:
         can_consume = False
         for resource, amount in self.storage.fullness.items():
-            if amount < 0.9 and resource != ENERGY:
+            if amount < 1.0 and resource != ENERGY:
                 can_consume = True
                 break
         return can_consume
@@ -363,14 +363,14 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         """Симулирует потребление веществ существом."""
 
         chunk_resources = self.world.get_resources(self.position)
-        chunk_resources_sum = sum(amount for resource, amount in chunk_resources.items() if not resource.is_energy)
+        chunk_resources_sum = sum(amount for resource, amount in chunk_resources.items() if resource != ENERGY)
         if chunk_resources_sum > 0:
             consumption_resources = Resources[int](
                 {resource: min(
                     int(amount / chunk_resources_sum * self.genome.effects.consumption_limit * self.action.duration),
                     amount
                 ) for resource, amount in chunk_resources.items()
-                    if not self.storage[resource].destroyed and not resource.is_energy}
+                    if not self.storage[resource].destroyed and resource != ENERGY}
             )
             for resource, amount in self.genome.effects.consumption_amount.items():
                 real_amount = int(amount * self.action.duration)
@@ -385,23 +385,6 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
             # тратит энергию за потребление ресурсов
             self.resources_loss_accumulated[ENERGY] += sum(consumption_resources.values()) * 0.01
-
-    # оставлено, но не используется
-    def get_consumption_resource(self) -> WorldResource | None:
-        """Выбирает ресурс, который будет потреблен существом."""
-
-        resources = []
-        weights = []
-        for resource in self.storage:
-            if not self.storage[resource].destroyed and self.storage.fullness[resource] < 1 \
-                    and self.world.get_resources(self.position)[resource] > 0:
-                resources.append(resource)
-                weights.append(1 - self.storage.fullness[resource])
-        if len(resources) > 0:
-            resource = random.choices(resources, weights)[0]
-        else:
-            resource = None
-        return resource
 
     def can_regenerate(self) -> bool:
         return (self.genome.effects.regeneration_amount * self.genome.effects.regeneration_amount_coeff > 0
@@ -538,13 +521,12 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
                 )
 
             sharing_resources = []
+            stored_resources = self.storage.stored_resources
             for child in self.next_children:
                 sharing_resources.append(
                     Resources(
-                        {
-                            resource: self.storage.stored_resources[resource] // sum(sharing_resources_map[resource], 1)
-                            if resource in child.storage else 0 for resource in self.storage
-                        }
+                        {resource: stored_resources[resource] // sum(sharing_resources_map[resource], 1)
+                        if resource in child.storage else 0 for resource in self.storage}
                     )
                 )
         else:
@@ -635,8 +617,9 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
     def return_resources(self) -> None:
         """Возвращает ресурсы в мир."""
 
-        self.returned_resources += self.storage.extra_resources
-        self.storage.remove_resources(self.storage.extra_resources)
+        extra_resources = self.storage.extra_resources
+        self.returned_resources += extra_resources
+        self.storage.remove_resources(extra_resources)
         # энергия не может возвращаться в мир
         self.returned_resources[ENERGY] = 0
         self.world.add_resources(self.position, self.returned_resources)

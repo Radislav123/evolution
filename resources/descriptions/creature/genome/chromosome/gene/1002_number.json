@@ -29,7 +29,7 @@
             "attribute_name": "elasticity"
         },
         "metabolism_gene": {
-            "_description": "отвечает за количество теряемой энергии",
+            "description": "Влияет на количество теряемой энергии.",
             "name": "metabolism_gene",
             "interface": "number_gene_interface",
             "required_for_creature": true,
@@ -39,7 +39,7 @@
             "attribute_name": "metabolism"
         },
         "resources_loss_coeff_gene": {
-            "_description": "отвечает за количество теряемых ресурсов, кроме энергии",
+            "description": "Влияет на количество теряемых ресурсов, кроме энергии.",
             "name": "resources_loss_coeff_gene",
             "interface": "number_gene_interface",
             "required_for_creature": true,

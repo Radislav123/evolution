@@ -27,12 +27,6 @@ class WorldResource(int):
         return self.name
 
     @property
-    def is_energy(self) -> bool:
-        """Является ли ресурс видом энергии."""
-
-        return self.name == "energy"
-
-    @property
     def sort_key(self) -> str:
         return self.formula.rjust(self.max_formula_length + 1, '_')
 
@@ -48,7 +42,6 @@ RESOURCE_DICT = dict(
     )
 )
 RESOURCE_LIST = [x for x in RESOURCE_DICT.values()]
-# todo: убрать отсюда явные ресурсы (оставить пока что энергию)
 ENERGY = RESOURCE_DICT["energy"]
 
 VT = TypeVar("VT", int, float)
