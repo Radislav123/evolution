@@ -39,6 +39,8 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         self.dependent_bodyparts: list["BodypartInterfaceClass"] = []
         self._all_dependent: list["BodypartInterfaceClass"] | None = None
         self._all_required: list["BodypartInterfaceClass"] | None = None
+        self._volume: float | None = None
+        self._mass: float | None = None
 
         # уничтожена ли часть тела полностью
         self.destroyed = False
@@ -46,17 +48,17 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         # устанавливается в положение True только в методе SimulationCreature.apply_bodyparts
         self.constructed = False
 
-        self.damage = Resources()
+        self.damage = Resources[int]()
         # ресурсы, находящиеся в неповрежденной части тела/необходимые для воспроизводства части тела
         # при размере (size_coeff) равном 1.0 соответствует composition
         self.resources = (
-                Resources(
+                Resources[int](
                     {RESOURCE_DICT[resource_name]: amount for resource_name, amount in self.composition.items()}
                 ) * self.size_coeff
         ).round()
         # расширение хранилища существа, которое предоставляет часть тела
         self.extra_storage = (self.resources * self.extra_storage_coeff).round()
-        self._remaining_resources: Resources | None = None
+        self._remaining_resources: Resources[int] | None = None
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
@@ -66,19 +68,6 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         """Создает часть тела "тело"."""
 
         return BODYPART_CLASSES["body"](creature, None)
-
-    @property
-    # должно использоваться только в make_damage() и regenerate(), для всех остальных случаев есть destroyed
-    def present(self) -> bool:
-        """Показывает, присутствует ли часть тела относительно нанесенного ей урона."""
-
-        for resource, amount in self.resources.items():
-            if amount <= self.damage[resource]:
-                present = False
-                break
-        else:
-            present = True
-        return present
 
     @property
     def damaged(self) -> bool:
@@ -124,21 +113,17 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
 
     @property
     def volume(self) -> float:
-        if not self.destroyed:
-            # todo: можно добавить кэширование (аккуратнее с хранилищами)
-            volume = sum(resource.volume * amount for resource, amount in self.remaining_resources.items())
-        else:
-            volume = 0
-        return volume
+        # todo: можно добавить кэширование (аккуратнее с хранилищами)
+        if self._volume is None:
+            self._volume = sum(resource.volume * amount for resource, amount in self.remaining_resources.items())
+        return self._volume
 
     @property
     def mass(self) -> float:
-        if not self.destroyed:
-            # todo: можно добавить кэширование (аккуратнее с хранилищами)
-            mass = sum(resource.mass * amount for resource, amount in self.remaining_resources.items())
-        else:
-            mass = 0
-        return mass
+        # todo: можно добавить кэширование (аккуратнее с хранилищами)
+        if self._mass is None:
+            self._mass = sum(resource.mass * amount for resource, amount in self.remaining_resources.items())
+        return self._mass
 
     def construct(self, bodypart_names: list[str]) -> None:
         """Собирает тело, устанавливая ссылки на зависимые и необходимые части тела."""
@@ -160,40 +145,54 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return_resources = self.remaining_resources
         if not self.destroyed:
             self._remaining_resources = None
+            # todo: не переходить на self.all_dependent,
+            #  потому что части тела (например ResourcesStorage) могут переопределять self.destroy
             for dependent in self.dependent_bodyparts:
                 return_resources += dependent.destroy()
             self.destroyed = True
             self.damage = copy.copy(self.resources)
+            self._volume = 0.0
+            self._mass = 0.0
         return return_resources
 
     # если возвращаемые ресурсы != 0, значит часть тела уничтожена, а эти ресурсы являются ресурсами,
     # полученными после уничтожения части тела и всех зависимых частей
     def make_damage(self, damaging_resources: Resources[int]) -> Resources[int]:
-        self._remaining_resources = None
         self.damage += damaging_resources
-        for resource, amount in self.damage.items():
-            if amount > self.resources[resource]:
+        self._remaining_resources = None
+        remaining_resources = self.remaining_resources
+        for resource in self.resources:
+            if self.damage[resource] > self.resources[resource]:
                 raise ValueError(f"Bodypart damage {self.damage} can not be greater then resources {self.resources}.")
 
         # часть тела не выдержала урона и была уничтожена
-        if not self.present:
+        if sum(remaining_resources.values()) == 0:
+            # self._volume и self._mass обновятся в self.destroy
             return_resources = self.destroy()
         # часть тела осталась не уничтоженной
         else:
+            self._volume = None
+            self._mass = None
             return_resources = Resources[int]()
 
         return return_resources
 
     # если возвращаемые ресурсы != 0, значит эти ресурсы не израсходованы при регенерации
     def regenerate(self, resources: Resources[int]) -> Resources[int]:
-        self._remaining_resources = None
         regenerating_resources = Resources[int](
             {resource: min(amount, self.damage[resource]) for resource, amount in resources.items()}
         )
 
         self.damage -= regenerating_resources
-        if self.present:
+        # нужно сбросить ресурсы части тела до проверки их количества
+        self._remaining_resources = None
+        # часть тела регенерировала хотя бы одну единицу какого-либо ресурса
+        if sum(self.remaining_resources.values()) > 0:
             self.destroyed = False
+            self._volume = None
+            self._mass = None
+        else:
+            raise ValueError(f"Resources can not be empty ({resources}).")
 
         return resources - regenerating_resources
 
@@ -390,6 +389,8 @@ class StorageInterface(BodypartInterface):
         self._extra_resources = None
         self._fullness = None
         self._mean_fullness = None
+        self._volume = None
+        self._mass = None
 
 
 class ResourceStorageInterface(BodypartInterface):
@@ -443,16 +444,17 @@ class ResourceStorageInterface(BodypartInterface):
 
     @property
     def volume(self) -> float:
-        volume = super().volume
-        # self.capacity, а не self.current, чтобы не приходилось каждый раз пересчитывать изображение существа
-        volume += self.capacity * self.world_resource.volume * self.extra_volume_coeff
-        return volume
+        if self._volume is None:
+            self._volume = (sum(resource.volume * amount for resource, amount in self.remaining_resources.items()) +
+                            self.capacity * self.world_resource.volume * self.extra_volume_coeff)
+        return self._volume
 
     @property
     def mass(self) -> float:
-        mass = super().mass
-        mass += self.current * self.world_resource.mass
-        return mass
+        if self._mass is None:
+            self._mass = (sum(resource.mass * amount for resource, amount in self.remaining_resources.items()) +
+                          self.current * self.world_resource.mass)
+        return self._mass
 
     def add(self, amount: int) -> None:
         if amount > 0:
