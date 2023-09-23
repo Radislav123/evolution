@@ -181,12 +181,10 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         self.damage -= regenerating_resources
         # нужно сбросить ресурсы части тела до проверки их количества
         self._remaining_resources = None
-        self.reset_physic_cache()
         # часть тела регенерировала хотя бы одну единицу какого-либо ресурса
         if sum(self.remaining_resources.values()) > 0:
             self.destroyed = False
-        else:
-            raise ValueError(f"Resources can not be empty ({resources}).")
+            self.reset_physic_cache()
 
         return resources - regenerating_resources
 
