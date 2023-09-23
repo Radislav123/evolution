@@ -625,4 +625,5 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
         self.returned_resources = Resources[int]()
 
     def update_physics(self) -> None:
+        self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
         self.physics_body.mass = self.characteristics.mass

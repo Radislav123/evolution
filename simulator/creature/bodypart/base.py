@@ -113,14 +113,12 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
 
     @property
     def volume(self) -> float:
-        # todo: можно добавить кэширование (аккуратнее с хранилищами)
         if self._volume is None:
             self._volume = sum(resource.volume * amount for resource, amount in self.remaining_resources.items())
         return self._volume
 
     @property
     def mass(self) -> float:
-        # todo: можно добавить кэширование (аккуратнее с хранилищами)
         if self._mass is None:
             self._mass = sum(resource.mass * amount for resource, amount in self.remaining_resources.items())
         return self._mass
@@ -145,14 +143,13 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return_resources = self.remaining_resources
         if not self.destroyed:
             self._remaining_resources = None
-            # todo: не переходить на self.all_dependent,
-            #  потому что части тела (например ResourcesStorage) могут переопределять self.destroy
+            self.reset_physic_cache()
+            # не переходить на self.all_dependent,
+            # потому что части тела (например ResourcesStorage) могут переопределять self.destroy
             for dependent in self.dependent_bodyparts:
                 return_resources += dependent.destroy()
             self.destroyed = True
             self.damage = copy.copy(self.resources)
-            self._volume = 0.0
-            self._mass = 0.0
         return return_resources
 
     # если возвращаемые ресурсы != 0, значит часть тела уничтожена, а эти ресурсы являются ресурсами,
@@ -160,6 +157,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
     def make_damage(self, damaging_resources: Resources[int]) -> Resources[int]:
         self.damage += damaging_resources
         self._remaining_resources = None
+        self.reset_physic_cache()
         remaining_resources = self.remaining_resources
         for resource in self.resources:
             if self.damage[resource] > self.resources[resource]:
@@ -171,8 +169,6 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
             return_resources = self.destroy()
         # часть тела осталась не уничтоженной
         else:
-            self._volume = None
-            self._mass = None
             return_resources = Resources[int]()
 
         return return_resources
@@ -186,15 +182,25 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         self.damage -= regenerating_resources
         # нужно сбросить ресурсы части тела до проверки их количества
         self._remaining_resources = None
+        self.reset_physic_cache()
         # часть тела регенерировала хотя бы одну единицу какого-либо ресурса
         if sum(self.remaining_resources.values()) > 0:
             self.destroyed = False
-            self._volume = None
-            self._mass = None
         else:
             raise ValueError(f"Resources can not be empty ({resources}).")
 
         return resources - regenerating_resources
+
+    def reset_physic_cache(self) -> None:
+        self._volume = None
+        self._mass = None
+        try:
+            self.creature.characteristics._volume = None
+            self.creature.characteristics._mass = None
+        except AttributeError:
+            # существо еще не имеет объекта характеристик, если оно создано, но не появилось в мире (creature.start),
+            # а ресурсы ему уже передаются, что вызывает данный метод (storage.reset_physic_cache)
+            pass
 
 
 class StorageException(Exception):
@@ -389,8 +395,7 @@ class StorageInterface(BodypartInterface):
         self._extra_resources = None
         self._fullness = None
         self._mean_fullness = None
-        self._volume = None
-        self._mass = None
+        self.reset_physic_cache()
 
 
 class ResourceStorageInterface(BodypartInterface):
@@ -456,7 +461,10 @@ class ResourceStorageInterface(BodypartInterface):
                           self.current * self.world_resource.mass)
         return self._mass
 
+    # метод должен вызываться только из Storage.add_resources, так как здесь не вызывается метод reset_physic_cache
     def add(self, amount: int) -> None:
+        self._volume = None
+        self._mass = None
         if amount > 0:
             if self.destroyed:
                 raise AddToDestroyedResourceStorageException(self.world_resource, amount, f"{self}")
@@ -465,7 +473,10 @@ class ResourceStorageInterface(BodypartInterface):
         elif amount < 0:
             raise ValueError(f"Adding resource ({self.world_resource}) must be not negative ({amount}). {self}")
 
+    # метод должен вызываться только из Storage.add_resources, так как здесь не вызывается метод reset_physic_cache
     def remove(self, amount: int) -> None:
+        self._volume = None
+        self._mass = None
         if amount > 0:
             if self.destroyed:
                 raise RemoveFromDestroyedResourcesStorageException(self.world_resource, amount, f"{self}")
