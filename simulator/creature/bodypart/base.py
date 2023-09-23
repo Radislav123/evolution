@@ -165,7 +165,6 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
 
         # часть тела не выдержала урона и была уничтожена
         if sum(remaining_resources.values()) == 0:
-            # self._volume и self._mass обновятся в self.destroy
             return_resources = self.destroy()
         # часть тела осталась не уничтоженной
         else:
@@ -463,7 +462,8 @@ class ResourceStorageInterface(BodypartInterface):
 
     # метод должен вызываться только из Storage.add_resources, так как здесь не вызывается метод reset_physic_cache
     def add(self, amount: int) -> None:
-        self._volume = None
+        # self._volume не сбрасывается,
+        # так как объем части тела (хранилища) не зависит от текущего количества хранимого ресурса
         self._mass = None
         if amount > 0:
             if self.destroyed:
@@ -475,7 +475,8 @@ class ResourceStorageInterface(BodypartInterface):
 
     # метод должен вызываться только из Storage.add_resources, так как здесь не вызывается метод reset_physic_cache
     def remove(self, amount: int) -> None:
-        self._volume = None
+        # self._volume не сбрасывается,
+        # так как объем части тела (хранилища) не зависит от текущего количества хранимого ресурса
         self._mass = None
         if amount > 0:
             if self.destroyed:
