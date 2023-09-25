@@ -56,7 +56,7 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
 
         self.prepare()
         self.estimated_stop_tick = self.start_tick + self.duration
-        self.world.active_creatures[self.estimated_stop_tick][self.creature.id] = self.creature
+        self.world.processing_creatures[self.estimated_stop_tick][self.creature.id] = self.creature
 
     def __repr__(self) -> str:
         return f"{self.name}: {self.duration}"
@@ -116,7 +116,7 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
         self.aborted = True
         self._stop_tick = self.creature.world
         self.aborted_duration = self.world.age - self.start_tick
-        del self.world.active_creatures[self.stop_tick][self.creature.id]
+        del self.world.processing_creatures[self.stop_tick][self.creature.id]
 
     @classmethod
     def get_weight(cls, creature: "SimulationCreature") -> float:

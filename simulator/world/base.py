@@ -34,7 +34,7 @@ class WorldDescriptor:
 
 
 # todo: добавить выбор настроек мира
-world_descriptor = ObjectDescriptionReader[WorldDescriptor]().read_folder_to_list(
+world_descriptor: WorldDescriptor = ObjectDescriptionReader[WorldDescriptor]().read_folder_to_list(
     settings.WORLD_DESCRIPTIONS_PATH,
     WorldDescriptor
 )[0]
@@ -62,7 +62,8 @@ class SimulationWorld(WorldObjectMixin):
         # copy.copy(self.creatures) может работать не правильно, так как SpriteList использует внутренний список
         # {creature.object_id: creature}
         self.creatures = EvolutionSpriteList[SimulationCreature]()
-        self.active_creatures: defaultdict[int, dict[int, SimulationCreature]] = defaultdict(dict)
+        self.processing_creatures: defaultdict[int, dict[int, SimulationCreature]] = defaultdict(dict)
+        self.active_creatures: dict[int, SimulationCreature] | None = None
         self.characteristics = WorldCharacteristics(
             world_descriptor.viscosity,
             world_descriptor.boarders_friction,
@@ -76,6 +77,7 @@ class SimulationWorld(WorldObjectMixin):
         # список всех чанков мира
         self.chunk_list = [chunk for line in self.chunks for chunk in line]
 
+        # todo: переделать под параллельную обработку
         # все объекты, которые должны сохраняться в БД, должны складываться сюда для ускорения записи в БД
         self.object_to_save_to_db: defaultdict[
             Type[models.EvolutionModel],
@@ -206,21 +208,24 @@ class SimulationWorld(WorldObjectMixin):
 
         self.creatures.remove(creature)
         if creature.action.stop_tick > self.age:
-            del self.active_creatures[creature.action.stop_tick][creature.id]
+            del self.processing_creatures[creature.action.stop_tick][creature.id]
         self.physics_engine.remove_sprite(creature)
 
     def on_update(self) -> None:
         try:
+            self.active_creatures = self.processing_creatures[self.age]
+
             for creature in self.creatures:
                 creature.update_position_history()
 
-            for creature in self.active_creatures[self.age].values():
+            for creature in self.processing_creatures[self.age].values():
                 creature.perform()
 
             for chunk in self.chunk_list:
                 chunk.on_update()
 
-            del self.active_creatures[self.age]
+            del self.processing_creatures[self.age]
+            self.active_creatures = None
             # не передавать delta_time, так как физические расчеты должны быть привязаны не ко времени, а к тикам
             self.physics_engine.step()
             self.age += 1
