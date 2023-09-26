@@ -63,7 +63,6 @@ INSTALLED_APPS = [
 
     "core",
     "simulator",
-    "player",
 ]
 
 MIDDLEWARE = [

@@ -4,7 +4,6 @@ import arcade
 
 # noinspection PyUnresolvedReferences
 import configure_django
-from player.window import BasePlaybackWindow
 from simulator.creature import SimulationCreature
 from simulator.window import SimulationWindow
 from simulator.world import SimulationWorld
@@ -23,7 +22,7 @@ def log_error(error: Exception, file: TextIO):
     file.write(f"{error.__class__.__name__}: {error}\n")
 
 
-def log_window(window: SimulationWindow | BasePlaybackWindow, file: TextIO):
+def log_window(window: SimulationWindow, file: TextIO):
     file.write(f"{window}\n")
 
 
@@ -115,25 +114,5 @@ def simulate():
         print(f"Симуляция окончена. Мир: {window.world.id}. Возраст мира: {window.world.age}")
 
 
-def play():
-    window_width = 800
-    window_height = 600
-    world_id = 4
-
-    window = BasePlaybackWindow(window_width, window_height)
-    try:
-        window.start(world_id)
-        arcade.run()
-    except Exception as error:
-        log_error_info(error)
-        raise error
-    finally:
-        print(f"Воспроизведение окончено. Мир: {window.world.id}. Возраст мира: {window.world.age}")
-
-
 if __name__ == "__main__":
-    simulation = True
-    if simulation:
-        simulate()
-    else:
-        play()
+    simulate()

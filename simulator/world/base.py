@@ -48,7 +48,8 @@ class SimulationWorld(WorldObjectMixin):
 
     # width - минимальное значение ширины экрана - 120
     def __init__(self, window_center: tuple[int, int]) -> None:
-        random.seed(world_descriptor.seed)
+        self.seed = world_descriptor.seed
+        random.seed(self.seed)
 
         self._id = None
         self.age = 0
