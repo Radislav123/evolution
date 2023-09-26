@@ -13,7 +13,7 @@ from simulator.world_resource import Resources
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.creature import SimulationCreature
+    from simulator.creature import Creature
 
 
 class GenomeEffects:
@@ -204,7 +204,7 @@ class Genome:
         self.effects.prepare()
 
     @classmethod
-    def get_child_genome(cls, parents: list["SimulationCreature"]) -> "Genome":
+    def get_child_genome(cls, parents: list["Creature"]) -> "Genome":
         # todo: переделать этот метод при введении системы полового размножения
         parent = parents[0]
         child_genome = cls(copy.deepcopy(parent.genome.chromosomes), False)

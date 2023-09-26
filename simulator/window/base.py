@@ -5,8 +5,8 @@ import arcade
 import arcade.gui
 
 from evolution import settings
-from simulator.creature import SimulationCreature
-from simulator.world import SimulationWorld
+from simulator.creature import Creature
+from simulator.world import World
 from simulator.world_resource import Resources
 
 
@@ -156,7 +156,7 @@ class TextTabContainer:
 
             return result
 
-    def __init__(self, window: "SimulationWindow") -> None:
+    def __init__(self, window: "Window") -> None:
         self.window = window
         # 00 - левый нижний угол (corners[0])
         # 01 - левый верхний угол (corners[1])
@@ -201,7 +201,7 @@ class UIManager(arcade.gui.UIManager):
                 tab.tab_label.set_position()
 
 
-class SimulationWindow(arcade.Window):
+class Window(arcade.Window):
     # desired_tps = int(1 / update_rate)
     # update_rate = 1 / tps
     desired_tps: int
@@ -215,7 +215,7 @@ class SimulationWindow(arcade.Window):
     def __init__(self, width: int, height: int) -> None:
         super().__init__(width, height, center_window = True)
 
-        self.world: SimulationWorld | None = None
+        self.world: World | None = None
         self.tabs = TextTabContainer(self)
         self.set_tps(settings.MAX_TPS)
         self.tps = settings.MAX_TPS
@@ -230,7 +230,7 @@ class SimulationWindow(arcade.Window):
 
     def start(self) -> None:
         center = (self.width // 2, self.height // 2)
-        self.world = SimulationWorld(center)
+        self.world = World(center)
         self.world.start()
 
         self.construct_tabs()
@@ -251,12 +251,12 @@ class SimulationWindow(arcade.Window):
         # правый нижний угол
         self.tabs.corners[2].add(
             TextTab(
-                lambda: f"Появилось: {SimulationCreature.birth_counter}, умерло: {SimulationCreature.death_counter}"
+                lambda: f"Появилось: {Creature.birth_counter}, умерло: {Creature.death_counter}"
             )
         )
         self.tabs.corners[2].add(
             TextTab(
-                lambda: f"Сейчас существ: {SimulationCreature.birth_counter - SimulationCreature.death_counter}"
+                lambda: f"Сейчас существ: {Creature.birth_counter - Creature.death_counter}"
             )
         )
 

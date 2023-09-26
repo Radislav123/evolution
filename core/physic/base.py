@@ -6,8 +6,8 @@ from core import models
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.world import SimulationWorld
-    from simulator.creature import SimulationCreature
+    from simulator.world import World
+    from simulator.creature import Creature
 
 
 class WorldCharacteristics:
@@ -32,7 +32,7 @@ class WorldCharacteristics:
         string += f"borders thickness: {self.borders_thickness}, resources coef: {self.resource_density}"
         return string
 
-    def save_to_db(self, world: "SimulationWorld"):
+    def save_to_db(self, world: "World"):
         self.db_instance = self.db_model(
             world = world.db_instance,
             viscosity = self.viscosity,
@@ -44,7 +44,7 @@ class WorldCharacteristics:
 
 
 class CreatureCharacteristics:
-    def __init__(self, creature: "SimulationCreature") -> None:
+    def __init__(self, creature: "Creature") -> None:
         self.creature = creature
         if not 0 <= self.creature.genome.effects.elasticity <= 1:
             raise ValueError(

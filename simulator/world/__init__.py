@@ -1,1 +1,1 @@
-from simulator.world.base import SimulationWorld
+from simulator.world.base import World

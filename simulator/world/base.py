@@ -11,7 +11,7 @@ from core.mixin import WorldObjectMixin
 from core.physic import WorldCharacteristics
 from core.service import EvolutionSpriteList, ObjectDescriptionReader
 from evolution import settings
-from simulator.creature import SimulationCreature
+from simulator.creature import Creature
 from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources, WorldResource
 
 
@@ -40,7 +40,7 @@ world_descriptor: WorldDescriptor = ObjectDescriptionReader[WorldDescriptor]().r
 )[0]
 
 
-class SimulationWorld(WorldObjectMixin):
+class World(WorldObjectMixin):
     db_model = models.World
     db_instance: db_model
     borders: arcade.SpriteList
@@ -62,9 +62,9 @@ class SimulationWorld(WorldObjectMixin):
 
         # copy.copy(self.creatures) может работать не правильно, так как SpriteList использует внутренний список
         # {creature.object_id: creature}
-        self.creatures = EvolutionSpriteList[SimulationCreature]()
-        self.processing_creatures: defaultdict[int, dict[int, SimulationCreature]] = defaultdict(dict)
-        self.active_creatures: dict[int, SimulationCreature] | None = None
+        self.creatures = EvolutionSpriteList[Creature]()
+        self.processing_creatures: defaultdict[int, dict[int, Creature]] = defaultdict(dict)
+        self.active_creatures: dict[int, Creature] | None = None
         self.characteristics = WorldCharacteristics(
             world_descriptor.viscosity,
             world_descriptor.boarders_friction,
@@ -74,7 +74,7 @@ class SimulationWorld(WorldObjectMixin):
         self.prepare_borders()
         self.prepare_physics_engine()
         # чанки мира по линиям
-        self.chunks = SimulationWorldChunk.cut_world(self)
+        self.chunks = WorldChunk.cut_world(self)
         # список всех чанков мира
         self.chunk_list = [chunk for line in self.chunks for chunk in line]
 
@@ -191,20 +191,20 @@ class SimulationWorld(WorldObjectMixin):
         self.save_objects_to_db()
 
     def spawn_start_creature(self) -> None:
-        creature = SimulationCreature(self, None, True)
+        creature = Creature(self, None, True)
         creature.position = self.center
         creature.storage.add_resources(CREATURE_START_RESOURCES)
         creature.start()
         self.remove_resources(creature.position, creature.remaining_resources)
         self.remove_resources(creature.position, creature.storage.stored_resources)
 
-    def add_creature(self, creature: SimulationCreature) -> None:
+    def add_creature(self, creature: Creature) -> None:
         """Добавляет существо в мир."""
 
         self.creatures.append(creature)
 
     # если существо необходимо убить, то это нужно сделать отдельно (creature.kill)
-    def remove_creature(self, creature: SimulationCreature) -> None:
+    def remove_creature(self, creature: Creature) -> None:
         """Убирает существо из мира."""
 
         self.creatures.remove(creature)
@@ -272,7 +272,7 @@ class SimulationWorld(WorldObjectMixin):
             for chunk in self.chunk_list:
                 chunk.draw()
 
-    def position_to_chunk(self, position: Position) -> "SimulationWorldChunk":
+    def position_to_chunk(self, position: Position) -> "WorldChunk":
         x = int((position[0] - self.chunks[0][0].left) / self.chunk_width)
         y = int((position[1] - self.chunks[0][0].bottom) / self.chunk_height)
         if x < 0:
@@ -286,8 +286,8 @@ class SimulationWorld(WorldObjectMixin):
         return self.chunks[x][y]
 
 
-class SimulationWorldChunk:
-    def __init__(self, left_bottom: tuple[int, int], width: int, height: int, world: SimulationWorld) -> None:
+class WorldChunk:
+    def __init__(self, left_bottom: tuple[int, int], width: int, height: int, world: World) -> None:
         self.left = left_bottom[0]
         self.right = self.left + width - 1
         self.bottom = left_bottom[1]
@@ -337,7 +337,7 @@ class SimulationWorldChunk:
         )
 
     @classmethod
-    def cut_world(cls, world: SimulationWorld) -> list[list["SimulationWorldChunk"]]:
+    def cut_world(cls, world: World) -> list[list["WorldChunk"]]:
         left, right, bottom, top = world.get_borders_coordinates()
         chunks: list[list[cls]] = []
 

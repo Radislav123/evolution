@@ -23,7 +23,7 @@ from simulator.world_resource import ENERGY, Resources
 
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
-    from simulator.world import SimulationWorld
+    from simulator.world import World
 
 
 @dataclasses.dataclass
@@ -38,7 +38,7 @@ creature_descriptor = ObjectDescriptionReader[CreatureDescriptor]().read_folder_
 )[0]
 
 
-class SimulationCreature(WorldObjectMixin, arcade.Sprite):
+class Creature(WorldObjectMixin, arcade.Sprite):
     class DeathCause(enum.Enum):
         AGE = 0
         CAN_NOT_METABOLISE = 1
@@ -58,8 +58,8 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
     # position - центр существа
     def __init__(
             self,
-            world: "SimulationWorld",
-            parents: list["SimulationCreature"] | None,
+            world: "World",
+            parents: list["Creature"] | None,
             world_generation: bool = False
     ) -> None:
         try:
@@ -84,7 +84,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.stop_tick = None
             # None == существо не умирало (kill()) в симуляции
             self.death_tick = None
-            self.death_cause: SimulationCreature.DeathCause | None = None
+            self.death_cause: Creature.DeathCause | None = None
             self.alive = True
             self.action: ActionInterface | None = None
 
@@ -92,7 +92,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
             self.parents = parents
             self.genome = genome
             # список потомков, которые появятся при следующем размножении
-            self.next_children: list[SimulationCreature] | None = None
+            self.next_children: list[Creature] | None = None
             self._reproduction_resources: Resources | None = None
             # todo: привязать к генам
             # коэффициент ресурсов, теряемых, при воспроизведении потомков
@@ -302,7 +302,7 @@ class SimulationCreature(WorldObjectMixin, arcade.Sprite):
 
     def fertilize(self) -> None:
         # todo: переделать этот метод при добавлении полового размножения
-        self.next_children = [SimulationCreature(self.world, [self])
+        self.next_children = [Creature(self.world, [self])
                               for _ in range(self.genome.effects.children_amount)]
 
     # todo: добавить обработку случаев, когда существо прерывается во время выполнения действия

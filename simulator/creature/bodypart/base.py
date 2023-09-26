@@ -9,7 +9,7 @@ from simulator.world_resource import RESOURCE_DICT, Resources, WorldResource
 
 
 if TYPE_CHECKING:
-    from simulator.creature import SimulationCreature
+    from simulator.creature import Creature
 
 bodypart_interface_descriptors = ObjectDescriptionReader[dict]().read_folder_to_dict(
     settings.BODYPART_INTERFACE_DESCRIPTIONS_PATH,
@@ -31,7 +31,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
     required_bodypart: str
     extra_storage_coeff: float
 
-    def __init__(self, creature: "SimulationCreature", required_bodypart: Optional["BodypartInterfaceClass"]) -> None:
+    def __init__(self, creature: "Creature", required_bodypart: Optional["BodypartInterfaceClass"]) -> None:
         self.creature = creature
         self.size_coeff = self.creature.genome.effects.size_coeff
         # часть тела, к которой крепится данная
@@ -45,7 +45,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         # уничтожена ли часть тела полностью
         self.destroyed = False
         # построены ли зависимости методом construct
-        # устанавливается в положение True только в методе SimulationCreature.apply_bodyparts
+        # устанавливается в положение True только в методе Creature.apply_bodyparts
         self.constructed = False
 
         self.damage = Resources[int]()
@@ -64,7 +64,7 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return f"{self.__class__.__name__}"
 
     @classmethod
-    def construct_body(cls, creature: "SimulationCreature") -> "BodypartInterface":
+    def construct_body(cls, creature: "Creature") -> "BodypartInterface":
         """Создает часть тела "тело"."""
 
         return BODYPART_CLASSES["body"](creature, None)

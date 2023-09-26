@@ -11,7 +11,7 @@ from simulator.world_resource import ENERGY
 
 
 if TYPE_CHECKING:
-    from simulator.creature import SimulationCreature
+    from simulator.creature import Creature
 
 action_descriptors = ObjectDescriptionReader[dict]().read_folder_to_dict(
     settings.ACTION_DESCRIPTIONS_PATH,
@@ -32,9 +32,9 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
     duration_coeff: float
     # относительный вес при выборе следующего действия
     base_weight: float
-    _can_perform: Callable[["SimulationCreature"], bool] = None
+    _can_perform: Callable[["Creature"], bool] = None
 
-    def __init__(self, creature: "SimulationCreature") -> None:
+    def __init__(self, creature: "Creature") -> None:
         self.creature = creature
         self.world = self.creature.world
         # длительность действия накопленная из-за округлений предыдущих действий (всегда должна быть < 1)
@@ -62,19 +62,19 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
         return f"{self.name}: {self.duration}"
 
     @staticmethod
-    def get_wait_action(creature: "SimulationCreature") -> "WaitAction":
+    def get_wait_action(creature: "Creature") -> "WaitAction":
         # noinspection PyTypeChecker
         return ACTION_CLASSES["wait_action"](creature)
 
     @classmethod
-    def can_perform(cls, creature: "SimulationCreature") -> bool:
+    def can_perform(cls, creature: "Creature") -> bool:
         if cls._can_perform is None:
             method_name = f"can_{'_'.join(cls.name.split('_')[:-1])}"
             cls._can_perform = getattr(creature.__class__, method_name)
         return cls._can_perform(creature)
 
     @classmethod
-    def get_next_action(cls, creature: "SimulationCreature") -> "ActionInterface":
+    def get_next_action(cls, creature: "Creature") -> "ActionInterface":
         actions = {action: weight for action in ACTION_CLASSES.values()
                    if (weight := action.get_weight(creature)) > 0 and action.can_perform(creature)}
 
@@ -119,7 +119,7 @@ class ActionInterface(GetSubclassesMixin["ActionInterface"], ApplyDescriptorMixi
         del self.world.processing_creatures[self.stop_tick][self.creature.id]
 
     @classmethod
-    def get_weight(cls, creature: "SimulationCreature") -> float:
+    def get_weight(cls, creature: "Creature") -> float:
         return cls.base_weight * creature.genome.effects.action_weights[cls.name]
 
 
@@ -150,7 +150,7 @@ class ConsumeAction(ActionInterface):
             self.duration_accumulated = estimated_duration % 1
 
     @classmethod
-    def get_weight(cls, creature: "SimulationCreature") -> float:
+    def get_weight(cls, creature: "Creature") -> float:
         x = creature.storage.mean_fullness
         k = creature.genome.effects.consumption_weight_from_fullness
         if x >= k:
@@ -185,7 +185,7 @@ class RegenerateAction(ActionInterface):
             self.duration_accumulated = estimated_duration % 1
 
     @classmethod
-    def get_weight(cls, creature: "SimulationCreature") -> float:
+    def get_weight(cls, creature: "Creature") -> float:
         x = creature.storage.mean_fullness
         k = creature.genome.effects.regeneration_weight_from_fullness
         if x >= k:
@@ -202,7 +202,7 @@ class ReproduceAction(ActionInterface):
     name = "reproduce_action"
 
     @classmethod
-    def get_weight(cls, creature: "SimulationCreature") -> float:
+    def get_weight(cls, creature: "Creature") -> float:
         x = creature.storage.mean_fullness
         k = creature.genome.effects.reproduction_weight_from_fullness
         if x >= k:

@@ -4,9 +4,9 @@ import arcade
 
 # noinspection PyUnresolvedReferences
 import configure_django
-from simulator.creature import SimulationCreature
-from simulator.window import SimulationWindow
-from simulator.world import SimulationWorld
+from simulator.creature import Creature
+from simulator.window import Window
+from simulator.world import World
 
 
 SECTION_DELIMITER = "\n"
@@ -22,15 +22,15 @@ def log_error(error: Exception, file: TextIO):
     file.write(f"{error.__class__.__name__}: {error}\n")
 
 
-def log_window(window: SimulationWindow, file: TextIO):
+def log_window(window: Window, file: TextIO):
     file.write(f"{window}\n")
 
 
-def log_world(world: SimulationWorld, file: TextIO):
+def log_world(world: World, file: TextIO):
     file.write(f"{world}\n")
 
 
-def log_creature(creature: SimulationCreature, file: TextIO):
+def log_creature(creature: Creature, file: TextIO):
     file.write(f"{creature}\n")
     try:
         file.write(f"bodyparts: {creature.bodyparts}\n")
@@ -41,14 +41,14 @@ def log_creature(creature: SimulationCreature, file: TextIO):
     log_action(creature, file)
 
 
-def log_genome_effects(creature: SimulationCreature, file: TextIO):
+def log_genome_effects(creature: Creature, file: TextIO):
     file.write("~~~~~~~~~~ Genome effects info ~~~~~~~~~~\n")
     if hasattr(creature, "genome"):
         for attribute in creature.genome.effects.__dict__:
             file.write(f"{attribute}: {creature.genome.effects.__dict__[attribute]}\n")
 
 
-def log_action(creature: SimulationCreature, file: TextIO):
+def log_action(creature: Creature, file: TextIO):
     file.write("~~~~~~~~~~ Action info ~~~~~~~~~~\n")
     if hasattr(creature, "action") and creature.action is not None:
         for attribute in creature.action.__dict__:
@@ -102,7 +102,7 @@ def simulate():
     window_width = 800
     window_height = 600
 
-    window = SimulationWindow(window_width, window_height)
+    window = Window(window_width, window_height)
     try:
         window.start()
         arcade.run()
