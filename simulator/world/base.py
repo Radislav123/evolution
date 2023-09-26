@@ -12,6 +12,7 @@ from core.physic import WorldCharacteristics
 from core.service import EvolutionSpriteList, ObjectDescriptionReader
 from evolution import settings
 from simulator.creature import Creature
+from simulator.creature.action import ActionInterface
 from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources, WorldResource
 
 
@@ -63,7 +64,7 @@ class World(WorldObjectMixin):
         # copy.copy(self.creatures) может работать не правильно, так как SpriteList использует внутренний список
         # {creature.object_id: creature}
         self.creatures = EvolutionSpriteList[Creature]()
-        self.processing_creatures: defaultdict[int, dict[int, Creature]] = defaultdict(dict)
+        self.processing_creatures: defaultdict[int, set[Creature]] = defaultdict(set)
         self.active_creatures: dict[int, Creature] | None = None
         self.characteristics = WorldCharacteristics(
             world_descriptor.viscosity,
@@ -78,7 +79,6 @@ class World(WorldObjectMixin):
         # список всех чанков мира
         self.chunk_list = [chunk for line in self.chunks for chunk in line]
 
-        # todo: переделать под параллельную обработку
         # все объекты, которые должны сохраняться в БД, должны складываться сюда для ускорения записи в БД
         self.object_to_save_to_db: defaultdict[
             Type[models.EvolutionModel],
@@ -195,8 +195,9 @@ class World(WorldObjectMixin):
         creature.position = self.center
         creature.storage.add_resources(CREATURE_START_RESOURCES)
         creature.start()
-        self.remove_resources(creature.position, creature.remaining_resources)
-        self.remove_resources(creature.position, creature.storage.stored_resources)
+        chunk_resources = self.position_to_chunk(creature.position).resources
+        chunk_resources -= creature.remaining_resources
+        chunk_resources -= creature.storage.stored_resources
 
     def add_creature(self, creature: Creature) -> None:
         """Добавляет существо в мир."""
@@ -209,7 +210,7 @@ class World(WorldObjectMixin):
 
         self.creatures.remove(creature)
         if creature.action.stop_tick > self.age:
-            del self.processing_creatures[creature.action.stop_tick][creature.id]
+            self.processing_creatures[creature.action.stop_tick].remove(creature)
         self.physics_engine.remove_sprite(creature)
 
     def on_update(self) -> None:
@@ -219,47 +220,27 @@ class World(WorldObjectMixin):
             for creature in self.creatures:
                 creature.update_position_history()
 
-            for creature in self.processing_creatures[self.age].values():
+            for creature in self.active_creatures:
                 creature.perform()
 
             for chunk in self.chunk_list:
                 chunk.on_update()
 
+            for creature in self.active_creatures:
+                if creature.alive:
+                    creature.action = ActionInterface.get_next_action(creature)
+
             del self.processing_creatures[self.age]
             self.active_creatures = None
             # не передавать delta_time, так как физические расчеты должны быть привязаны не ко времени, а к тикам
             self.physics_engine.step()
-            self.age += 1
 
             if self.age % 100 == 0:
                 self.save_objects_to_db()
+            self.age += 1
         except Exception as error:
             error.world = self
             raise error
-
-    def get_resources(self, position: Position) -> Resources[int]:
-        """Возвращает ресурсы в чанке."""
-
-        return self.position_to_chunk(position).get_resources()
-
-    def add_resources(self, position: Position, resources: Resources[int]) -> None:
-        """Добавляет ресурсы в чанк."""
-
-        self.position_to_chunk(position).add_resources(resources)
-
-    def remove_resources(self, position: Position, resources: Resources[int]) -> None:
-        """Убирает ресурсы из чанка."""
-
-        self.position_to_chunk(position).remove_resources(resources)
-
-    def get_resource(self, position: Position, resource: WorldResource) -> int:
-        return self.position_to_chunk(position).get_resource(resource)
-
-    def add_resource(self, position: Position, resource: WorldResource, amount: int) -> None:
-        self.position_to_chunk(position).add_resource(resource, amount)
-
-    def remove_resource(self, position: Position, resource: WorldResource, amount: int) -> None:
-        self.position_to_chunk(position).remove_resource(resource, amount)
 
     def draw(self) -> None:
         self.borders.draw()
@@ -296,36 +277,29 @@ class WorldChunk:
         self.default_resource_amount = int(
             (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_density
         )
-        self._resources = Resources[int]({x: self.default_resource_amount for x in RESOURCE_LIST})
+        self.resources = Resources[int]({x: self.default_resource_amount for x in RESOURCE_LIST})
+
+        self.add_resources_requests: dict[Creature, Resources[int]] = {}
+        self.remove_resources_requests: dict[Creature, Resources[int]] = {}
 
     def __repr__(self) -> str:
         return f"{self.left, self.bottom, self.right, self.top}"
 
+    # todo: добавить выравнивание количества ресурсов относительно соседних чанков
     def on_update(self) -> None:
-        self._resources[ENERGY] = self.default_resource_amount
-
-    def get_resources(self) -> Resources[int]:
-        return self._resources
-
-    def add_resources(self, resources: Resources[int]) -> None:
-        self._resources += resources
-
-    def remove_resources(self, resources: Resources[int]) -> None:
-        self._resources -= resources
-        for resource, amount in self._resources.items():
-            if amount < 0:
-                raise ValueError(f"{resource} in {self} can not be lower than 0, current is {amount}")
+        # todo: при выдаче ресурсов проверять, живо ли существо
+        self.resources[ENERGY] = self.default_resource_amount
 
     def get_resource(self, resource: WorldResource) -> int:
-        return self._resources[resource]
+        return self.resources[resource]
 
     def add_resource(self, resource: WorldResource, amount: int) -> None:
-        self._resources[resource] += amount
+        self.resources[resource] += amount
 
     def remove_resource(self, resource: WorldResource, amount: int) -> None:
-        self._resources[resource] -= amount
-        if self._resources[resource] < 0:
-            raise ValueError(f"{resource} in {self} can not be lower than 0, current is {self._resources[resource]}")
+        self.resources[resource] -= amount
+        if self.resources[resource] < 0:
+            raise ValueError(f"{resource} in {self} can not be lower than 0, current is {self.resources[resource]}")
 
     def draw(self) -> None:
         arcade.draw_xywh_rectangle_outline(

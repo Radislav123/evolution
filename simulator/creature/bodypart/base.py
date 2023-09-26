@@ -152,6 +152,8 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
             self.damage = copy.copy(self.resources)
         return return_resources
 
+    # todo: урон существу от внешних факторов (внешние условия, другие существа,..) должен наноситься
+    #  только после обработки всех существ
     # если возвращаемые ресурсы != 0, значит часть тела уничтожена, а эти ресурсы являются ресурсами,
     # полученными после уничтожения части тела и всех зависимых частей
     def make_damage(self, damaging_resources: Resources[int]) -> Resources[int]:

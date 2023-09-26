@@ -47,6 +47,7 @@ ENERGY = RESOURCE_DICT["energy"]
 VT = TypeVar("VT", int, float)
 
 
+# todo: проверить, будет ли быстрее при наследовании от defaultdict
 class Resources(Dict[WorldResource, VT]):
     """Обертка-контейнер для удобной работы с ресурсами."""
 

@@ -43,7 +43,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     mutation_chance: float
     base_disappearance_chance: float
     appearance_chance: float
-    _required_for_creature_gene_classes: list[Type["GeneInterfaceType"]] = None
+    _required_for_creature_gene_classes: list[Type["GeneInterfaceClass"]] = None
 
     # интерфейсы не должны использовать конструктор
     # не использовать обратные ссылки (gene -> chromosome -> genome),
@@ -56,7 +56,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
         return f"{self.__class__.__name__}"
 
     @classmethod
-    def construct_genes(cls, first: bool, gene_classes: list[Type["GeneInterfaceType"]]) -> list["GeneInterfaceType"]:
+    def construct_genes(cls, first: bool, gene_classes: list[Type["GeneInterfaceClass"]]) -> list["GeneInterfaceClass"]:
         return [x(first) for x in gene_classes]
 
     # результат должен вычисляться каждый раз, так как геном меняется
@@ -93,7 +93,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
         raise NotImplementedError()
 
     @classmethod
-    def get_required_for_creature_gene_classes(cls) -> list[Type["GeneInterfaceType"]]:
+    def get_required_for_creature_gene_classes(cls) -> list[Type["GeneInterfaceClass"]]:
         """Возвращает классы генов, необходимые для любого существа."""
 
         if cls._required_for_creature_gene_classes is None:
@@ -101,7 +101,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
         return cls._required_for_creature_gene_classes
 
     @classmethod
-    def get_available_gene_classes(cls, genome: "Genome") -> list[Type["GeneInterfaceType"]]:
+    def get_available_gene_classes(cls, genome: "Genome") -> list[Type["GeneInterfaceClass"]]:
         """Возвращает классы генов, возможных для добавления в процессе мутации."""
 
         return [x for x in GENE_CLASSES_CAN_APPEAR.values()
@@ -137,6 +137,7 @@ class StepGeneMixin(Generic[ST]):
         return step
 
 
+# todo: добавить коэффициент размера части тела
 class BodyPartGeneInterface(GeneInterface):
     """Интерфейс для генов, добавляющих часть тела."""
 

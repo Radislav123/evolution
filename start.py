@@ -78,7 +78,7 @@ def log_error_info(error: Exception):
         if hasattr(error, "parents"):
             file.write("========== Parents info ==========\n")
             for parent in error.parents:
-                file.write("========== parent info ==========\n")
+                file.write("========== Parent info ==========\n")
                 log_creature(parent, file)
                 file.write(SECTION_DELIMITER)
         if hasattr(error, "child"):
@@ -88,7 +88,7 @@ def log_error_info(error: Exception):
         if hasattr(error, "next_children"):
             file.write("========== Next children info ==========\n")
             for next_child in error.next_children:
-                file.write("========== next child info ==========\n")
+                file.write("========== Next child info ==========\n")
                 log_creature(next_child, file)
                 file.write(SECTION_DELIMITER)
         if hasattr(error, "init_creature"):

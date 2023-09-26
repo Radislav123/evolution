@@ -1,1 +1,1 @@
-from simulator.world.base import World
+from simulator.world.base import World, WorldChunk

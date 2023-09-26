@@ -276,7 +276,7 @@ class Window(arcade.Window):
     def count_resources(self) -> None:
         # циклы не заменить на map, так как map работает только с числами
         if self.map_resources_tab or self.world_resources_tab:
-            self.map_resources = Resources[int].sum(x.get_resources() for x in self.world.chunk_list)
+            self.map_resources = Resources[int].sum(x.resources for x in self.world.chunk_list)
 
         if self.creature_resources_tab or self.world_resources_tab:
             self.creature_resources = Resources[int].sum(x.remaining_resources for x in self.world.creatures) \
