@@ -167,11 +167,11 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     @property
     def resources_loss(self) -> Resources[int]:
         if self._resources_loss is None:
-            resources_loss = self.resources * self.genome.effects.resources_loss_coeff + self.resources_loss_accumulated
-            resources_loss[ENERGY] = (sum(self.remaining_resources.values()) * self.genome.effects.metabolism
-                                      + self.resources_loss_accumulated[ENERGY])
-
+            resources_loss = self.resources * self.genome.effects.resources_loss_coeff
+            resources_loss[ENERGY] = sum(self.remaining_resources.values()) * self.genome.effects.metabolism
             resources_loss *= self.action.duration
+            resources_loss += self.resources_loss_accumulated
+
             resources_loss_rounded = resources_loss.round()
             self.resources_loss_accumulated = resources_loss - resources_loss_rounded
             self._resources_loss = resources_loss_rounded
@@ -451,7 +451,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             can_reproduce = False
         return can_reproduce
 
-    # todo: после размножения родитель умирает - разобраться
     def reproduce(self) -> None:
         """Симулирует размножение существа."""
 
