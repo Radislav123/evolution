@@ -26,6 +26,13 @@ class WorldResource(int):
     def __repr__(self) -> str:
         return self.name
 
+    def __add__(self, other):
+        raise NotImplementedError()
+
+    # todo: добавить аналоги для остальных методов
+    def __sub__(self, other):
+        raise NotImplementedError()
+
     @property
     def sort_key(self) -> str:
         return self.formula.rjust(self.max_formula_length + 1, '_')
@@ -94,8 +101,18 @@ class Resources(Dict[WorldResource, VT]):
     def __truediv__(self, divisor: int | float) -> "Resources[float]":
         return self.__class__({resource: self[resource] / divisor for resource in RESOURCE_LIST})
 
+    def __itruediv__(self, divisor: int | float) -> "Resources[float]":
+        for resource in RESOURCE_LIST:
+            self[resource] /= divisor
+        return self
+
     def __floordiv__(self, divisor: int | float) -> "Resources[int]":
         return self.__class__({resource: self[resource] // divisor for resource in RESOURCE_LIST})
+
+    def __ifloordiv__(self, divisor: int | float) -> "Resources[int]":
+        for resource in RESOURCE_LIST:
+            self[resource] //= divisor
+        return self
 
     def __len__(self) -> int:
         return sum(amount != 0 for amount in self.values())
@@ -110,6 +127,11 @@ class Resources(Dict[WorldResource, VT]):
     # возвращаемое значение из round() всегда считается int-ом
     def round(self) -> "Resources[int]":
         return self.__class__({resource: int(amount) for resource, amount in self.items()})
+
+    def iround(self) -> "Resources[int]":
+        for resource, amount in self.items():
+            self[resource] = round(amount)
+        return self
 
     @classmethod
     def sum(cls, resources_iterable: Iterable["Resources"]) -> "Resources":

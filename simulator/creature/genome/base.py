@@ -30,9 +30,9 @@ class GenomeEffects:
         self.resources_loss_coeff = 0.0
         self.regeneration_amount = 0
         self.regeneration_amount_coeff: float | None = None
-        # количество определенное ресурса, которое существо может потребить за тик
+        # количество определенного ресурса, которое существо может потребить за тик
         self.consumption_amount = Resources[int]()
-        # количество всех ресурсов, которое существо может потребить за тик
+        # максимальная сумма всех ресурсов, которое существо может потребить за тик
         self.consumption_limit = 0
         self.bodyparts: list[str] = []
         self.resource_storages = Resources[int]()

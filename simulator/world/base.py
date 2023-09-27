@@ -307,10 +307,13 @@ class WorldChunk:
         # получение ресурсов от существ
         self.resources += Resources[int].sum(self.add_resources_requests.values())
 
-        # todo: переделать логику запроса ресурсов у существ - убрать проверки на наличие ресурсов в чанке
         self.resources[ENERGY] = self.default_resource_amount
         self.remove_resources_requests = {}
         self.add_resources_requests = {}
+
+        for resource, amount in self.resources.items():
+            if amount < 0:
+                raise ValueError(f"Resource amount can not be below zero, but there is {self.resources}.")
 
     def draw(self) -> None:
         arcade.draw_xywh_rectangle_outline(

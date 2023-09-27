@@ -363,25 +363,20 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     def consume(self) -> None:
         """Симулирует потребление веществ существом."""
 
-        chunk_resources_sum = sum(amount for resource, amount in self.chunk.resources.items() if resource != ENERGY)
-        if chunk_resources_sum > 0:
-            consumption_resources = Resources[int](
-                {resource: min(
-                    int(amount / chunk_resources_sum * self.genome.effects.consumption_limit * self.action.duration),
-                    amount
-                ) for resource, amount in self.chunk.resources.items()
-                    if not self.storage[resource].destroyed and resource != ENERGY}
-            )
-            for resource, amount in self.genome.effects.consumption_amount.items():
-                real_amount = int(amount * self.action.duration)
-                if real_amount < consumption_resources[resource]:
-                    consumption_resources[resource] = real_amount
+        consumption_resources = self.genome.effects.consumption_amount * self.action.duration
+        consumption_resources[ENERGY] = 0
+        consumption_resource_sum = sum(consumption_resources.values())
+        consumption_limit = self.genome.effects.consumption_limit * self.action.duration
+        if consumption_resource_sum > consumption_limit:
+            reduction_coeff = consumption_limit / consumption_resource_sum
+            consumption_resources *= reduction_coeff
+        consumption_resources.iround()
 
-            # увеличивает запрос на получение ресурсов из мира
-            self.requested_resources += consumption_resources
+        # увеличивает запрос на получение ресурсов из мира
+        self.requested_resources += consumption_resources
 
-            # тратит энергию на потребление ресурсов
-            self.resources_loss_accumulated[ENERGY] += sum(consumption_resources.values()) * 0.01
+        # тратит энергию на попытку потребления ресурсов
+        self.resources_loss_accumulated[ENERGY] += sum(consumption_resources.values()) * 0.01
 
     def can_regenerate(self) -> bool:
         return (self.genome.effects.regeneration_amount * self.genome.effects.regeneration_amount_coeff > 0
@@ -406,7 +401,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         if self.storage.stored_resources[ENERGY] < energy_cost:
             reduction_coeff = self.storage.stored_resources[ENERGY] / energy_cost
             regenerating_resources *= reduction_coeff
-            regenerating_resources = regenerating_resources.round()
+            regenerating_resources.iround()
 
         extra_resources = self.regenerating_bodypart.regenerate(regenerating_resources)
         spent_resources = regenerating_resources - extra_resources
@@ -560,11 +555,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
 
     def metabolise(self) -> None:
         # todo: вынести энергетический обмен в отдельный метод при добавлении других способов, кроме фотосинтеза
-        energy_consumption_amount = min(
-            self.chunk.resources[ENERGY],
-            int(self.genome.effects.consumption_amount[ENERGY] * self.action.duration)
-        )
-        self.requested_resources[ENERGY] += energy_consumption_amount
+        self.requested_resources[ENERGY] += int(self.genome.effects.consumption_amount[ENERGY] * self.action.duration)
 
         lack_resources = Resources[int](
             {resource: amount for resource, amount in

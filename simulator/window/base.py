@@ -274,23 +274,23 @@ class Window(arcade.Window):
         self.ui_manager.add_tabs(self.tabs)
 
     def count_resources(self) -> None:
-        # циклы не заменить на map, так как map работает только с числами
-        if self.map_resources_tab or self.world_resources_tab:
-            self.map_resources = Resources[int].sum(x.resources for x in self.world.chunk_list)
+        if self.world.age % 100 == 0:
+            if self.map_resources_tab or self.world_resources_tab:
+                self.map_resources = Resources[int].sum(x.resources for x in self.world.chunk_list)
 
-        if self.creature_resources_tab or self.world_resources_tab:
-            self.creature_resources = Resources[int].sum(x.remaining_resources for x in self.world.creatures) + \
-                                      Resources[int].sum(x.storage.stored_resources for x in self.world.creatures)
+            if self.creature_resources_tab or self.world_resources_tab:
+                self.creature_resources = Resources[int].sum(x.remaining_resources for x in self.world.creatures) + \
+                                          Resources[int].sum(x.storage.stored_resources for x in self.world.creatures)
 
-        if self.world_resources_tab:
-            self.world_resources = self.map_resources + self.creature_resources
+            if self.world_resources_tab:
+                self.world_resources = self.map_resources + self.creature_resources
 
     def count_tps(self) -> None:
         if self.world.age % 10 == 0:
             timings = arcade.get_timings()
             # за 100 последних тиков
             execution_time_100 = sum(sum(timings[i]) for i in timings)
-            # добавляется 0.00000001, во избежание деления на 0
+            # добавляется 0.0001, во избежание деления на 0
             average_execution_time = execution_time_100 / 100 + 0.0001
             self.tps = int(1 / average_execution_time)
 
