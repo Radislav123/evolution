@@ -70,18 +70,6 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return BODYPART_CLASSES["body"](creature, None)
 
     @property
-    def damaged(self) -> bool:
-        """Проверяет, нанесен ли урон части тела."""
-
-        for amount in self.damage.values():
-            if amount > 0:
-                damaged = True
-                break
-        else:
-            damaged = False
-        return damaged
-
-    @property
     def remaining_resources(self) -> Resources[int]:
         """Ресурсы, находящиеся в части тела сейчас."""
 
@@ -142,7 +130,16 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
 
         return_resources = self.remaining_resources
         if not self.destroyed:
-            self._remaining_resources = None
+            if self in self.creature.damaged_bodyparts:
+                self.creature.damaged_bodyparts.remove(self)
+            elif self in self.creature.not_damaged_bodyparts:
+                self.creature.not_damaged_bodyparts.remove(self)
+            else:
+                raise ValueError("Destroying bodypart not in damaged_bodyparts and not_damaged_bodyparts.")
+            self.creature.present_bodyparts.remove(self)
+            self.creature.destroyed_bodyparts.add(self)
+
+            self.reset_resources_cache()
             self.reset_physic_cache()
             # не переходить на self.all_dependent,
             # потому что части тела (например ResourcesStorage) могут переопределять self.destroy
@@ -157,18 +154,26 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
     # если возвращаемые ресурсы != 0, значит часть тела уничтожена, а эти ресурсы являются ресурсами,
     # полученными после уничтожения части тела и всех зависимых частей
     def make_damage(self, damaging_resources: Resources[int]) -> Resources[int]:
-        self.damage += damaging_resources
-        self._remaining_resources = None
-        self.reset_physic_cache()
-        remaining_resources = self.remaining_resources
-        for resource in self.resources:
-            if self.damage[resource] > self.resources[resource]:
-                raise ValueError(f"Bodypart damage {self.damage} can not be greater then resources {self.resources}.")
+        if sum(damaging_resources.values()) > 0:
+            self.damage += damaging_resources
+            self.reset_resources_cache()
+            self.reset_physic_cache()
+            for resource in self.resources:
+                if self.damage[resource] > self.resources[resource]:
+                    raise ValueError(
+                        f"Bodypart damage {self.damage} can not be greater then resources {self.resources}."
+                    )
 
-        # часть тела не выдержала урона и была уничтожена
-        if sum(remaining_resources.values()) == 0:
-            return_resources = self.destroy()
-        # часть тела осталась не уничтоженной
+            # часть тела не выдержала урона и была уничтожена
+            if sum(self.remaining_resources.values()) == 0:
+                return_resources = self.destroy()
+            # часть тела осталась не уничтоженной
+            else:
+                if self in self.creature.not_damaged_bodyparts:
+                    self.creature.not_damaged_bodyparts.remove(self)
+                    self.creature.damaged_bodyparts.add(self)
+                return_resources = Resources[int]()
+        # часть тела не получила урона
         else:
             return_resources = Resources[int]()
 
@@ -176,19 +181,38 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
 
     # если возвращаемые ресурсы != 0, значит эти ресурсы не израсходованы при регенерации
     def regenerate(self, resources: Resources[int]) -> Resources[int]:
+        # поправка на урон части тела
         regenerating_resources = Resources[int](
             {resource: min(amount, self.damage[resource]) for resource, amount in resources.items()}
         )
 
-        self.damage -= regenerating_resources
-        # нужно сбросить ресурсы части тела до проверки их количества
-        self._remaining_resources = None
-        # часть тела регенерировала хотя бы одну единицу какого-либо ресурса
-        if sum(self.remaining_resources.values()) > 0:
-            self.destroyed = False
+        if sum(regenerating_resources.values()) > 0:
+            self.damage -= regenerating_resources
+            self.reset_resources_cache()
             self.reset_physic_cache()
 
-        return resources - regenerating_resources
+            self.creature.present_bodyparts.add(self)
+            if self.destroyed:
+                self.destroyed = False
+                self.creature.destroyed_bodyparts.remove(self)
+                # часть тела еще не полностью восстановлена
+                if sum(self.damage.values()) > 0:
+                    self.creature.damaged_bodyparts.add(self)
+                # часть тела восстановлена полностью
+                else:
+                    self.creature.not_damaged_bodyparts.add(self)
+            else:
+                # часть тела восстановлена полностью
+                if sum(self.damage.values()) == 0:
+                    self.creature.damaged_bodyparts.remove(self)
+                    self.creature.not_damaged_bodyparts.add(self)
+
+            return_resources = resources - regenerating_resources
+        # часть тела не получила необходимых для регенерации ресурсов
+        else:
+            return_resources = resources
+
+        return return_resources
 
     def reset_physic_cache(self) -> None:
         self._volume = None
@@ -200,6 +224,11 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
             # существо еще не имеет объекта характеристик, если оно создано, но не появилось в мире (creature.start),
             # а ресурсы ему уже передаются, что вызывает данный метод (storage.reset_physic_cache)
             pass
+
+    def reset_resources_cache(self) -> None:
+        self._remaining_resources = None
+        self.creature._damage = None
+        self.creature._remaining_resources = None
 
 
 class StorageException(Exception):

@@ -109,6 +109,15 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self.color = self.genome.effects.color
 
             # инициализация частей тела
+            # not_damaged_bodyparts + damaged_bodyparts + destroyed_bodyparts = bodyparts
+            # части тела, без урона
+            self.not_damaged_bodyparts: set[BodypartInterface] | None = None
+            # части тела, получившие урон, но не уничтоженные
+            self.damaged_bodyparts: set[BodypartInterface] | None = None
+            # полностью уничтоженные части тела
+            self.destroyed_bodyparts: set[BodypartInterface] | None = None
+            # присутствующие, не уничтоженные полностью, части тела
+            self.present_bodyparts: set[BodypartInterface] | None = None
             self.body: BodypartInterface | None = None
             self.storage: StorageInterface | None = None
             self._bodyparts: list[BodypartInterface] | None = None
@@ -116,6 +125,8 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self.apply_bodyparts()
             # ресурсы, необходимые для воспроизводства существа
             self.resources = Resources[int].sum(x.resources for x in self.bodyparts)
+            self._damage: Resources[int] | None = None
+            self._remaining_resources: Resources[int] | None = None
 
             # инициализация физических характеристик
             self.characteristics: CreatureCharacteristics | None = None
@@ -181,19 +192,20 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     def damage(self) -> Resources[int]:
         """Сумма урона всех частей тела существа."""
 
-        return Resources[int].sum(x.damage for x in self.bodyparts)
+        if self._damage is None:
+            self._damage = Resources[int].sum(x.damage for x in self.bodyparts)
+        return self._damage
 
     @property
     def remaining_resources(self) -> Resources[int]:
         """Ресурсы, которые сейчас находятся в частях тела, как их части."""
         # ресурсы существа, без тех, что хранятся в хранилищах
 
-        return Resources[int].sum(x.remaining_resources for x in self.bodyparts)
+        if self._remaining_resources is None:
+            self._remaining_resources = Resources[int].sum(x.remaining_resources for x in self.bodyparts)
+        return self._remaining_resources
 
-    @property
-    def extra_storage(self) -> Resources[int]:
-        return Resources[int].sum(x.extra_storage for x in self.bodyparts)
-
+    # todo: переделать в список на подобии damaged_bodyparts, present_bodyparts
     @property
     def bodyparts(self) -> list[BodypartInterface]:
         """Все части тела существа."""
@@ -201,18 +213,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         if self._bodyparts is None:
             self._bodyparts = [self.body, *self.body.all_dependent]
         return self._bodyparts
-
-    @property
-    def damaged_bodyparts(self) -> list[BodypartInterface]:
-        """Части тела, получившие урон."""
-
-        return [bodypart for bodypart in self.bodyparts if bodypart.damaged]
-
-    @property
-    def present_bodyparts(self) -> list[BodypartInterface]:
-        """Присутствующие, не уничтоженные полностью, части тела."""
-
-        return [bodypart for bodypart in self.bodyparts if not bodypart.destroyed]
 
     def request_to_save_to_db(self) -> None:
         self.db_instance = self.db_model(
@@ -254,7 +254,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
                 self.storage.add_resource_storage(resource)
 
         # задаются емкости хранилищ ресурсов
-        extra_storage = self.extra_storage
+        extra_storage = Resources[int].sum(x.extra_storage for x in self.bodyparts)
         for resource, resource_storage in self.storage.items():
             resource_storage.capacity = self.genome.effects.resource_storages[resource] + extra_storage[resource]
 
@@ -263,6 +263,11 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         self._bodyparts = None
         for bodypart in self.bodyparts:
             bodypart.constructed = True
+
+        self.not_damaged_bodyparts = set(bodypart for bodypart in self.bodyparts)
+        self.damaged_bodyparts = set()
+        self.destroyed_bodyparts = set()
+        self.present_bodyparts = set(bodypart for bodypart in self.bodyparts)
 
     def start(self) -> None:
         self.__class__.birth_counter += 1
@@ -427,6 +432,13 @@ class Creature(WorldObjectMixin, arcade.Sprite):
                     if damage_amount > 0 and not self.storage[resource].empty:
                         bodyparts.append(bodypart)
                         break
+            else:
+                # восстанавливает части тела только если все остальные целы
+                for bodypart in self.destroyed_bodyparts:
+                    for resource, damage_amount in bodypart.damage.items():
+                        if damage_amount > 0 and not self.storage[resource].empty:
+                            bodyparts.append(bodypart)
+                            break
 
             if len(bodyparts) > 0:
                 random.shuffle(bodyparts)
