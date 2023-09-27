@@ -311,7 +311,7 @@ class StorageInterface(BodypartInterface):
         return return_resources
 
     @classmethod
-    def find_storage(cls, bodyparts: list["BodypartInterface"]) -> "StorageInterface":
+    def find_storage(cls, bodyparts: set["BodypartInterface"]) -> "StorageInterface":
         """Находит хранилище (storage) в списке частей тела."""
 
         for bodypart in bodyparts:

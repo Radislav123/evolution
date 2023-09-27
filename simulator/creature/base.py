@@ -109,6 +109,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self.color = self.genome.effects.color
 
             # инициализация частей тела
+            self.bodyparts: set[BodypartInterface] | None = None
             # not_damaged_bodyparts + damaged_bodyparts + destroyed_bodyparts = bodyparts
             # части тела, без урона
             self.not_damaged_bodyparts: set[BodypartInterface] | None = None
@@ -120,7 +121,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self.present_bodyparts: set[BodypartInterface] | None = None
             self.body: BodypartInterface | None = None
             self.storage: StorageInterface | None = None
-            self._bodyparts: list[BodypartInterface] | None = None
             self._regenerating_bodypart: BodypartInterface | None = None
             self.apply_bodyparts()
             # ресурсы, необходимые для воспроизводства существа
@@ -205,15 +205,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self._remaining_resources = Resources[int].sum(x.remaining_resources for x in self.bodyparts)
         return self._remaining_resources
 
-    # todo: переделать в список на подобии damaged_bodyparts, present_bodyparts
-    @property
-    def bodyparts(self) -> list[BodypartInterface]:
-        """Все части тела существа."""
-
-        if self._bodyparts is None:
-            self._bodyparts = [self.body, *self.body.all_dependent]
-        return self._bodyparts
-
     def request_to_save_to_db(self) -> None:
         self.db_instance = self.db_model(
             id = self.id,
@@ -245,9 +236,13 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         bodypart_names.remove(self.body.name)
         self.body.construct(bodypart_names)
 
+        self.bodyparts = set(self.body.all_dependent)
+        self.bodyparts.add(self.body)
+
         # находится хранилище
         self.storage = StorageInterface.find_storage(self.bodyparts)
 
+        # todo: переделать, чтобы хранилища ресурсов были обычными частями тела
         # собирается хранилище
         for resource, amount in self.genome.effects.resource_storages.items():
             if amount > 0:
@@ -257,10 +252,8 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         extra_storage = Resources[int].sum(x.extra_storage for x in self.bodyparts)
         for resource, resource_storage in self.storage.items():
             resource_storage.capacity = self.genome.effects.resource_storages[resource] + extra_storage[resource]
+        self.bodyparts.update(self.storage.all_dependent)
 
-        # необходимо, чтобы список частей тела был пересобран, так как только в данной точке исполнения тело,
-        # со всеми частями, собрано
-        self._bodyparts = None
         for bodypart in self.bodyparts:
             bodypart.constructed = True
 
