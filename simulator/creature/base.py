@@ -629,11 +629,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         # запрос на получение ресурсов делается, только если существо живо
         if self.alive:
             chunk.remove_resources_requests[self] = self.requested_resources
-
-            # todo: remove 2 lines
-            self.storage.add_resources(self.requested_resources)
-            chunk.resources -= self.requested_resources
-
             self.requested_resources = Resources[int]()
 
         # запрос на возвращение ресурсов
@@ -643,10 +638,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         # энергия не может возвращаться в мир
         self.returned_resources[ENERGY] = 0
         chunk.add_resources_requests[self] = self.returned_resources
-
-        # todo: remove 1 line
-        chunk.resources += self.returned_resources
-
         self.returned_resources = Resources[int]()
 
     def update_physics(self) -> None:

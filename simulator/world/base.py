@@ -13,7 +13,7 @@ from core.service import EvolutionSpriteList, ObjectDescriptionReader
 from evolution import settings
 from simulator.creature import Creature
 from simulator.creature.action import ActionInterface
-from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources, WorldResource
+from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources
 
 
 Position = tuple[float, float]
@@ -279,27 +279,38 @@ class WorldChunk:
         )
         self.resources = Resources[int]({x: self.default_resource_amount for x in RESOURCE_LIST})
 
-        self.add_resources_requests: dict[Creature, Resources[int]] = {}
         self.remove_resources_requests: dict[Creature, Resources[int]] = {}
+        self.add_resources_requests: dict[Creature, Resources[int]] = {}
 
     def __repr__(self) -> str:
         return f"{self.left, self.bottom, self.right, self.top}"
 
     # todo: добавить выравнивание количества ресурсов относительно соседних чанков
     def on_update(self) -> None:
-        # todo: при выдаче ресурсов проверять, живо ли существо
+        # выдача ресурсов существам
+        requested_resources = Resources[int].sum(self.remove_resources_requests.values())
+        not_enough = set(
+            resource for resource, requested_amount in requested_resources.items()
+            if requested_amount > self.resources[resource]
+        )
+        for creature, creature_request in self.remove_resources_requests.items():
+            if creature.alive:
+                removed_resources = Resources[int](
+                    {
+                        resource: self.resources[resource] // requested_resources[resource] * amount
+                        if resource in not_enough else amount for resource, amount in creature_request.items()
+                    }
+                )
+                creature.storage.add_resources(removed_resources)
+                self.resources -= removed_resources
+
+        # получение ресурсов от существ
+        self.resources += Resources[int].sum(self.add_resources_requests.values())
+
+        # todo: переделать логику запроса ресурсов у существ - убрать проверки на наличие ресурсов в чанке
         self.resources[ENERGY] = self.default_resource_amount
-
-    def get_resource(self, resource: WorldResource) -> int:
-        return self.resources[resource]
-
-    def add_resource(self, resource: WorldResource, amount: int) -> None:
-        self.resources[resource] += amount
-
-    def remove_resource(self, resource: WorldResource, amount: int) -> None:
-        self.resources[resource] -= amount
-        if self.resources[resource] < 0:
-            raise ValueError(f"{resource} in {self} can not be lower than 0, current is {self.resources[resource]}")
+        self.remove_resources_requests = {}
+        self.add_resources_requests = {}
 
     def draw(self) -> None:
         arcade.draw_xywh_rectangle_outline(
