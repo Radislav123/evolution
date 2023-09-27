@@ -239,11 +239,11 @@ class StorageException(Exception):
         self.resources = Resources[int]()
 
 
-class AddToNonExistentStorageException(StorageException):
+class AddToDestroyedStorageException(StorageException):
     pass
 
 
-class RemoveFromNonExistentStorageException(StorageException):
+class RemoveFromDestroyedStorageException(StorageException):
     pass
 
 
@@ -387,7 +387,7 @@ class StorageInterface(BodypartInterface):
                     not_added_resources = Resources[int]()
                 not_added_resources[exception.world_resource] = exception.amount
         if not_added_resources is not None:
-            common_exception = AddToNonExistentStorageException(f"{not_added_resources} can not be added to {self}")
+            common_exception = AddToDestroyedStorageException(f"{not_added_resources} can not be added to {self}")
             common_exception.resources = not_added_resources
             raise common_exception
 
@@ -403,7 +403,7 @@ class StorageInterface(BodypartInterface):
                     not_removed_resources = Resources[int]()
                 not_removed_resources[exception.world_resource] = exception.amount
         if not_removed_resources is not None:
-            common_exception = RemoveFromNonExistentStorageException(
+            common_exception = RemoveFromDestroyedStorageException(
                 f"{not_removed_resources} can not be removed from {self}"
             )
             common_exception.resources = not_removed_resources

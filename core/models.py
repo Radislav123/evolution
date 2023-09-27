@@ -8,12 +8,12 @@ class EvolutionModel(models.Model):
         abstract = True
 
     _update_fields: list[str] = None
-    unique_fields: list[str] = ["id"]
+    unique_fields: set[str] = {"id"}
 
     @classmethod
     def get_update_fields(cls) -> list[str]:
         if cls._update_fields is None:
-            cls._update_fields = [x.name for x in cls._meta.fields if x.name != "id"]
+            cls._update_fields = [x.name for x in cls._meta.fields if x.name not in cls.unique_fields]
         return cls._update_fields
 
 

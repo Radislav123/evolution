@@ -32,6 +32,9 @@ class ApplyDescriptorMixin:
 class WorldObjectMixin(abc.ABC):
     id: int = None
 
+    def __repr__(self) -> str:
+        return self.object_id
+
     @property
-    def object_id(self):
+    def object_id(self) -> str:
         return f"{self.__class__.__name__}{self.id}"

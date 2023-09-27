@@ -15,8 +15,8 @@ from core.physic import CreatureCharacteristics
 from core.service import ObjectDescriptionReader
 from evolution import settings
 from simulator.creature.action import ActionInterface
-from simulator.creature.bodypart import AddToNonExistentStorageException, BodypartInterface, \
-    RemoveFromNonExistentStorageException, StorageInterface
+from simulator.creature.bodypart import AddToDestroyedStorageException, BodypartInterface, \
+    RemoveFromDestroyedStorageException, StorageInterface
 from simulator.creature.genome import Genome
 from simulator.world_resource import ENERGY, Resources
 
@@ -65,6 +65,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     ) -> None:
         try:
             super().__init__(self.image_path)
+            self.__class__.counter += 1
             # такая ситуация подразумевается только при генерации мира
             if parents is None and world_generation:
                 parents = []
@@ -73,9 +74,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
                 genome = Genome.get_first_genome()
             else:
                 genome = parents[0].genome.get_child_genome(parents)
-
-            self.id = int(f"{world.id}{self.__class__.counter}")
-            self.__class__.counter += 1
 
             # общая инициализация
             self.world = world
@@ -161,9 +159,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             error.init_creature = self
             raise error
 
-    def __repr__(self) -> str:
-        return self.object_id
-
     @property
     def reproduction_resources(self) -> Resources[int]:
         """Ресурсы, необходимые для воспроизведения всех потомков, без учета коэффициентов."""
@@ -207,7 +202,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
 
     def request_to_save_to_db(self) -> None:
         self.db_instance = self.db_model(
-            id = self.id,
             world = self.world.db_instance,
             start_tick = self.start_tick,
             stop_tick = self.stop_tick,
@@ -570,7 +564,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             try:
                 self.returned_resources += self.resources_loss
                 self.storage.remove_resources(self.resources_loss)
-            except RemoveFromNonExistentStorageException as exception:
+            except RemoveFromDestroyedStorageException as exception:
                 self.returned_resources -= exception.resources
                 self.kill(self.DeathCause.AUTOPHAGE_STORAGE)
 
@@ -596,7 +590,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
                 self.storage.add_resources(resource_increment)
             # ресурсы, которые не могут быть добавлены в хранилища существа,
             # так как хранилища были уничтожены, будут возвращены в мир
-            except AddToNonExistentStorageException as exception:
+            except AddToDestroyedStorageException as exception:
                 self.returned_resources += exception.resources
         return lack_resources
 

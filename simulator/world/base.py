@@ -2,6 +2,7 @@ import copy
 import dataclasses
 import random
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from typing import Type
 
 import arcade
@@ -13,6 +14,7 @@ from core.service import EvolutionSpriteList, ObjectDescriptionReader
 from evolution import settings
 from simulator.creature import Creature
 from simulator.creature.action import ActionInterface
+from simulator.creature.bodypart import AddToDestroyedStorageException
 from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources
 
 
@@ -84,9 +86,8 @@ class World(WorldObjectMixin):
             Type[models.EvolutionModel],
             list[models.EvolutionModel]
         ] = defaultdict(list)
-
-    def __repr__(self) -> str:
-        return f"{self.object_id}"
+        # todo: добавить количество потоков/ядер (max_workers) в настройки
+        self.parallel_saver = ThreadPoolExecutor()
 
     @property
     def id(self) -> int:
@@ -166,14 +167,17 @@ class World(WorldObjectMixin):
         )
 
     def save_objects_to_db(self) -> None:
+        # todo: разделить на создаваемые и обновляемые объекты
+        # todo: точно прописать для каждой модели поля, какие должны обновляться, а какие - нет
         for model, objects in self.object_to_save_to_db.items():
-            model.objects.bulk_create(
+            self.parallel_saver.submit(
+                model.objects.bulk_create,
                 objects,
-                update_conflicts = True,
-                update_fields = model.get_update_fields(),
-                unique_fields = model.unique_fields
+                # update_conflicts = True,
+                # update_fields = model.get_update_fields(),
+                # unique_fields = model.unique_fields
             )
-        self.object_to_save_to_db = defaultdict(list)
+        self.object_to_save_to_db.clear()
 
     def start(self) -> None:
         """Выполняет подготовительные действия при начале симуляции."""
@@ -301,7 +305,10 @@ class WorldChunk:
                         if resource in not_enough else amount for resource, amount in creature_request.items()
                     }
                 )
-                creature.storage.add_resources(removed_resources)
+                try:
+                    creature.storage.add_resources(removed_resources)
+                except AddToDestroyedStorageException as exception:
+                    removed_resources -= exception.resources
                 self.resources -= removed_resources
 
         # получение ресурсов от существ
