@@ -578,14 +578,17 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             bodypart = self.get_autophagic_bodypart(lack_resources)
             damage = -lack_resources
             # коррекция урона с учетом наличия ресурсов в части тела
-            for resource, amount in bodypart.remaining_resources.items():
-                if amount < damage[resource]:
-                    damage[resource] = amount
+            for resource, amount in damage.items():
+                amount_in_bodypart = bodypart.remaining_resources[resource]
+                if amount_in_bodypart < amount:
+                    damage[resource] = amount_in_bodypart
             damage_extra_resources = bodypart.make_damage(damage)
             resource_increment = damage + damage_extra_resources
 
             lack_resources += resource_increment
-            lack_resources = Resources({resource: amount for resource, amount in lack_resources.items() if amount < 0})
+            for resource, amount in lack_resources.items():
+                if amount >= 0:
+                    lack_resources[resource] = 0
             try:
                 self.storage.add_resources(resource_increment)
             # ресурсы, которые не могут быть добавлены в хранилища существа,
@@ -598,7 +601,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         bodyparts = []
         for bodypart in self.present_bodyparts:
             for resource, amount in lack_resources.items():
-                if amount > 0 >= bodypart.remaining_resources[resource]:
+                if amount > 0 and bodypart.remaining_resources[resource] > 0:
                     break
             else:
                 bodyparts.append(bodypart)

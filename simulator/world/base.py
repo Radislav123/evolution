@@ -193,6 +193,7 @@ class World(WorldObjectMixin):
         for creature in self.creatures:
             creature.stop()
         self.save_objects_to_db()
+        self.parallel_saver.shutdown()
 
     def spawn_start_creature(self) -> None:
         creature = Creature(self, None, True)

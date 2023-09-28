@@ -132,15 +132,24 @@ class ConsumeAction(ActionInterface):
 
     def prepare(self) -> None:
         available_space = self.creature.storage.available_space
-        resource_durations = (
+        resource_durations = tuple(
             available_space[resource] / self.creature.genome.effects.consumption_amount[resource]
             for resource in (x for x in available_space
                              if x != ENERGY and self.creature.genome.effects.consumption_amount[x] > 0)
         )
-        estimated_duration = min(
-            *resource_durations,
-            self.estimated_duration * self.duration_coeff * self.creature.genome.effects.action_duration_coeff
-        ) + self.duration_accumulated
+        if len(resource_durations) > 1:
+            estimated_duration = min(
+                *resource_durations,
+                self.estimated_duration * self.duration_coeff * self.creature.genome.effects.action_duration_coeff
+            ) + self.duration_accumulated
+        elif len(resource_durations) == 1:
+            estimated_duration = min(
+                resource_durations[0],
+                self.estimated_duration * self.duration_coeff * self.creature.genome.effects.action_duration_coeff
+            ) + self.duration_accumulated
+        else:
+            estimated_duration = (self.estimated_duration * self.duration_coeff *
+                                  self.creature.genome.effects.action_duration_coeff + self.duration_accumulated)
 
         # длительность действия не может быть меньше 1 тика
         self._estimated_duration = max(int(estimated_duration), 1)
@@ -167,15 +176,24 @@ class RegenerateAction(ActionInterface):
     name = "regenerate_action"
 
     def prepare(self) -> None:
-        resource_durations = (
+        resource_durations = tuple(
             amount /
             (self.creature.genome.effects.regeneration_amount * self.creature.genome.effects.regeneration_amount_coeff)
             for resource, amount in self.creature.regenerating_bodypart.damage.items() if amount > 0
         )
-        estimated_duration = min(
-            *resource_durations,
-            self.estimated_duration * self.duration_coeff * self.creature.genome.effects.action_duration_coeff
-        ) + self.duration_accumulated
+        if len(resource_durations) > 1:
+            estimated_duration = min(
+                *resource_durations,
+                self.estimated_duration * self.duration_coeff * self.creature.genome.effects.action_duration_coeff
+            ) + self.duration_accumulated
+        elif len(resource_durations) == 1:
+            estimated_duration = min(
+                resource_durations[0],
+                self.estimated_duration * self.duration_coeff * self.creature.genome.effects.action_duration_coeff
+            ) + self.duration_accumulated
+        else:
+            estimated_duration = (self.estimated_duration * self.duration_coeff *
+                                  self.creature.genome.effects.action_duration_coeff + self.duration_accumulated)
 
         # длительность действия не может быть меньше 1 тика
         self._estimated_duration = max(int(estimated_duration), 1)

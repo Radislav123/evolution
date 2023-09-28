@@ -160,8 +160,8 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
             self.damage += damaging_resources
             self.reset_resources_cache()
             self.reset_physic_cache()
-            for resource in self.resources:
-                if self.damage[resource] > self.resources[resource]:
+            for resource, amount in self.damage.items():
+                if amount > self.resources[resource]:
                     raise ValueError(
                         f"Bodypart damage {self.damage} can not be greater then resources {self.resources}."
                     )
