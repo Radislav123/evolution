@@ -601,10 +601,10 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         bodyparts = []
         for bodypart in self.present_bodyparts:
             for resource, amount in lack_resources.items():
-                if amount > 0 and bodypart.remaining_resources[resource] > 0:
+                # часть тела содержит хотя бы один необходимый ресурс
+                if amount < 0 < bodypart.remaining_resources[resource]:
+                    bodyparts.append(bodypart)
                     break
-            else:
-                bodyparts.append(bodypart)
 
         random.shuffle(bodyparts)
         return bodyparts[0]
