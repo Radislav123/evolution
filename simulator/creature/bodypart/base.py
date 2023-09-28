@@ -293,8 +293,8 @@ class StorageInterface(BodypartInterface):
                 if resource_storage.destroyed:
                     string += f"{resource_storage.world_resource.formula}: destroyed, "
                 else:
-                    string += (f"{resource_storage.world_resource.formula}:"
-                               f" {resource_storage.current}/{resource_storage.capacity}, ")
+                    string += (f"{resource_storage.world_resource.formula}: "
+                               f"{resource_storage.current}/{resource_storage.capacity}, ")
         else:
             string += "empty"
         if string[-2:] == ", ":

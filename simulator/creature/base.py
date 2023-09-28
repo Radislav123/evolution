@@ -135,7 +135,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             # (забираются из хранилища, добавляются в returned_resources,
             # а потом (через returned_resources) возвращаются в мир)
             self.resources_loss_accumulated: Resources[float] = Resources[float]()
-            self._resources_loss: Resources[int] | None = None
+            self.resources_loss: Resources[int] | None = None
             # todo: привязать к генам
             # отношение количества регенерируемых ресурсов и энергии
             # (сколько энергии стоит регенерация единицы ресурса)
@@ -170,18 +170,15 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             )
         return self._reproduction_resources
 
-    @property
-    def resources_loss(self) -> Resources[int]:
-        if self._resources_loss is None:
-            resources_loss = self.resources * self.genome.effects.resources_loss_coeff
-            resources_loss[ENERGY] = sum(self.remaining_resources.values()) * self.genome.effects.metabolism
-            resources_loss *= self.action.duration
-            resources_loss += self.resources_loss_accumulated
+    def count_resources_loss(self) -> None:
+        resources_loss = self.resources * self.genome.effects.resources_loss_coeff
+        resources_loss[ENERGY] = sum(self.remaining_resources.values()) * self.genome.effects.metabolism
+        resources_loss *= self.action.duration
+        resources_loss += self.resources_loss_accumulated
 
-            resources_loss_rounded = resources_loss.round()
-            self.resources_loss_accumulated = resources_loss - resources_loss_rounded
-            self._resources_loss = resources_loss_rounded
-        return self._resources_loss
+        resources_loss_rounded = resources_loss.round()
+        self.resources_loss_accumulated = resources_loss - resources_loss_rounded
+        self.resources_loss = resources_loss_rounded
 
     @property
     def damage(self) -> Resources[int]:
@@ -321,6 +318,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
                 case _:
                     raise ValueError("Action is not selected.")
 
+            self.count_resources_loss()
             if self.can_metabolise():
                 self.metabolise()
                 if self.alive and self.world.age - self.start_tick >= self.max_age:
@@ -433,7 +431,6 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         if self.genome.effects.children_amount > 0:
             lower_bound_resources = self.reproduction_resources * self.reproduction_reserve_coeff
             lower_bound_resources *= (1 + self.reproduction_lost_coeff)
-            lower_bound_resources += self.resources_loss
             for resource, lower_bound in lower_bound_resources.items():
                 if (resource not in self.storage or self.storage[resource].current <= lower_bound
                         or self.storage[resource].capacity <= lower_bound):
@@ -518,12 +515,14 @@ class Creature(WorldObjectMixin, arcade.Sprite):
                 )
 
             sharing_resources = []
-            free_resources = self.storage.stored_resources - self.resources_loss
+            free_resources = self.storage.stored_resources.copy()
             for child in self.next_children:
                 sharing_resources.append(
                     Resources(
-                        {resource: free_resources[resource] // sum(sharing_resources_map[resource], 1)
-                        if resource in child.storage else 0 for resource in self.storage}
+                        {
+                            resource: free_resources[resource] // sum(sharing_resources_map[resource], 1)
+                            if resource in child.storage else 0 for resource in self.storage
+                        }
                     )
                 )
         else:
@@ -539,9 +538,10 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         missing_storages_amount = sum(
             (resource not in self.storage or self.storage[resource].destroyed) for resource in self.resources
         )
-        lacking_resources = self.remaining_resources + self.storage.stored_resources - self.resources_loss
-        lacking_resources_count = sum(1 for x in lacking_resources.values() if x < 0)
-        if missing_storages_amount > 0 or lacking_resources_count > 0:
+        lack_resources = self.remaining_resources + self.storage.stored_resources
+        lack_resources -= self.resources_loss
+        lack_resources_sum = sum(1 for x in lack_resources.values() if x < 0)
+        if missing_storages_amount > 0 or lack_resources_sum > 0:
             can_metabolize = False
         else:
             can_metabolize = True
@@ -568,7 +568,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
                 self.returned_resources -= exception.resources
                 self.kill(self.DeathCause.AUTOPHAGE_STORAGE)
 
-        self._resources_loss = None
+        self.resources_loss = None
 
     # https://ru.wikipedia.org/wiki/%D0%90%D1%83%D1%82%D0%BE%D1%84%D0%B0%D0%B3%D0%B8%D1%8F
     def autophage(self, lack_resources: Resources[int]) -> Resources[int]:
