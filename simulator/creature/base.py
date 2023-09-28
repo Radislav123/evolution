@@ -251,10 +251,10 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         for bodypart in self.bodyparts:
             bodypart.constructed = True
 
-        self.not_damaged_bodyparts = set(bodypart for bodypart in self.bodyparts)
+        self.not_damaged_bodyparts = {bodypart for bodypart in self.bodyparts}
         self.damaged_bodyparts = set()
         self.destroyed_bodyparts = set()
-        self.present_bodyparts = set(bodypart for bodypart in self.bodyparts)
+        self.present_bodyparts = {bodypart for bodypart in self.bodyparts}
 
     def start(self) -> None:
         self.__class__.birth_counter += 1

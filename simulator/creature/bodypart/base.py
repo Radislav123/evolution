@@ -33,7 +33,6 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
 
     def __init__(self, creature: "Creature", required_bodypart: Optional["BodypartInterfaceClass"]) -> None:
         self.creature = creature
-        self.size_coeff = self.creature.genome.effects.size_coeff
         # часть тела, к которой крепится данная
         self.required_bodypart: BodypartInterfaceClass = required_bodypart
         self.dependent_bodyparts: list["BodypartInterfaceClass"] = []
@@ -51,13 +50,16 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         self.damage = Resources[int]()
         # ресурсы, находящиеся в неповрежденной части тела/необходимые для воспроизводства части тела
         # при размере (size_coeff) равном 1.0 соответствует composition
-        self.resources = (
-                Resources[int](
-                    {RESOURCE_DICT[resource_name]: amount for resource_name, amount in self.composition.items()}
-                ) * self.size_coeff
-        ).round()
+        self.resources = Resources[int](
+            {RESOURCE_DICT[resource_name]: amount for resource_name, amount in self.composition.items()}
+        ) * self.creature.genome.effects.size_coeff
+        self.resources.iround()
+        for resource, amount in self.resources.items():
+            if amount == 0:
+                self.resources[resource] = 1
         # расширение хранилища существа, которое предоставляет часть тела
-        self.extra_storage = (self.resources * self.extra_storage_coeff).round()
+        self.extra_storage: Resources[int] = self.resources * self.extra_storage_coeff
+        self.extra_storage.iround()
         self._remaining_resources: Resources[int] | None = None
 
     def __repr__(self) -> str:
