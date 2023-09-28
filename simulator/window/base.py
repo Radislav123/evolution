@@ -318,7 +318,7 @@ class Window(arcade.Window):
                 self.map_resources = Resources[int]()
                 # чтобы порядок ресурсов не менялся
                 self.map_resources.fill_all(0)
-                self.map_resources += Resources[int].sum(x.resources for x in self.world.chunk_list)
+                self.map_resources += Resources[int].sum(x.resources for x in self.world.chunk_set)
 
             if self.creature_resources_tab or self.world_resources_tab:
                 self.creature_resources = Resources[int]()

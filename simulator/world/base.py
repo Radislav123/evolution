@@ -34,6 +34,8 @@ class WorldDescriptor:
     chunk_width: int
     chunk_height: int
     seed: int
+    chunk_share_resources_period: int
+    chunk_share_resources_coeff: float
 
 
 # todo: добавить выбор настроек мира
@@ -62,6 +64,10 @@ class World(WorldObjectMixin):
         self.center = window_center
         self.chunk_width = world_descriptor.chunk_width
         self.chunk_height = world_descriptor.chunk_height
+        # количество тиков между перемещениями ресурсов
+        self.chunk_share_resources_period = world_descriptor.chunk_share_resources_period
+        # коэффициент разницы ресурсов, которые будут перемещены
+        self.chunk_share_resources_coeff = world_descriptor.chunk_share_resources_coeff
 
         # copy.copy(self.creatures) может работать не правильно, так как SpriteList использует внутренний список
         # {creature.object_id: creature}
@@ -79,7 +85,7 @@ class World(WorldObjectMixin):
         # чанки мира по линиям
         self.chunks = WorldChunk.cut_world(self)
         # список всех чанков мира
-        self.chunk_list = [chunk for line in self.chunks for chunk in line]
+        self.chunk_set: set[WorldChunk] = {chunk for line in self.chunks for chunk in line}
 
         # все объекты, которые должны сохраняться в БД, должны складываться сюда для ускорения записи в БД
         self.object_to_save_to_db: defaultdict[
@@ -228,12 +234,15 @@ class World(WorldObjectMixin):
             for creature in self.active_creatures:
                 creature.perform()
 
-            for chunk in self.chunk_list:
+            for chunk in self.chunk_set:
                 chunk.on_update()
 
             for creature in self.active_creatures:
                 if creature.alive:
                     creature.action = ActionInterface.get_next_action(creature)
+
+            if self.age % self.chunk_share_resources_period == 0:
+                self.share_chunk_resources()
 
             del self.processing_creatures[self.age]
             self.active_creatures = None
@@ -255,7 +264,7 @@ class World(WorldObjectMixin):
 
         draw_chunks = False
         if draw_chunks:
-            for chunk in self.chunk_list:
+            for chunk in self.chunk_set:
                 chunk.draw()
 
     def position_to_chunk(self, position: Position) -> "WorldChunk":
@@ -271,26 +280,43 @@ class World(WorldObjectMixin):
             y = len(self.chunks[0]) - 1
         return self.chunks[x][y]
 
+    def share_chunk_resources(self) -> None:
+        sharing_resources: list[tuple[WorldChunk, WorldChunk, Resources[int]]] = []
+        for chunk in self.chunk_set:
+            for neighbor in chunk.neighbors:
+                differance = chunk.resources - neighbor.resources
+                differance *= self.chunk_share_resources_coeff
+                differance.iround()
+                sharing_resources.append((neighbor, chunk, differance))
+
+        for neighbor, chunk, differance in sharing_resources:
+            chunk.resources -= differance
+            neighbor.resources += differance
+
 
 class WorldChunk:
-    def __init__(self, left_bottom: tuple[int, int], width: int, height: int, world: World) -> None:
+    def __init__(self, left_bottom: tuple[int, int], world: World) -> None:
         self.left = left_bottom[0]
-        self.right = self.left + width - 1
+        self.world = world
+        self.weight = self.world.chunk_width - 1
+        self.right = self.left + self.weight
         self.bottom = left_bottom[1]
-        self.top = self.bottom + height - 1
+        self.height = self.world.chunk_height - 1
+        self.top = self.bottom + self.height
         self.color = (100, 100, 100, 255)
         self.default_resource_amount = int(
-            (self.right - self.left + 1) * (self.top - self.bottom + 1) * world.characteristics.resource_density
+            (self.right - self.left + 1) * (self.top - self.bottom + 1) * self.world.characteristics.resource_density
         )
         self.resources = Resources[int]({x: self.default_resource_amount for x in RESOURCE_LIST})
 
         self.remove_resources_requests: dict[Creature, Resources[int]] = {}
         self.add_resources_requests: dict[Creature, Resources[int]] = {}
 
+        self.neighbors: set[WorldChunk] = set()
+
     def __repr__(self) -> str:
         return f"{self.left, self.bottom, self.right, self.top}"
 
-    # todo: добавить выравнивание количества ресурсов относительно соседних чанков
     def on_update(self) -> None:
         # выдача ресурсов существам
         requested_resources = Resources[int].sum(self.remove_resources_requests.values())
@@ -333,9 +359,8 @@ class WorldChunk:
         )
 
     @classmethod
-    def cut_world(cls, world: World) -> list[list["WorldChunk"]]:
+    def cut_world(cls, world: World) -> tuple[tuple["WorldChunk", ...], ...]:
         left, right, bottom, top = world.get_borders_coordinates()
-        chunks: list[list[cls]] = []
 
         left_bottom = list(world.center)
         while left_bottom[0] > left:
@@ -343,10 +368,24 @@ class WorldChunk:
         while left_bottom[1] > bottom:
             left_bottom[1] -= world.chunk_height
 
-        for left in range(left_bottom[0] - world.chunk_width, right + world.chunk_width, world.chunk_width):
-            line = len(chunks)
-            chunks.append([])
-            for bottom in range(left_bottom[1] - world.chunk_height, top + world.chunk_height, world.chunk_height):
-                chunks[line].append(cls((left, bottom), world.chunk_width, world.chunk_height, world))
+        chunks = tuple(
+            tuple(
+                cls((left, bottom), world) for bottom in
+                range(left_bottom[1] - world.chunk_height, top + world.chunk_height, world.chunk_height)
+            ) for left in range(left_bottom[0] - world.chunk_width, right + world.chunk_width, world.chunk_width)
+        )
+
+        width = len(chunks)
+        height = len(chunks[0])
+        for x in range(width):
+            for y in range(height):
+                if x > 0:
+                    chunks[x][y].neighbors.add(chunks[x - 1][y])
+                if x < width - 1:
+                    chunks[x][y].neighbors.add(chunks[x + 1][y])
+                if y > 0:
+                    chunks[x][y].neighbors.add(chunks[x][y - 1])
+                if y < height - 1:
+                    chunks[x][y].neighbors.add(chunks[x][y + 1])
 
         return chunks
