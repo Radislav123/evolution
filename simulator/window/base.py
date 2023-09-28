@@ -1,13 +1,31 @@
+import dataclasses
 import enum
+from collections import defaultdict
 from typing import Any, Callable, Iterator
 
 import arcade
 import arcade.gui
 
+from core.service import ObjectDescriptionReader
 from evolution import settings
 from simulator.creature import Creature
 from simulator.world import World
 from simulator.world_resource import Resources
+
+
+@dataclasses.dataclass
+class WindowDescriptor:
+    name: str
+    tab_update_rate: int
+    world_age_tab_update_rate: int
+    tps_tab_update_rate: int
+    resources_tab_update_rate: int
+
+
+window_descriptor: WindowDescriptor = ObjectDescriptionReader[WindowDescriptor]().read_folder_to_list(
+    settings.WINDOW_DESCRIPTIONS_PATH,
+    WindowDescriptor
+)[0]
 
 
 class TextTab(arcade.gui.UIFlatButton):
@@ -29,17 +47,14 @@ class TextTab(arcade.gui.UIFlatButton):
             return string
 
     class Label(arcade.Text):
-        def __init__(self, tab: "TextTab", text: Callable[[], str], *args, **kwargs) -> None:
+        def __init__(self, tab: "TextTab", text: Callable[[], str], update_rate: int, *args, **kwargs) -> None:
             self.tab = tab
             self._text = text
+            # количество тиков между обновлением текста
+            self.update_rate = update_rate
 
             color = (0, 0, 0)
             super().__init__(tab.text, 0, 0, color = color, *args, **kwargs)
-
-        def draw(self) -> None:
-            if self.tab.state == self.tab.State.PRESSED:
-                self.text = self._text()
-                super().draw()
 
         def set_position(self) -> None:
             offset_x = 5
@@ -62,22 +77,21 @@ class TextTab(arcade.gui.UIFlatButton):
 
     def __init__(
             self,
-            text: Callable[..., str] = None,
+            text: Callable[..., str],
+            update_rate: int,
             on_click: Callable[..., Any] | None = None,
             on_click_args = None
     ) -> None:
         super().__init__()
 
+        self.update_rate = update_rate
         self.state: TextTab.State | None = None
         self.set()
         self.corner: TextTabContainer.Corner | None = None
         self.update_text()
         border = 10
         self.rect = self.rect.resize(round(self.ui_label.width) + border, round(self.ui_label.height) + border)
-        if text is None:
-            def text() -> None:
-                pass
-        self.tab_label = self.Label(self, text)
+        self.tab_label = self.Label(self, text, self.update_rate)
         if on_click is None:
             def on_click() -> None:
                 pass
@@ -111,11 +125,6 @@ class TextTab(arcade.gui.UIFlatButton):
 
 
 class TPSTab(TextTab):
-    class Label(TextTab.Label):
-        def __init__(self, tab: "TextTab", text: Callable[[], str], *args, **kwargs):
-            super().__init__(tab, text, *args, **kwargs)
-            self.text = "0"
-
     def set(self) -> None:
         super().set()
         arcade.enable_timings()
@@ -133,7 +142,8 @@ class TextTabContainer:
     class Corner(arcade.gui.UIAnchorLayout):
         children: list[TextTab]
 
-        def __init__(self, index: int, *args, **kwargs) -> None:
+        def __init__(self, container: "TextTabContainer", index: int, *args, **kwargs) -> None:
+            self.container = container
             self.index = index
             super().__init__(*args, **kwargs)
 
@@ -153,6 +163,8 @@ class TextTabContainer:
                 align_y = -sum(map(lambda x: x.height, self.children))
 
             result = super().add(child, anchor_x = anchor_x, anchor_y = anchor_y, align_y = align_y, **kwargs)
+            self.container.tabs.add(result)
+            self.container.tab_update_rates[result.update_rate].add(result)
 
             return result
 
@@ -166,25 +178,36 @@ class TextTabContainer:
         # 00 10
         # 1 3
         # 0 2
-        # tabs[n] = [tab_0, tab_1,..]
+        # tab_container[n] = [tab_0, tab_1,..]
         self.corners: tuple[
             TextTabContainer.Corner,
             TextTabContainer.Corner,
             TextTabContainer.Corner,
             TextTabContainer.Corner
-        ] = (self.Corner(0), self.Corner(1), self.Corner(2), self.Corner(3))
+        ] = (
+            self.Corner(self, 0),
+            self.Corner(self, 1),
+            self.Corner(self, 2),
+            self.Corner(self, 3)
+        )
+        self.tabs: set[TextTab] = set()
+        self.tab_update_rates: defaultdict[int, set[TextTab]] = defaultdict(set)
 
     def __iter__(self) -> Iterator[TextTab]:
-        tabs = []
-        for corner in self.corners:
-            tabs.extend(corner)
-        return iter(tabs)
+        return iter(self.tabs)
 
     def draw_all(self) -> None:
-        for corner in self.corners:
-            for tab in corner.children:
-                if tab is not None:
-                    tab.tab_label.draw()
+        for tab in self.tabs:
+            if tab.state == tab.State.PRESSED:
+                tab.tab_label.draw()
+
+    def update_all(self) -> None:
+        for update_rate, tabs in self.tab_update_rates.items():
+            if self.window.world.age % update_rate == 0:
+                for tab in tabs:
+                    if tab.state == tab.State.PRESSED:
+                        # noinspection PyProtectedMember
+                        tab.tab_label.text = tab.tab_label._text()
 
 
 class UIManager(arcade.gui.UIManager):
@@ -216,12 +239,12 @@ class Window(arcade.Window):
         super().__init__(width, height, center_window = True)
 
         self.world: World | None = None
-        self.tabs = TextTabContainer(self)
+        self.tab_container = TextTabContainer(self)
         self.set_tps(settings.MAX_TPS)
         self.tps = settings.MAX_TPS
-        self.map_resources = Resources()
-        self.creature_resources = Resources()
-        self.world_resources = Resources()
+        self.map_resources = Resources[int]()
+        self.creature_resources = Resources[int]()
+        self.world_resources = Resources[int]()
 
         self.ui_manager = UIManager(self)
 
@@ -237,72 +260,87 @@ class Window(arcade.Window):
 
         # необходимо, чтобы разместить плашки, так как элементы размещаются на экране только после первой отрисовки
         self.on_draw()
-        self.ui_manager.set_tab_label_positions(self.tabs)
+        self.ui_manager.set_tab_label_positions(self.tab_container)
 
         self.ui_manager.enable()
 
     def construct_tabs(self) -> None:
         # правый верхний угол
         # возраст мира
-        self.tabs.corners[3].add(TextTab(lambda: self.world.age))
+        self.tab_container.corners[3].add(TextTab(lambda: self.world.age, window_descriptor.world_age_tab_update_rate))
         # счетчик tps
-        self.tabs.corners[3].add(TPSTab(lambda: f"tps/желаемые tps: {self.tps} / {self.desired_tps}"))
+        self.tab_container.corners[3].add(
+            TPSTab(lambda: f"tps/желаемые tps: {self.tps} / {self.desired_tps}", window_descriptor.tps_tab_update_rate)
+        )
 
         # правый нижний угол
-        self.tabs.corners[2].add(
+        self.tab_container.corners[2].add(
             TextTab(
-                lambda: f"Появилось: {Creature.birth_counter}, умерло: {Creature.death_counter}"
+                lambda: f"Появилось: {Creature.birth_counter}, умерло: {Creature.death_counter}",
+                window_descriptor.tab_update_rate
             )
         )
-        self.tabs.corners[2].add(
+        self.tab_container.corners[2].add(
             TextTab(
-                lambda: f"Сейчас существ: {Creature.birth_counter - Creature.death_counter}"
+                lambda: f"Сейчас существ: {Creature.birth_counter - Creature.death_counter}",
+                window_descriptor.tab_update_rate
             )
         )
 
         # левый верхний угол
-        self.world_resources_tab = self.tabs.corners[1].add(
-            TextTab(lambda: f"Ресурсы в мире: {self.world_resources}")
+        self.world_resources_tab = self.tab_container.corners[1].add(
+            TextTab(lambda: f"Ресурсы в мире: {self.world_resources}", window_descriptor.resources_tab_update_rate)
         )
-        self.map_resources_tab = self.tabs.corners[1].add(
-            TextTab(lambda: f"Ресурсы на карте: {self.map_resources}")
+        self.map_resources_tab = self.tab_container.corners[1].add(
+            TextTab(lambda: f"Ресурсы на карте: {self.map_resources}", window_descriptor.resources_tab_update_rate)
         )
-        self.creature_resources_tab = self.tabs.corners[1].add(
-            TextTab(lambda: f"Ресурсы существ: {self.creature_resources}")
+        self.creature_resources_tab = self.tab_container.corners[1].add(
+            TextTab(lambda: f"Ресурсы существ: {self.creature_resources}", window_descriptor.resources_tab_update_rate)
         )
 
-        self.ui_manager.add_tabs(self.tabs)
+        self.count_resources()
+        self.count_tps()
+        self.tab_container.update_all()
+
+        self.ui_manager.add_tabs(self.tab_container)
 
     def count_resources(self) -> None:
-        if self.world.age % 100 == 0:
+        if self.world.age % window_descriptor.resources_tab_update_rate == 0:
             if self.map_resources_tab or self.world_resources_tab:
-                self.map_resources = Resources[int].sum(x.resources for x in self.world.chunk_list)
+                self.map_resources = Resources[int]()
+                # чтобы порядок ресурсов не менялся
+                self.map_resources.fill_all(0)
+                self.map_resources += Resources[int].sum(x.resources for x in self.world.chunk_list)
 
             if self.creature_resources_tab or self.world_resources_tab:
-                self.creature_resources = Resources[int].sum(x.remaining_resources for x in self.world.creatures) + \
-                                          Resources[int].sum(x.storage.stored_resources for x in self.world.creatures)
+                self.creature_resources = Resources[int]()
+                # чтобы порядок ресурсов не менялся
+                self.creature_resources.fill_all(0)
+                self.creature_resources += Resources[int].sum(x.remaining_resources for x in self.world.creatures) + \
+                                           Resources[int].sum(x.storage.stored_resources for x in self.world.creatures)
 
             if self.world_resources_tab:
                 self.world_resources = self.map_resources + self.creature_resources
 
     def count_tps(self) -> None:
-        if self.world.age % 10 == 0:
+        if self.world.age % window_descriptor.tps_tab_update_rate == 0:
             timings = arcade.get_timings()
             # за 100 последних тиков
-            execution_time_100 = sum(sum(timings[i]) for i in timings)
-            # добавляется 0.0001, во избежание деления на 0
-            average_execution_time = execution_time_100 / 100 + 0.0001
+            execution_time_100 = sum(sum(i) for i in timings.values())
+            # добавляется небольшая константа, во избежание деления на 0
+            average_execution_time = execution_time_100 / 100 + 0.00000001
             self.tps = int(1 / average_execution_time)
 
     def on_draw(self) -> None:
         self.clear()
         self.world.draw()
         self.ui_manager.draw()
-        self.tabs.draw_all()
+        self.tab_container.draw_all()
 
     def on_update(self, delta_time: float) -> None:
         try:
             self.world.on_update()
+            self.tab_container.update_all()
         except Exception as error:
             error.window = self
             raise error

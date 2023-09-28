@@ -161,3 +161,7 @@ class Resources(defaultdict[WorldResource, VT]):
         for resources in resources_iterable:
             resources_sum += resources
         return resources_sum
+
+    def fill_all(self, amount: int | float) -> None:
+        for resource in RESOURCE_LIST:
+            self[resource] = amount

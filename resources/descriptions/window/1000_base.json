@@ -1,0 +1,11 @@
+{
+    "values": {
+        "base": {
+            "name": "base",
+            "tab_update_rate": 10,
+            "world_age_tab_update_rate": 1,
+            "tps_tab_update_rate": 5,
+            "resources_tab_update_rate": 100
+        }
+    }
+}
