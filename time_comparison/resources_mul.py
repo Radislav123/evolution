@@ -1,6 +1,6 @@
 import datetime
 import random
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 from simulator.world_resource import RESOURCE_LIST, Resources
 
@@ -9,87 +9,72 @@ start_all = datetime.datetime.now()
 
 
 class ResourcesReal(Resources):
-    @classmethod
-    def sum(cls, resources_iterable: Iterable["Resources"]) -> "Resources":
-        temp_iterable = list(resources_iterable)
-        return Resources({resource: sum(x[resource] for x in temp_iterable) for resource in RESOURCE_LIST})
+    def __mul__(self, multiplier: int | float) -> "Resources":
+        return self.__class__({resource: self[resource] * multiplier for resource in RESOURCE_LIST})
 
 
 class ResourcesTest1(Resources):
-    @classmethod
-    def sum(cls, resources_iterable: Iterable["Resources"]) -> "Resources":
-        return sum(resources_iterable, Resources())
+    def __mul__(self, multiplier: int | float) -> "Resources":
+        new = self.copy()
+        new *= multiplier
+        return new
 
 
 class ResourcesTest2(Resources):
-    @classmethod
-    def sum(cls, resources_iterable: Iterable["Resources"]) -> "Resources":
-        resources_sum = Resources()
-        for resources in resources_iterable:
-            resources_sum += resources
-        return resources_sum
+    def __mul__(self, multiplier: int | float) -> "Resources":
+        new = self.copy()
+        for resource, amount in new.items():
+            new[resource] = amount * multiplier
+        return new
 
 
 class ResourcesTest3(Resources):
-    @classmethod
-    def sum(cls, resources_iterable: Iterable["Resources"]) -> "Resources":
-        resources_sum = Resources()
-        for resources in resources_iterable:
-            for resource, amount in resources.items():
-                resources_sum[resource] += amount
-        return resources_sum
+    def __mul__(self, multiplier: int | float) -> "Resources":
+        return self.__class__({resource: amount * multiplier for resource, amount in self.items()})
 
 
 class ResourcesTest4(Resources):
-    @classmethod
-    def sum(cls, resources_iterable: Iterable["Resources"]) -> "Resources":
-        temp_iterable = list(resources_iterable)
-        resources_sum = temp_iterable[0].copy()
-        for resources in resources_iterable[1:]:
-            resources_sum += resources
-        return resources_sum
+    def __mul__(self, multiplier: int | float) -> "Resources":
+        return self.__class__({resource: self[resource] * multiplier for resource in self})
 
 
 class ResourcesTest5(Resources):
-    @classmethod
-    def sum(cls, resources_iterable: Iterable["Resources"]) -> "Resources":
-        temp_iterable = list(resources_iterable)
-        resources_sum = temp_iterable[0].copy()
-        for resources in resources_iterable[1:]:
-            for resource, amount in resources.items():
-                resources_sum[resource] += amount
-        return resources_sum
+    def __mul__(self, multiplier: int | float) -> "Resources":
+        return ResourcesTest5({resource: self[resource] * multiplier for resource in RESOURCE_LIST})
+
+
+class ResourcesTest6(Resources):
+    def __mul__(self, multiplier: int | float) -> "Resources":
+        return ResourcesTest6({resource: amount * multiplier for resource, amount in self.items()})
+
+
+class ResourcesTest7(Resources):
+    def __mul__(self, multiplier: int | float) -> "Resources":
+        return ResourcesTest7({resource: self[resource] * multiplier for resource in self})
 
 
 def random_data() -> tuple:
     borders = (0, 1000)
-    list_borders = (0, 1000)
     resources_len = len(RESOURCE_LIST)
-    random_dicts_list = [
-        {
-            resource: random.randint(*borders) for resource in
-            set(random.choices(RESOURCE_LIST, k = random.randint(0, resources_len)))
-        } for _ in range(random.randint(*list_borders))
-    ]
+    random_dict_a = {resource: random.randint(*borders)
+                     for resource in set(random.choices(RESOURCE_LIST, k = random.randint(0, resources_len)))}
+    b = random.randint(*borders)
     classes = (
         ResourcesReal,
-        ResourcesReal,
-        ResourcesTest1,
         ResourcesTest1,
         ResourcesTest2,
-        ResourcesTest2,
-        ResourcesTest3,
         ResourcesTest3,
         ResourcesTest4,
-        ResourcesTest4,
         ResourcesTest5,
-        ResourcesTest5,
+        ResourcesTest6,
+        ResourcesTest7,
     )
-    data = tuple([cls(x) for x in random_dicts_list] for cls in classes)
+    data = tuple((cls(random_dict_a), b) for cls in classes)
+
     return data
 
 
-TEST_DATA_LENGTH = 10000
+TEST_DATA_LENGTH = 10000000
 TEST_DATA = (random_data() for _ in range(TEST_DATA_LENGTH))
 
 
@@ -111,35 +96,26 @@ def timer(functions: dict[str, Callable]) -> dict[str, datetime.timedelta]:
         for index, name in enumerate(functions):
             function = functions[name]
             start = datetime.datetime.now()
-            function(data[index])
+            function(*data[index])
             durations[name] += datetime.datetime.now() - start
     return durations
 
 
-def test(a: Iterable[Resources]) -> Any:
-    result = Resources.sum(a)
-    return result
-
-
-def test_typed(a: Iterable[Resources]) -> Any:
-    result = Resources[int].sum(a)
-    return result
+def test(a: Resources, b: int) -> Any:
+    a *= b
+    return a
 
 
 times = timer(
     {
         "real": test,
-        "real_typed": test_typed,
         "test_1": test,
-        "test_1_typed": test_typed,
         "test_2": test,
-        "test_2_typed": test_typed,
         "test_3": test,
-        "test_3_typed": test_typed,
         "test_4": test,
-        "test_4_typed": test_typed,
         "test_5": test,
-        "test_5_typed": test_typed,
+        "test_6": test,
+        "test_7": test,
     }
 )
 finish_all = datetime.datetime.now()
