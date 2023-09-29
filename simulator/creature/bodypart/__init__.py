@@ -1,2 +1,2 @@
-from simulator.creature.bodypart.base import AddToDestroyedStorageException, BodypartInterface, \
-    RemoveFromDestroyedStorageException, StorageInterface
+from simulator.creature.bodypart.base import AddToNonExistentStorageException, BodypartInterface, \
+    BodypartInterfaceClass, RemoveFromNonExistentStorageException, StorageInterface

@@ -1,1 +1,2 @@
-from simulator.creature.genome.chromosome.gene.base import GENE_CLASSES, GeneInterface
+from simulator.creature.genome.chromosome.gene.base import BodypartGeneInterface, GENE_CLASSES, GeneInterface, \
+    ResourceStorageGeneInterface

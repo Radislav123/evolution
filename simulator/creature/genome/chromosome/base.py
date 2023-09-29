@@ -123,12 +123,6 @@ class Chromosome:
             # если хромосома пустая или содержит лишь гены, которые не могут мутировать,
             # то мутировать нечему (секция добавления генов в начале метода)
             if sum(weights) > 0:
-                genes_numbers = set(random.choices(range(len(self.genes)), weights, k = amount))
-                for number in genes_numbers:
-                    self.genes[number].mutate(genome)
-
-    def apply_genes(self, genome: "Genome") -> None:
-        """Записывает эффекты генов в хранилище."""
-
-        for gene in self.genes:
-            gene.apply(genome)
+                genes: set[GeneInterface] = set(random.choices(self.genes, weights, k = amount))
+                for gene in genes:
+                    gene.mutate(genome)

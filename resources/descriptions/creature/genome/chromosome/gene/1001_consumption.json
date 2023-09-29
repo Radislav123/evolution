@@ -47,7 +47,7 @@
                 "energy_storage_gene"
             ],
             "resource": "energy",
-            "default_consumption": 5
+            "default_consumption": 5.0
         }
     }
 }

@@ -8,8 +8,7 @@
             "name": "storage_interface"
         },
         "resource_storage_interface": {
-            "name": "resource_storage_interface",
-            "extra_volume_coeff": 0.1
+            "name": "resource_storage_interface"
         }
     }
 }

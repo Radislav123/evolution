@@ -14,7 +14,7 @@ from core.service import EvolutionSpriteList, ObjectDescriptionReader
 from evolution import settings
 from simulator.creature import Creature
 from simulator.creature.action import ActionInterface
-from simulator.creature.bodypart import AddToDestroyedStorageException
+from simulator.creature.bodypart import AddToNonExistentStorageException
 from simulator.world_resource import ENERGY, RESOURCE_LIST, Resources
 
 
@@ -204,11 +204,11 @@ class World(WorldObjectMixin):
     def spawn_start_creature(self) -> None:
         creature = Creature(self, None, True)
         creature.position = self.center
-        creature.storage.add_resources(CREATURE_START_RESOURCES)
         creature.start()
+        creature.storage.add_resources(CREATURE_START_RESOURCES)
         chunk_resources = self.position_to_chunk(creature.position).resources
         chunk_resources -= creature.remaining_resources
-        chunk_resources -= creature.storage.stored_resources
+        chunk_resources -= creature.storage.current
 
     def add_creature(self, creature: Creature) -> None:
         """Добавляет существо в мир."""
@@ -334,7 +334,7 @@ class WorldChunk:
                 )
                 try:
                     creature.storage.add_resources(removed_resources)
-                except AddToDestroyedStorageException as exception:
+                except AddToNonExistentStorageException as exception:
                     removed_resources -= exception.resources
                 self.resources -= removed_resources
 

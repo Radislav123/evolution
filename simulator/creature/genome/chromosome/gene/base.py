@@ -28,7 +28,7 @@ gene_descriptors = ObjectDescriptionReader[dict]().read_folder_to_dict(
 # todo: если пропадает ген, который необходим для других генов, делать эти гены неактивными
 # todo: если появляется ген, которому необходим ген, которого еще нет, делать появившийся ген неактивным
 #  (переписать появление генов, уменьшить вероятность появления гена, если в геному отсутствуют необходимые ему гены)
-# todo: сделать ResourceStorageGene и ResourceConsumptionGene полностью динамическими
+# todo: сделать ResourceStorageGene и ResourceConsumptionGene полностью динамическими?
 class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, abc.ABC):
     name = "gene_interface"
     # название интерфейса, определяющего ген
@@ -43,7 +43,11 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     mutation_chance: float
     base_disappearance_chance: float
     appearance_chance: float
+    # может ли ген быть не активным
+    can_be_deactivated: bool
     _required_for_creature_gene_classes: list[Type["GeneInterfaceClass"]] = None
+    # количество появлений этого гена
+    appearances = 0
 
     # интерфейсы не должны использовать конструктор
     # не использовать обратные ссылки (gene -> chromosome -> genome),
@@ -51,15 +55,18 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     def __init__(self, first: bool) -> None:
         # first - принадлежит ли ген первому существу
         self.first = first
+        # влияет ли ген на существо
+        self.active: bool | None = None
+        self.__class__.appearances += 1
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}"
+        return f"{self.__class__.__name__}({'+' if self.active else '-'})"
 
     @classmethod
     def construct_genes(cls, first: bool, gene_classes: list[Type["GeneInterfaceClass"]]) -> list["GeneInterfaceClass"]:
         return [x(first) for x in gene_classes]
 
-    # результат должен вычисляться каждый раз, так как геном меняется
+    # результат должен вычисляться каждый раз, так как геном меняется при наследовании
     def get_disappearance_chance(self, genome: "Genome") -> float:
         if not self.can_disappear(genome):
             disappearance_chance = 0
@@ -67,11 +74,17 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
             disappearance_chance = self.base_disappearance_chance
         return disappearance_chance
 
-    # результат должен вычисляться каждый раз, так как геном меняется
+    # результат должен вычисляться каждый раз, так как геном меняется при наследовании
     def can_disappear(self, genome: "Genome") -> bool:
         """Проверяет, может ли ген исчезнуть."""
 
         return not self.required_for_creature or (self.required_for_creature and genome.gene_counter[self.name] > 1)
+
+    def deactivate(self, genome: "Genome") -> None:
+        self.active = False
+
+    def activate(self, genome: "Genome") -> None:
+        self.active = True
 
     @abc.abstractmethod
     def mutate(self, genome: "Genome") -> None:
@@ -100,6 +113,7 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
             cls._required_for_creature_gene_classes = [x for x in GENE_CLASSES.values() if x.required_for_creature]
         return cls._required_for_creature_gene_classes
 
+    # todo: переделать по "todo" над классом
     @classmethod
     def get_available_gene_classes(cls, genome: "Genome") -> list[Type["GeneInterfaceClass"]]:
         """Возвращает классы генов, возможных для добавления в процессе мутации."""
@@ -133,56 +147,79 @@ class StepGeneMixin(Generic[ST]):
         elif sign == '-':
             step = negative_step
         else:
-            step = None
+            raise ValueError(f"sign ({sign}) must be one of {None}, '+' or '-'.")
         return step
 
 
-# todo: добавить коэффициент размера части тела
-class BodyPartGeneInterface(GeneInterface):
+class BodypartGeneInterface(StepGeneMixin, GeneInterface):
     """Интерфейс для генов, добавляющих часть тела."""
 
-    name = "body_part_gene_interface"
+    name = "bodypart_gene_interface"
+    # является ли часть тела уникальной (тело, хранилище) для существа
+    # true - у существа будет только одна такая часть тела
+    uniq: bool
     bodypart: str
+    size_coeff: float
+    required_bodypart: str
+
+    def __init__(self, first: bool) -> None:
+        super().__init__(first)
+        self.active = False
+        # номер гена части тела (bodypart_gene.number) к которой присоединена эта часть тела
+        self.required_gene_number: int | None = None
+        # порядковый номер гена этого типа/класса в геноме
+        self.number: int | None = None
+
+    def __repr__(self) -> str:
+        return f"{super().__repr__()}({self.number}) x{self.size_coeff}"
+
+    def deactivate(self, genome: "Genome") -> None:
+        if (self.required_bodypart is not None and
+                (self.required_bodypart not in genome.effects.bodyparts_genes or
+                 self.required_gene_number not in genome.effects.bodyparts_genes[self.bodypart] or
+                 not genome.effects.bodyparts_genes[self.bodypart][self.required_gene_number].active)):
+            self.active = False
+            self.required_gene_number = None
+            for gene in genome.effects.dependent_bodypart_genes[self]:
+                gene.deactivate(genome)
+
+    def activate(self, genome: "Genome") -> None:
+        if self.required_bodypart in genome.effects.bodyparts_genes:
+            self.required_gene_number = random.choice(
+                list(genome.effects.bodyparts_genes[self.required_bodypart].keys())
+            )
+            self.active = True
+        elif self.required_bodypart is None:
+            self.active = True
 
     def mutate(self, genome: "Genome") -> None:
-        pass
+        step = self.make_step()
+        new_value = self.size_coeff + step
+        if new_value < self.min_limit:
+            self.size_coeff += self.make_step("+")
 
     def apply(self, genome: "Genome") -> None:
-        genome.effects.bodyparts.append(self.bodypart)
+        if self.number is None:
+            self.number = len(genome.effects.bodyparts_genes[self.bodypart])
+        genome.effects.bodyparts_genes[self.bodypart][self.number] = self
 
     @classmethod
     def correct(cls, genome: "Genome") -> None:
-        pass
+        if cls.uniq:
+            genes = list(genome.effects.bodyparts_genes[cls.bodypart].values())
+            gene = genes[random.randint(0, len(genes) - 1)]
+            genome.effects.bodyparts_genes[cls.bodypart] = {gene.number: gene}
+
+            for not_used_gene in genes:
+                for appending_gene in genome.effects.dependent_bodypart_genes[not_used_gene]:
+                    appending_gene.required_gene_number = gene.number
 
 
-class ResourceStorageGeneInterface(StepGeneMixin, BodyPartGeneInterface):
+class ResourceStorageGeneInterface(BodypartGeneInterface):
     """Интерфейс для генов, добавляющих хранилище ресурса."""
 
     name = "resource_storage_gene_interface"
     resource: str
-    default_capacity: int
-
-    def __init__(self, first: bool) -> None:
-        if first:
-            self.capacity = self.default_capacity
-        else:
-            self.capacity = self.make_step()
-
-        super().__init__(first)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}: {self.capacity}"
-
-    def mutate(self, genome: "Genome") -> None:
-        self.capacity += self.make_step()
-
-    def apply(self, genome: "Genome") -> None:
-        genome.effects.resource_storages[RESOURCE_DICT[self.resource]] += self.capacity
-
-    @classmethod
-    def correct(cls, genome: "Genome") -> None:
-        if genome.effects.resource_storages[RESOURCE_DICT[cls.resource]] < cls.common_min_limit:
-            genome.effects.resource_storages[RESOURCE_DICT[cls.resource]] = cls.common_min_limit
 
 
 class ResourceConsumptionGeneInterface(StepGeneMixin, GeneInterface):
@@ -193,15 +230,14 @@ class ResourceConsumptionGeneInterface(StepGeneMixin, GeneInterface):
     resource: str
 
     def __init__(self, first: bool) -> None:
-        if first:
+        super().__init__(first)
+        if self.first:
             self.consumption = self.default_consumption
         else:
             self.consumption = self.make_step()
 
-        super().__init__(first)
-
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}: {self.consumption}"
+        return f"{super().__repr__()}: {self.consumption}"
 
     def mutate(self, genome: "Genome") -> None:
         self.consumption += self.make_step()
@@ -224,22 +260,21 @@ class NumberGeneInterface(StepGeneMixin[ST], GeneInterface):
 
     def __init__(self, first: bool) -> None:
         super().__init__(first)
-
         if self.first:
             self.attribute_value = self.attribute_default
         else:
             self.attribute_value = self.make_step()
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}: {self.attribute_value}"
+        return f"{super().__repr__()}: {self.attribute_value}"
 
     def mutate(self, genome: "Genome") -> None:
         step = self.make_step()
         new_value = self.attribute_value + step
         if hasattr(self, "min_limit") and new_value < self.min_limit:
-            self.attribute_value = self.attribute_value + self.make_step("+")
+            self.attribute_value += self.make_step("+")
         elif hasattr(self, "max_limit") and new_value > self.max_limit:
-            self.attribute_value = self.attribute_value + self.make_step("-")
+            self.attribute_value += self.make_step("-")
         else:
             self.attribute_value = new_value
 
@@ -271,7 +306,7 @@ class ColorGeneInterface(StepGeneMixin[int], GeneInterface):
     pigment_amount: float
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}: {self.pigment_amount}"
+        return f"{super().__repr__()}: {self.pigment_amount}"
 
     def mutate(self, genome: "Genome"):
         self.pigment_amount += self.make_step()
@@ -295,7 +330,7 @@ class ActionWeightCoeffGeneInterface(StepGeneMixin[int], GeneInterface):
     weight_coeff: float
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}: {self.weight_coeff}"
+        return f"{super().__repr__()}: {self.weight_coeff}"
 
     def mutate(self, genome: "Genome") -> None:
         self.weight_coeff += self.make_step()
@@ -309,7 +344,7 @@ class ActionWeightCoeffGeneInterface(StepGeneMixin[int], GeneInterface):
             genome.effects.action_weights[cls.action] = cls.common_min_limit
 
 
-GeneInterfaceClass = (GeneInterface | BodyPartGeneInterface | ResourceStorageGeneInterface |
+GeneInterfaceClass = (GeneInterface | BodypartGeneInterface | ResourceStorageGeneInterface |
                       ResourceConsumptionGeneInterface | NumberGeneInterface | ColorGeneInterface |
                       ActionWeightCoeffGeneInterface)
 

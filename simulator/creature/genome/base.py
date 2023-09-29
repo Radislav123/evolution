@@ -7,7 +7,7 @@ from typing import Self, TYPE_CHECKING, Type
 from core.service import ObjectDescriptionReader
 from evolution import settings
 from simulator.creature.genome.chromosome import Chromosome
-from simulator.creature.genome.chromosome.gene import GENE_CLASSES, GeneInterface
+from simulator.creature.genome.chromosome.gene import BodypartGeneInterface, GENE_CLASSES, GeneInterface
 from simulator.world_resource import Resources
 
 
@@ -28,16 +28,17 @@ class GenomeEffects:
         self.elasticity = 0.0
         self.metabolism = 0.0
         self.resources_loss_coeff = 0.0
-        self.regeneration_amount = 0
+        self.regeneration_amount = 0.0
         self.regeneration_amount_coeff: float | None = None
         # количество определенного ресурса, которое существо может потребить за тик
         self.consumption_amount = Resources[int]()
         # максимальная сумма всех ресурсов, которое существо может потребить за тик
         self.consumption_limit = 0
-        self.bodyparts: list[str] = []
-        self.resource_storages = Resources[int]()
+        # {gene.name: {gene.number: gene}}
+        self.bodyparts_genes: defaultdict[str, dict[int, BodypartGeneInterface]] = defaultdict(dict)
+        self.dependent_bodypart_genes: defaultdict[BodypartGeneInterface, set[BodypartGeneInterface]] | None = None
         self.color: list[int] = [0, 0, 0]
-        self.action_weights: defaultdict[str, float] = defaultdict(lambda: 0.0)
+        self.action_weights: defaultdict[str, float] = defaultdict(float)
         self.action_duration_coeff: float | None = None
 
         self.consumption_weight_from_fullness = 0.0
@@ -159,7 +160,7 @@ class Genome:
     @property
     def mutation_chance(self) -> float:
         # todo: добавить возможность влияния внешних факторов на шанс мутации
-        return self.base_mutation_chance + sum([chromosome.mutation_chance for chromosome in self.chromosomes])
+        return self.base_mutation_chance + sum(chromosome.mutation_chance for chromosome in self.chromosomes)
 
     def mutate(self):
         # исчезновение хромосом
@@ -195,19 +196,42 @@ class Genome:
 
         gene_classes: set[Type[GeneInterface]] = set()
         for chromosome in self.chromosomes:
-            chromosome.apply_genes(self)
-            gene_classes.update([gene.__class__ for gene in chromosome.genes])
+            for gene in chromosome.genes:
+                gene.apply(self)
+                if not gene.active:
+                    gene.activate(self)
+            gene_classes.update(gene.__class__ for gene in chromosome.genes)
+
+        # todo: body_gene часто является неактивным, как такое возможно?
+        self.effects.dependent_bodypart_genes = defaultdict(set)
+        for one_type_genes in self.effects.bodyparts_genes.values():
+            for gene in one_type_genes.values():
+                if gene.bodypart != "body" and gene.active:
+                    if gene.bodypart == "storage":
+                        gene.deactivate(self)
+                        gene.activate(self)
+                    if (gene.required_gene_number in (
+                            required_bodypart_genes := self.effects.bodyparts_genes[gene.required_bodypart])):
+                        self.effects.dependent_bodypart_genes[required_bodypart_genes[gene.required_gene_number]].add(
+                            gene
+                        )
 
         for gene_class in gene_classes:
             gene_class.correct(self)
 
         self.effects.prepare()
 
+        # отключаются гены, для которых не выполнены условия активации
+        for chromosome in self.chromosomes:
+            for gene in chromosome.genes:
+                if gene.can_be_deactivated and gene.active:
+                    gene.deactivate(self)
+
     @classmethod
     def get_child_genome(cls, parents: list["Creature"]) -> "Genome":
         # todo: переделать этот метод при введении системы полового размножения
         parent = parents[0]
         child_genome = cls(copy.deepcopy(parent.genome.chromosomes), False)
-        if random.random() < child_genome.mutation_chance:
+        if random.random() <= child_genome.mutation_chance:
             child_genome.mutate()
         return child_genome

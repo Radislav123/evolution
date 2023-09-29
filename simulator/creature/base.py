@@ -1,4 +1,3 @@
-import copy
 import dataclasses
 import enum
 import math
@@ -15,8 +14,8 @@ from core.physic import CreatureCharacteristics
 from core.service import ObjectDescriptionReader
 from evolution import settings
 from simulator.creature.action import ActionInterface
-from simulator.creature.bodypart import AddToDestroyedStorageException, BodypartInterface, \
-    RemoveFromDestroyedStorageException, StorageInterface
+from simulator.creature.bodypart import AddToNonExistentStorageException, BodypartInterface, BodypartInterfaceClass, \
+    RemoveFromNonExistentStorageException, StorageInterface
 from simulator.creature.genome import Genome
 from simulator.world_resource import ENERGY, Resources
 
@@ -44,7 +43,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         AGE = 0
         CAN_NOT_METABOLISE = 1
         AUTOPHAGE_BODY = 2
-        AUTOPHAGE_STORAGE = 3
+        MISSING_STORAGE = 3
 
     db_model = models.Creature
     position_history_db_model = models.CreaturePositionHistory
@@ -92,7 +91,8 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self.parents = parents
             self.genome = genome
             # список потомков, которые появятся при следующем размножении
-            self.next_children: list[Creature] | None = None
+            # порядок потомков важен, поэтому tuple
+            self.next_children: tuple[Creature] | None = None
             self._reproduction_resources: Resources | None = None
             # todo: привязать к генам
             # коэффициент ресурсов, теряемых, при воспроизведении потомков
@@ -107,19 +107,19 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self.color = self.genome.effects.color
 
             # инициализация частей тела
-            self.bodyparts: set[BodypartInterface] | None = None
+            self.bodyparts: set[BodypartInterfaceClass] | None = None
             # not_damaged_bodyparts + damaged_bodyparts + destroyed_bodyparts = bodyparts
             # части тела, без урона
-            self.not_damaged_bodyparts: set[BodypartInterface] | None = None
+            self.not_damaged_bodyparts: set[BodypartInterfaceClass] | None = None
             # части тела, получившие урон, но не уничтоженные
-            self.damaged_bodyparts: set[BodypartInterface] | None = None
+            self.damaged_bodyparts: set[BodypartInterfaceClass] | None = None
             # полностью уничтоженные части тела
-            self.destroyed_bodyparts: set[BodypartInterface] | None = None
+            self.destroyed_bodyparts: set[BodypartInterfaceClass] | None = None
             # присутствующие, не уничтоженные полностью, части тела
-            self.present_bodyparts: set[BodypartInterface] | None = None
+            self.present_bodyparts: set[BodypartInterfaceClass] | None = None
             self.body: BodypartInterface | None = None
             self.storage: StorageInterface | None = None
-            self._regenerating_bodypart: BodypartInterface | None = None
+            self._regenerating_bodypart: BodypartInterfaceClass | None = None
             self.apply_bodyparts()
             # ресурсы, необходимые для воспроизводства существа
             self.resources = Resources[int].sum(x.resources for x in self.bodyparts)
@@ -219,31 +219,12 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     def apply_bodyparts(self) -> None:
         """Собирает тело и применяет эффекты частей тела на существо."""
 
-        # создается тело
-        self.body = BodypartInterface.construct_body(self)
-
-        # собираются остальные части тела
-        bodypart_names = copy.copy(self.genome.effects.bodyparts)
-        bodypart_names.remove(self.body.name)
-        self.body.construct(bodypart_names)
-
-        self.bodyparts = set(self.body.all_dependent)
+        # собирается тело
+        self.body, self.storage = BodypartInterface.construct_creature(self)
+        self.bodyparts = self.body.all_dependent
         self.bodyparts.add(self.body)
-
-        # находится хранилище
-        self.storage = StorageInterface.find_storage(self.bodyparts)
-
-        # todo: переделать, чтобы хранилища ресурсов были обычными частями тела
-        # собирается хранилище
-        for resource, amount in self.genome.effects.resource_storages.items():
-            if amount > 0:
-                self.storage.add_resource_storage(resource)
-
-        # задаются емкости хранилищ ресурсов
-        extra_storage = Resources[int].sum(x.extra_storage for x in self.bodyparts)
-        for resource, resource_storage in self.storage.items():
-            resource_storage.capacity = self.genome.effects.resource_storages[resource] + extra_storage[resource]
-        self.bodyparts.update(self.storage.all_dependent)
+        # увеличивается емкость хранилища в зависимости от ресурсов частей тела существа
+        self.storage.capacity += Resources[int].sum(x.extra_storage for x in self.bodyparts)
 
         for bodypart in self.bodyparts:
             bodypart.constructed = True
@@ -296,8 +277,9 @@ class Creature(WorldObjectMixin, arcade.Sprite):
 
     def fertilize(self) -> None:
         # todo: переделать этот метод при добавлении полового размножения
-        self.next_children = [Creature(self.world, [self])
-                              for _ in range(self.genome.effects.children_amount)]
+        self.next_children = tuple(
+            Creature(self.world, [self]) for _ in range(self.genome.effects.children_amount)
+        )
 
     # todo: добавить обработку случаев, когда существо прерывается во время выполнения действия
     #  (возможно, в другом методе)
@@ -371,8 +353,8 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         self.resources_loss_accumulated[ENERGY] += sum(consumption_resources.values()) * 0.01
 
     def can_regenerate(self) -> bool:
-        return (self.genome.effects.regeneration_amount * self.genome.effects.regeneration_amount_coeff > 0
-                and ENERGY in self.storage and not self.storage[ENERGY].empty
+        return (self.genome.effects.regeneration_amount * self.genome.effects.regeneration_amount_coeff > 0.0
+                and ENERGY in self.storage.capacity and self.storage.current[ENERGY] > 0
                 and self.regenerating_bodypart is not None)
 
     def regenerate(self) -> None:
@@ -384,14 +366,14 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             {resource: min(
                 regenerating_resource_amount,
                 # делается поправка на количество ресурса в хранилище существа
-                self.storage.stored_resources[resource]
+                self.storage.current[resource]
             ) for resource in self.regenerating_bodypart.damage}
         )
         energy_cost = (regenerating_resources[ENERGY] + sum(regenerating_resources.values()) *
                        self.energy_regenerate_cost)
         # проверяется доступное количество энергии
-        if self.storage.stored_resources[ENERGY] < energy_cost:
-            reduction_coeff = self.storage.stored_resources[ENERGY] / energy_cost
+        if (current_energy := self.storage.current[ENERGY]) < energy_cost:
+            reduction_coeff = current_energy / energy_cost
             regenerating_resources *= reduction_coeff
             regenerating_resources.iround()
 
@@ -404,19 +386,19 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         self._regenerating_bodypart = None
 
     @property
-    def regenerating_bodypart(self) -> BodypartInterface | None:
+    def regenerating_bodypart(self) -> BodypartInterfaceClass | None:
         if self._regenerating_bodypart is None:
             bodyparts = []
             for bodypart in self.damaged_bodyparts:
                 for resource, damage_amount in bodypart.damage.items():
-                    if damage_amount > 0 and not self.storage[resource].empty:
+                    if damage_amount > 0 and self.storage.current != 0:
                         bodyparts.append(bodypart)
                         break
             else:
                 # восстанавливает части тела только если все остальные целы
                 for bodypart in self.destroyed_bodyparts:
                     for resource, damage_amount in bodypart.damage.items():
-                        if damage_amount > 0 and not self.storage[resource].empty:
+                        if damage_amount > 0 and self.storage.current != 0:
                             bodyparts.append(bodypart)
                             break
 
@@ -432,8 +414,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             lower_bound_resources = self.reproduction_resources * self.reproduction_reserve_coeff
             lower_bound_resources *= (1 + self.reproduction_lost_coeff)
             for resource, lower_bound in lower_bound_resources.items():
-                if (resource not in self.storage or self.storage[resource].current <= lower_bound
-                        or self.storage[resource].capacity <= lower_bound):
+                if self.storage.current[resource] <= lower_bound or self.storage.capacity[resource] <= lower_bound:
                     can_reproduce = False
                     break
             else:
@@ -456,9 +437,9 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             for child, child_position, child_sharing_resources in \
                     zip(self.next_children, self.get_children_positions(), children_sharing_resources):
                 child.position = child_position
+                child.start()
                 # передача потомку части ресурсов родителя
                 child.storage.add_resources(child_sharing_resources)
-                child.start()
                 # todo: сообщать потомку момент инерции
                 # todo: найти форму тела существа для более быстрых расчетов pymunk
 
@@ -506,22 +487,22 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             layers.append(self.genome.effects.children_amount - sum(layers))
         return layers
 
-    def get_children_sharing_resources(self) -> list[Resources]:
+    def get_children_sharing_resources(self) -> list[Resources[int]]:
         if self.genome.effects.children_amount > 0:
             sharing_resources_map = {}
-            for resource in self.storage:
+            for resource in self.storage.capacity:
                 sharing_resources_map.update(
-                    {resource: [1 if resource in child.storage else 0 for child in self.next_children]}
+                    {resource: sum(1 if resource in child.storage.capacity else 0 for child in self.next_children)}
                 )
 
             sharing_resources = []
-            free_resources = self.storage.stored_resources.copy()
             for child in self.next_children:
                 sharing_resources.append(
-                    Resources(
+                    Resources[int](
                         {
-                            resource: free_resources[resource] // sum(sharing_resources_map[resource], 1)
-                            if resource in child.storage else 0 for resource in self.storage
+                            resource: amount // (sharing_resources_map[resource] + 1)
+                            if resource in child.storage.capacity else 0
+                            for resource, amount in self.storage.current.items() if amount > 0
                         }
                     )
                 )
@@ -535,16 +516,19 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         и достаточности ресурсов существа и хранимых ресурсов.
         """
 
-        missing_storages_amount = sum(
-            (resource not in self.storage or self.storage[resource].destroyed) for resource in self.resources
-        )
-        lack_resources = self.remaining_resources + self.storage.stored_resources
+        lack_resources = self.remaining_resources + self.storage.current
         lack_resources -= self.resources_loss
-        lack_resources_sum = sum(1 for x in lack_resources.values() if x < 0)
-        if missing_storages_amount > 0 or lack_resources_sum > 0:
-            can_metabolize = False
+        for resource in self.resources:
+            if self.storage.capacity[resource] <= 0 or lack_resources[resource] < 0:
+                can_metabolize = False
+                break
         else:
-            can_metabolize = True
+            # todo: переделать проверку на наличие энергии после переработки хранения энергии
+            if self.storage.capacity[ENERGY] <= 0 or lack_resources[ENERGY] < 0:
+                can_metabolize = False
+            else:
+                can_metabolize = True
+
         return can_metabolize
 
     def metabolise(self) -> None:
@@ -553,7 +537,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
 
         lack_resources = Resources[int](
             {resource: amount for resource, amount in
-             (self.storage.stored_resources - self.resources_loss).items() if amount < 0}
+             (self.storage.current - self.resources_loss).items() if amount < 0}
         )
 
         if len(lack_resources) > 0:
@@ -564,9 +548,9 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             try:
                 self.returned_resources += self.resources_loss
                 self.storage.remove_resources(self.resources_loss)
-            except RemoveFromDestroyedStorageException as exception:
+            except RemoveFromNonExistentStorageException as exception:
                 self.returned_resources -= exception.resources
-                self.kill(self.DeathCause.AUTOPHAGE_STORAGE)
+                self.kill(self.DeathCause.MISSING_STORAGE)
 
         self.resources_loss = None
 
@@ -591,13 +575,12 @@ class Creature(WorldObjectMixin, arcade.Sprite):
                     lack_resources[resource] = 0
             try:
                 self.storage.add_resources(resource_increment)
-            # ресурсы, которые не могут быть добавлены в хранилища существа,
-            # так как хранилища были уничтожены, будут возвращены в мир
-            except AddToDestroyedStorageException as exception:
+            # ресурсы, которые не могут быть добавлены в хранилище существа, будут возвращены в мир
+            except AddToNonExistentStorageException as exception:
                 self.returned_resources += exception.resources
         return lack_resources
 
-    def get_autophagic_bodypart(self, lack_resources: Resources[int]) -> BodypartInterface:
+    def get_autophagic_bodypart(self, lack_resources: Resources[int]) -> BodypartInterfaceClass:
         bodyparts = []
         for bodypart in self.present_bodyparts:
             for resource, amount in lack_resources.items():
@@ -620,9 +603,9 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self.requested_resources = Resources[int]()
 
         # запрос на возвращение ресурсов
-        extra_resources = self.storage.extra_resources
-        self.returned_resources += extra_resources
-        self.storage.remove_resources(extra_resources)
+        extra = self.storage.extra
+        self.returned_resources += extra
+        self.storage.remove_resources(extra)
         # энергия не может возвращаться в мир
         self.returned_resources[ENERGY] = 0
         chunk.add_resources_requests[self] = self.returned_resources

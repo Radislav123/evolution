@@ -14,7 +14,6 @@
         "storage": {
             "name": "storage",
             "interface": "storage_interface",
-            "required_bodypart": "body",
             "composition": {
                 "oxygen": 40,
                 "carbon": 20,
@@ -25,8 +24,9 @@
             "name": "resource_storage",
             "interface": "resource_storage_interface",
             "composition": {
-                "oxygen": 10,
-                "carbon": 5
+                "oxygen": 12,
+                "carbon": 7,
+                "hydrogen": 2
             }
         }
     }

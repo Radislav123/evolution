@@ -55,6 +55,7 @@ def log_action(creature: Creature, file: TextIO):
             file.write(f"{attribute}: {creature.action.__dict__[attribute]}\n")
 
 
+# todo: сохранять в json-формате
 def log_error_info(error: Exception):
     with open("exception_info.txt", 'w') as file:
         file.write("========== Error info ==========\n")
@@ -106,11 +107,12 @@ def simulate():
     try:
         window.start()
         arcade.run()
+        window.world.stop()
     except Exception as error:
+        window.world.stop()
         log_error_info(error)
         raise error
     finally:
-        window.world.stop()
         print(f"Симуляция окончена. Мир: {window.world.id}. Возраст мира: {window.world.age}")
 
 
