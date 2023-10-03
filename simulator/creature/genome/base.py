@@ -7,7 +7,8 @@ from typing import Self, TYPE_CHECKING, Type
 from core.service import ObjectDescriptionReader
 from evolution import settings
 from simulator.creature.genome.chromosome import Chromosome
-from simulator.creature.genome.chromosome.gene import BodypartGeneInterface, GENE_CLASSES, GeneInterface
+from simulator.creature.genome.chromosome.gene import BodypartGeneInterface, GENE_CLASSES, GeneInterface, \
+    GeneInterfaceClass
 from simulator.world_resource import Resources
 
 
@@ -35,8 +36,9 @@ class GenomeEffects:
         # максимальная сумма всех ресурсов, которое существо может потребить за тик
         self.consumption_limit = 0
         # {gene.name: {gene.number: gene}}
-        self.bodyparts_genes: defaultdict[str, dict[int, BodypartGeneInterface]] = defaultdict(dict)
-        self.dependent_bodypart_genes: defaultdict[BodypartGeneInterface, set[BodypartGeneInterface]] | None = None
+        self.bodyparts_genes: dict[str, dict[int, BodypartGeneInterface]] | None = None
+        # {gene.required_bodypart_gene: {gene.required_gene_number: {gene}}}
+        self.dependent_bodypart_genes: dict[str, dict[int, set[BodypartGeneInterface]]] | None = None
         self.color: list[int] = [0, 0, 0]
         self.action_weights: defaultdict[str, float] = defaultdict(float)
         self.action_duration_coeff: float | None = None
@@ -95,6 +97,33 @@ class GenomeEffects:
             for number in range(len(self.color)):
                 self.color[number] = int(self.color[number] * 255 // maximum)
 
+    def prepare_bodypart_genes(self, genome: "Genome") -> None:
+        bodypart_genes = [gene for chromosome in genome.chromosomes
+                          for gene in chromosome.genes if isinstance(gene, BodypartGeneInterface)]
+
+        for gene in bodypart_genes:
+            # необходимый уникальный ген был потерян при мутации генома
+            if (gene.required_bodypart_gene in genome.mutation["removed_uniq_bodypart_genes"] and
+                    gene.required_gene_number in
+                    genome.mutation["removed_uniq_bodypart_genes"][gene.required_bodypart_gene]):
+                gene.required_gene_number = None
+
+            # ген только появился в геноме
+            if gene.number is None:
+                gene.number = len(self.bodyparts_genes[gene.name])
+
+            self.bodyparts_genes[gene.name][gene.number] = gene
+
+        for gene in bodypart_genes:
+            # ген только появился в геноме или необходимый уникальный ген был потерян при мутации генома
+            # gene.name != "body_gene" - туловище не от чего не зависит
+            if gene.required_gene_number is None and gene.name != "body_gene":
+                gene.required_gene_number = random.choice(
+                    list(self.bodyparts_genes[gene.required_bodypart_gene].keys())
+                )
+
+            self.dependent_bodypart_genes[gene.required_bodypart_gene][gene.required_gene_number].add(gene)
+
 
 @dataclasses.dataclass
 class GenomeDescriptor:
@@ -126,18 +155,27 @@ class Genome:
         for chromosome in self.chromosomes:
             self.gene_counter.update(chromosome.gene_counter)
 
+        self.mutation: dict[str, set[Chromosome] | dict[str | GeneInterfaceClass]] = {
+            "removed": set(),
+            "added": set(),
+            "mutated": {
+                "removed": set(),
+                "added": set(),
+                "mutated": set()
+            },
+            "removed_uniq_bodypart_genes": dict[str, dict[int, GeneInterfaceClass]]
+        }
+
     def __repr__(self) -> str:
-        string = f"{self.__class__.__name__}:\n"
+        string = [f"{self.__class__.__name__}:"]
         for chromosome in self.chromosomes:
-            string += f"{chromosome}\n"
-        if string[-1:] == "\n":
-            string = string[:-1]
-        return string
+            string.append(f"{chromosome}")
+        return "\n".join(string)
 
     def __len__(self) -> int:
         return len(self.chromosomes)
 
-    def __contains__(self, gene: str | Type[GeneInterface] | GeneInterface) -> bool:
+    def __contains__(self, gene: str | Type[GeneInterface] | GeneInterfaceClass) -> bool:
         if isinstance(gene, str):
             gene_name = gene
         else:
@@ -162,7 +200,7 @@ class Genome:
         # todo: добавить возможность влияния внешних факторов на шанс мутации
         return self.base_mutation_chance + sum(chromosome.mutation_chance for chromosome in self.chromosomes)
 
-    def mutate(self):
+    def mutate(self) -> None:
         # исчезновение хромосом
         if len(self.chromosomes) > 1:
             amount = random.choices(range(len(self.chromosomes)), [1 / 10**x for x in range(len(self.chromosomes))])[0]
@@ -173,6 +211,7 @@ class Genome:
                     if chromosome.can_disappear(self):
                         self.gene_counter.subtract(chromosome.gene_counter)
                         self.chromosomes.remove(chromosome)
+                        self.mutation["removed"].add(chromosome)
 
         # добавляются новые хромосомы
         mutate_number = random.randint(0, len(self.chromosomes))
@@ -180,7 +219,9 @@ class Genome:
             new_chromosomes_number = 1 + random.choices(
                 range(self.max_new_chromosomes), [1 / 10**x for x in range(self.max_new_chromosomes)]
             )[0]
-            self.chromosomes.extend([Chromosome([]) for _ in range(new_chromosomes_number)])
+            new_chromosomes = [Chromosome([]) for _ in range(new_chromosomes_number)]
+            self.chromosomes.extend(new_chromosomes)
+            self.mutation["added"].update(new_chromosomes)
 
         # мутации хромосом
         amount = random.choices(range(len(self.chromosomes)), [1 / 10**x for x in range(len(self.chromosomes))])[0]
@@ -191,41 +232,45 @@ class Genome:
             self.chromosomes[number].mutate(self)
             self.gene_counter.update(self.chromosomes[number].gene_counter)
 
-    def apply_genes(self):
-        """Записывает эффекты генов в хранилище."""
+        # обновляются списки и статистика
+        self.mutation["removed_uniq_bodypart_genes"].update(
+            {x.number: x for chromosome in self.mutation["removed"] for x in chromosome.genes
+             if isinstance(x, BodypartGeneInterface) and x.uniq}
+        )
+        self.mutation["removed_uniq_bodypart_genes"].update(
+            {x.number: x for x in self.mutation["mutated"]["removed"]
+             if isinstance(x, BodypartGeneInterface) and x.uniq}
+        )
 
-        gene_classes: set[Type[GeneInterface]] = set()
+        # сбрасываются гены, которые были в родительском геноме
         for chromosome in self.chromosomes:
             for gene in chromosome.genes:
-                gene.apply(self)
-                if not gene.active:
-                    gene.activate(self)
-            gene_classes.update(gene.__class__ for gene in chromosome.genes)
+                gene.active = None
 
-        # todo: body_gene часто является неактивным, как такое возможно?
-        self.effects.dependent_bodypart_genes = defaultdict(set)
-        for one_type_genes in self.effects.bodyparts_genes.values():
-            for gene in one_type_genes.values():
-                if gene.bodypart != "body" and gene.active:
-                    if gene.bodypart == "storage":
-                        gene.deactivate(self)
-                        gene.activate(self)
-                    if (gene.required_gene_number in (
-                            required_bodypart_genes := self.effects.bodyparts_genes[gene.required_bodypart])):
-                        self.effects.dependent_bodypart_genes[required_bodypart_genes[gene.required_gene_number]].add(
-                            gene
-                        )
+    def apply_genes(self) -> None:
+        """Записывает эффекты генов в хранилище."""
+
+        self.effects.bodyparts_genes = defaultdict(dict)
+        self.effects.dependent_bodypart_genes = defaultdict(lambda: defaultdict(set))
+        self.effects.prepare_bodypart_genes(self)
+
+        gene_classes: set[Type[GeneInterfaceClass]] = set()
+        for chromosome in self.chromosomes:
+            for gene in chromosome.genes:
+                gene.check_activation(self)
+                if gene.active:
+                    gene.apply(self)
+            gene_classes.update(gene.__class__ for gene in chromosome.genes)
 
         for gene_class in gene_classes:
             gene_class.correct(self)
 
-        self.effects.prepare()
+        self.effects.bodyparts_genes.default_factory = None
+        self.effects.dependent_bodypart_genes.default_factory = None
+        for dependent_bodypart_genes in self.effects.dependent_bodypart_genes.values():
+            dependent_bodypart_genes.default_factory = None
 
-        # отключаются гены, для которых не выполнены условия активации
-        for chromosome in self.chromosomes:
-            for gene in chromosome.genes:
-                if gene.can_be_deactivated and gene.active:
-                    gene.deactivate(self)
+        self.effects.prepare()
 
     @classmethod
     def get_child_genome(cls, parents: list["Creature"]) -> "Genome":

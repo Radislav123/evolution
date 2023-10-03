@@ -36,15 +36,13 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
     # обязательно ли присутствие хотя бы одного такого гена в геноме (могут ли все копии пропасть из генома)
     # и будет ли этот ген у первого существа
     required_for_creature: bool
-    # список названий (name) генов, необходимых для появления этого гена
+    # список названий (name) генов, необходимых для активации этого гена
     # необходимые гены не должны быть интерфейсами, так как интерфейсы не могут появиться у существа,
-    # значит не появится и тот, что содержит в этом списке хотя бы один интерфейс
+    # значит не будет активен и тот, что содержит в этом списке хотя бы один интерфейс
     required_genes: list[str]
     mutation_chance: float
     base_disappearance_chance: float
     appearance_chance: float
-    # может ли ген быть не активным
-    can_be_deactivated: bool
     _required_for_creature_gene_classes: list[Type["GeneInterfaceClass"]] = None
     # количество появлений этого гена
     appearances = 0
@@ -60,13 +58,21 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
         self.__class__.appearances += 1
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({'+' if self.active else '-'})"
+        if self.active is None:
+            active = None
+        else:
+            if self.active:
+                active = '+'
+            else:
+                active = '-'
+
+        return f"{self.__class__.__name__}({active})"
 
     @classmethod
     def construct_genes(cls, first: bool, gene_classes: list[Type["GeneInterfaceClass"]]) -> list["GeneInterfaceClass"]:
         return [x(first) for x in gene_classes]
 
-    # результат должен вычисляться каждый раз, так как геном меняется при наследовании
+    # результат должен вычисляться каждый раз, так как геном мутирует при наследовании
     def get_disappearance_chance(self, genome: "Genome") -> float:
         if not self.can_disappear(genome):
             disappearance_chance = 0
@@ -74,17 +80,22 @@ class GeneInterface(GetSubclassesMixin["GeneInterface"], ApplyDescriptorMixin, a
             disappearance_chance = self.base_disappearance_chance
         return disappearance_chance
 
-    # результат должен вычисляться каждый раз, так как геном меняется при наследовании
+    # результат должен вычисляться каждый раз, так как геном мутирует при наследовании
     def can_disappear(self, genome: "Genome") -> bool:
         """Проверяет, может ли ген исчезнуть."""
 
         return not self.required_for_creature or (self.required_for_creature and genome.gene_counter[self.name] > 1)
 
-    def deactivate(self, genome: "Genome") -> None:
-        self.active = False
+    def check_activation(self, genome: "Genome") -> None:
+        if len(self.required_genes) > 0:
+            condition = genome.contains_all(self.required_genes)
+        else:
+            condition = True
 
-    def activate(self, genome: "Genome") -> None:
-        self.active = True
+        if condition:
+            self.active = True
+        else:
+            self.active = False
 
     @abc.abstractmethod
     def mutate(self, genome: "Genome") -> None:
@@ -160,11 +171,10 @@ class BodypartGeneInterface(StepGeneMixin, GeneInterface):
     uniq: bool
     bodypart: str
     size_coeff: float
-    required_bodypart: str
+    required_bodypart_gene: str
 
     def __init__(self, first: bool) -> None:
         super().__init__(first)
-        self.active = False
         # номер гена части тела (bodypart_gene.number) к которой присоединена эта часть тела
         self.required_gene_number: int | None = None
         # порядковый номер гена этого типа/класса в геноме
@@ -173,46 +183,57 @@ class BodypartGeneInterface(StepGeneMixin, GeneInterface):
     def __repr__(self) -> str:
         return f"{super().__repr__()}({self.number}) x{self.size_coeff}"
 
-    def deactivate(self, genome: "Genome") -> None:
-        if (self.required_bodypart is not None and
-                (self.required_bodypart not in genome.effects.bodyparts_genes or
-                 self.required_gene_number not in genome.effects.bodyparts_genes[self.bodypart] or
-                 not genome.effects.bodyparts_genes[self.bodypart][self.required_gene_number].active)):
-            self.active = False
-            self.required_gene_number = None
-            for gene in genome.effects.dependent_bodypart_genes[self]:
-                gene.deactivate(genome)
+    def check_activation(self, genome: "Genome") -> None:
+        genes = genome.effects.bodyparts_genes
+        dependent_genes = genome.effects.dependent_bodypart_genes
 
-    def activate(self, genome: "Genome") -> None:
-        if self.required_bodypart in genome.effects.bodyparts_genes:
-            self.required_gene_number = random.choice(
-                list(genome.effects.bodyparts_genes[self.required_bodypart].keys())
-            )
+        if ((self.required_bodypart_gene in genes and
+             self.required_gene_number in genes[self.required_bodypart_gene]) or
+                self.name == "body_gene"):
+            if len(self.required_genes) > 0:
+                condition = genome.contains_all(self.required_genes)
+            else:
+                condition = True
+        else:
+            condition = False
+
+        if condition:
             self.active = True
-        elif self.required_bodypart is None:
-            self.active = True
+        else:
+            self.active = False
+            del genes[self.name][self.number]
+            dependent_genes[self.required_bodypart_gene][self.required_gene_number].remove(self)
 
     def mutate(self, genome: "Genome") -> None:
-        step = self.make_step()
-        new_value = self.size_coeff + step
-        if new_value < self.min_limit:
+        new_size_coeff = self.size_coeff + self.make_step()
+        if new_size_coeff < self.min_limit:
             self.size_coeff += self.make_step("+")
+        else:
+            self.size_coeff = new_size_coeff
 
     def apply(self, genome: "Genome") -> None:
-        if self.number is None:
-            self.number = len(genome.effects.bodyparts_genes[self.bodypart])
-        genome.effects.bodyparts_genes[self.bodypart][self.number] = self
+        pass
 
     @classmethod
     def correct(cls, genome: "Genome") -> None:
-        if cls.uniq:
-            genes = list(genome.effects.bodyparts_genes[cls.bodypart].values())
-            gene = genes[random.randint(0, len(genes) - 1)]
-            genome.effects.bodyparts_genes[cls.bodypart] = {gene.number: gene}
+        genes = genome.effects.bodyparts_genes
+        dependent_genes = genome.effects.dependent_bodypart_genes
 
-            for not_used_gene in genes:
-                for appending_gene in genome.effects.dependent_bodypart_genes[not_used_gene]:
-                    appending_gene.required_gene_number = gene.number
+        if cls.uniq and len(genes[cls.name]) > 1:
+            uniq_genes = list(genes[cls.name].values())
+            selected_gene = uniq_genes[random.randint(0, len(uniq_genes) - 1)]
+            genes[cls.name] = {selected_gene.number: selected_gene}
+
+            for not_used in uniq_genes:
+                if not_used != selected_gene:
+                    # переприсоединяются зависимые гены
+                    not_used_dependent = dependent_genes[not_used.name][not_used.number]
+                    for reappending_gene in not_used_dependent:
+                        reappending_gene.required_gene_number = selected_gene.number
+                    dependent_genes[selected_gene.name][selected_gene.number].update(not_used_dependent)
+                    del dependent_genes[not_used.name][not_used.number]
+                    # неиспользуемый ген убирается из зависимых
+                    dependent_genes[not_used.required_bodypart_gene][not_used.required_gene_number].remove(not_used)
 
 
 class ResourceStorageGeneInterface(BodypartGeneInterface):

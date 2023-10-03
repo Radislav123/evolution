@@ -8,7 +8,7 @@
                 "storage_gene"
             ],
             "step": 1,
-            "attribute_default": 10,
+            "attribute_default": 20,
             "attribute_name": "consumption_limit",
             "common_min_limit": 0
         },
@@ -46,8 +46,7 @@
             "required_genes": [
                 "energy_storage_gene"
             ],
-            "resource": "energy",
-            "default_consumption": 5.0
+            "resource": "energy"
         }
     }
 }

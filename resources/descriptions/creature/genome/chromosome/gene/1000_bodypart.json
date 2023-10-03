@@ -4,7 +4,7 @@
             "name": "body_gene",
             "interface": "bodypart_gene_interface",
             "required_for_creature": true,
-            "required_bodypart": null,
+            "required_bodypart_gene": null,
             "uniq": true,
             "bodypart": "body"
         },
@@ -15,7 +15,7 @@
             "required_genes": [
                 "body_gene"
             ],
-            "required_bodypart": "body",
+            "required_bodypart_gene": "body_gene",
             "uniq": true,
             "bodypart": "storage"
         },

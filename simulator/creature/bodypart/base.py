@@ -1,6 +1,7 @@
 import copy
 import math
 import statistics
+from collections import defaultdict
 from typing import TYPE_CHECKING, Type
 
 from core.mixin import ApplyDescriptorMixin, GetSubclassesMixin
@@ -23,10 +24,6 @@ bodypart_descriptors = ObjectDescriptionReader[dict]().read_folder_to_dict(
 )
 
 
-class BodypartNotFoundException(Exception):
-    pass
-
-
 class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptorMixin):
     name = "bodypart_interface"
     # название интерфейса, определяющего часть тела
@@ -47,9 +44,10 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         if not self.gene.active:
             raise ValueError(
                 f"Can not create bodypart from non active gene ({self.gene}).\n"
-                f"required_bodypart: {self.gene.required_bodypart}\n"
+                f"required_bodypart: {self.gene.required_bodypart_gene}\n"
                 f"required_gene_number: {self.gene.required_gene_number}\n"
-                f"dependent_bodyparts: {self.creature.genome.effects.bodyparts_genes}"
+                f"bodypart_genes: {self.creature.genome.effects.bodyparts_genes}\n"
+                f"dependent_bodypart_genes: {self.creature.genome.effects.dependent_bodypart_genes}"
             )
         self.size_coeff = self.creature.genome.effects.size_coeff * self.gene.size_coeff
         # часть тела, к которой крепится данная
@@ -60,11 +58,6 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
 
         # уничтожена ли часть тела полностью
         self.destroyed = False
-        # построены ли зависимости методом construct
-        # устанавливается в положение True только в методе Creature.apply_bodyparts
-        # todo: remove constructed?
-        self.constructed = False
-
         self.damage = Resources[int]()
         # ресурсы, находящиеся в неповрежденной части тела/необходимые для воспроизводства части тела
         # при размере (size_coeff) равном 1.0 соответствует composition
@@ -95,11 +88,12 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
             self._remaining_resources = self.resources - self.damage
         return self._remaining_resources
 
+    # todo: переделать на обычный атрибут и вычислять заранее, так как это приведет к уменьшению вызовов функций
     @property
     def all_required(self) -> set["BodypartInterfaceClass"]:
         """Цепочка частей тела, к которой прикреплена данная часть тела."""
 
-        if self._all_required is None or not self.constructed:
+        if self._all_required is None:
             if self.required_bodypart is None:
                 self._all_required = set()
             else:
@@ -107,11 +101,12 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
                 self._all_required.add(self.required_bodypart)
         return self._all_required
 
+    # todo: переделать на обычный атрибут и вычислять заранее, так как это приведет к уменьшению вызовов функций
     @property
     def all_dependent(self) -> set["BodypartInterfaceClass"]:
         """Список частей тела, прикрепленных к данной напрямую или через другие части тела."""
 
-        if self._all_dependent is None or not self.constructed:
+        if self._all_dependent is None:
             self._all_dependent = self.dependent_bodyparts.copy()
             for bodypart in self.dependent_bodyparts:
                 self._all_dependent.update(bodypart.all_dependent)
@@ -124,45 +119,57 @@ class BodypartInterface(GetSubclassesMixin["BodypartInterface"], ApplyDescriptor
         return self._mass
 
     @classmethod
-    def construct_creature(cls, creature: "Creature") -> tuple["BodypartInterface", "StorageInterface"]:
+    def construct_creature(cls, creature: "Creature") -> None:
         """Собирает существо из частей тела."""
 
         genes = creature.genome.effects.bodyparts_genes
-        dependent_genes = creature.genome.effects.dependent_bodypart_genes
-        body_gene = list(genes["body"].values())[0]
-        body = BODYPART_CLASSES[body_gene.bodypart](creature, body_gene, None)
+        bodyparts_dict = defaultdict(set)
+        # todo: переделать, опираясь на gene.required
+        #  (переделать gene.required, чтобы required были только реально необходимые гены наподобие body или storage)
+        # todo: переделать на проверку всех необходимых частей тела (и генов, но тогда в другом месте)
+        if len(genes["body_gene"]) > 0 and len(genes["storage_gene"]) > 0:
+            body_gene = list(genes["body_gene"].values())[0]
+            body = BODYPART_CLASSES[body_gene.bodypart](creature, body_gene, None)
+            body.construct(creature)
 
-        body.construct(genes, dependent_genes)
+            bodyparts = body.all_dependent
+            bodyparts.add(body)
+            for bodypart in bodyparts:
+                bodyparts_dict[bodypart.name].add(bodypart)
 
-        for bodypart in body.all_dependent:
-            if bodypart.name == "storage":
-                storage = bodypart
-                break
-        else:
-            # todo: добавить обработку случаев, когда в геноме отсутствует тело или хранилище
-            #  (не хватает required частей тела)
-            raise BodypartNotFoundException()
-
-        for bodypart in body.all_dependent:
-            # todo: переделать, когда появятся новые типы хранилищ
-            if bodypart.name == "resource_storage":
+            storage = list(bodyparts_dict["storage"])[0]
+            # применение эффектов хранилища ресурса на общее хранилище
+            for bodypart in bodyparts_dict["resource_storage"]:
                 storage.capacity[bodypart.world_resource] += bodypart.capacity
                 bodypart.storage = storage
-        storage.volume += sum(resource.volume * amount for resource, amount in storage.capacity.items())
+            # увеличивается емкость хранилища в зависимости от ресурсов частей тела существа
+            storage.capacity += Resources[int].sum(x.extra_storage for x in bodyparts)
 
-        return body, storage
+            creature.body = body
+            creature.storage = storage
+        else:
+            creature.viable = False
+            bodyparts = set(
+                BODYPART_CLASSES[gene.bodypart](creature, gene, None)
+                for bodypart_genes in genes.values() for gene in bodypart_genes.values()
+            )
+            for bodypart in bodyparts:
+                bodyparts_dict[bodypart.name].add(bodypart)
 
-    def construct(
-            self,
-            genes: dict[str, dict[int, BodypartGeneInterface]],
-            dependent_genes: dict[BodypartGeneInterface, set[BodypartGeneInterface]]
-    ) -> None:
+        bodyparts_dict.default_factory = None
+        creature.bodyparts = bodyparts
+        creature.bodyparts_dict = bodyparts_dict
+
+    def construct(self, creature: "Creature") -> None:
         """Собирает часть тела и все зависимые, устанавливая ссылки на зависимые и необходимые части тела."""
 
-        for gene in dependent_genes[self.gene]:
-            bodypart = BODYPART_CLASSES[gene.bodypart](self.creature, gene, self)
-            self.dependent_bodyparts.add(bodypart)
-            bodypart.construct(genes, dependent_genes)
+        dependent_genes = creature.genome.effects.dependent_bodypart_genes
+
+        if self.gene.name in dependent_genes and self.gene.number in dependent_genes[self.gene.name]:
+            for gene in dependent_genes[self.gene.name][self.gene.number]:
+                bodypart = BODYPART_CLASSES[gene.bodypart](self.creature, gene, self)
+                self.dependent_bodyparts.add(bodypart)
+                bodypart.construct(creature)
 
     def destroy(self) -> Resources[int]:
         """Уничтожает часть тела и все зависимые."""
@@ -291,6 +298,7 @@ class StorageInterface(BodypartInterface):
         super().__init__(creature, gene, required_bodypart)
         # не обращаться к current извне напрямую
         self.current: Resources[int] = Resources[int]()
+        # todo: переделать хранение на использование объема
         self.capacity: Resources[int] = Resources[int]()
         self._available_space: Resources[int] | None = None
         self._extra: Resources[int] | None = None
@@ -377,7 +385,7 @@ class StorageInterface(BodypartInterface):
                 not_removed_resources[resource] += amount
             if len(not_removed_resources) > 0:
                 raise RemoveFromNonExistentStorageException(
-                    f"{not_removed_resources} can not be added to {self}.",
+                    f"{not_removed_resources} can not be removed from {self}.",
                     not_removed_resources
                 )
 
@@ -409,14 +417,19 @@ class ResourceStorageInterface(BodypartInterface):
         super().__init__(creature, gene, required_bodypart)
 
         self.world_resource = RESOURCE_DICT[gene.resource]
-        self.capacity = int(
-            math.pi / 4 * sum(resource.volume * amount for resource, amount in self.resources.items())**2
-        )
+        # k - коэффициент растяжения - насколько больше пленка, чем сумма ее ресурсов
+        k = 4
+        # ресурсы части тела натянуты однослойной пленкой
+        resources_volume = sum(resource.volume * amount for resource, amount in self.resources.items())
+        area = k * resources_volume
+        self.capacity = int(area / 6 * math.sqrt(area / math.pi))
+        # увеличение объема, показывающее, что хранилище имеет место для ресурсов
+        self.volume += self.capacity
         self.storage: StorageInterface | None = None
 
     def __repr__(self) -> str:
         string = [
-            f"{self.world_resource.name.upper()}Storage",
+            f"{self.world_resource.name}Storage",
             f"({sum(self.remaining_resources.values())}/{sum(self.resources.values())}): "
         ]
         if self.destroyed:

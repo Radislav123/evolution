@@ -5,28 +5,29 @@
             "interface": "bodypart_interface",
             "_todo": "убрать энергию отсюда, когда будут синтезируемые вещества",
             "composition": {
-                "oxygen": 70,
-                "carbon": 20,
-                "hydrogen": 10,
+                "oxygen": 140,
+                "carbon": 40,
+                "hydrogen": 20,
                 "energy": 100
             }
         },
         "storage": {
             "name": "storage",
             "interface": "storage_interface",
+            "_todo": "перенести composition в гены и добавить возможность мутировать",
             "composition": {
-                "oxygen": 40,
-                "carbon": 20,
-                "hydrogen": 10
+                "oxygen": 50,
+                "carbon": 30,
+                "hydrogen": 15
             }
         },
         "resource_storage": {
             "name": "resource_storage",
             "interface": "resource_storage_interface",
             "composition": {
-                "oxygen": 12,
-                "carbon": 7,
-                "hydrogen": 2
+                "oxygen": 70,
+                "carbon": 20,
+                "hydrogen": 10
             }
         }
     }

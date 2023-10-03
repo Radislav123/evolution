@@ -44,6 +44,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         CAN_NOT_METABOLISE = 1
         AUTOPHAGE_BODY = 2
         MISSING_STORAGE = 3
+        NON_VIABLE = 4
 
     db_model = models.Creature
     position_history_db_model = models.CreaturePositionHistory
@@ -51,6 +52,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     counter = 0
     birth_counter = 0
     death_counter = 0
+    non_viable_counter = 0
     image_path = settings.CREATURE_IMAGE_PATH
     image_size = imagesize.get(image_path)
     genome: Genome
@@ -84,7 +86,9 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             # None == существо не умирало (kill()) в симуляции
             self.death_tick = None
             self.death_cause: Creature.DeathCause | None = None
-            self.alive = True
+            self.alive: bool | None = None
+            # жизнеспособно ли существо (может ли существо жить в этом мире - определяется при инициализации (__init__)
+            self.viable = True
             self.action: ActionInterface | None = None
 
             # инициализация генов
@@ -108,6 +112,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
 
             # инициализация частей тела
             self.bodyparts: set[BodypartInterfaceClass] | None = None
+            self.bodyparts_dict: dict[str, set[BodypartInterfaceClass]] | None = None
             # not_damaged_bodyparts + damaged_bodyparts + destroyed_bodyparts = bodyparts
             # части тела, без урона
             self.not_damaged_bodyparts: set[BodypartInterfaceClass] | None = None
@@ -121,40 +126,43 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self.storage: StorageInterface | None = None
             self._regenerating_bodypart: BodypartInterfaceClass | None = None
             self.apply_bodyparts()
+
             # ресурсы, необходимые для воспроизводства существа
             self.resources = Resources[int].sum(x.resources for x in self.bodyparts)
-            self._damage: Resources[int] | None = None
-            self._remaining_resources: Resources[int] | None = None
-
-            # инициализация физических характеристик
-            self.characteristics: CreatureCharacteristics | None = None
-            self.physics_body: pymunk.Body | None = None
-
-            # инициализация ресурсов, которые будут тратиться каждый тик
-            # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
-            # (забираются из хранилища, добавляются в returned_resources,
-            # а потом (через returned_resources) возвращаются в мир)
-            self.resources_loss_accumulated: Resources[float] = Resources[float]()
-            self.resources_loss: Resources[int] | None = None
-            # todo: привязать к генам
-            # отношение количества регенерируемых ресурсов и энергии
-            # (сколько энергии стоит регенерация единицы ресурса)
-            self.energy_regenerate_cost = 1
-            # ресурсы, запрашиваемые из мира, по окончании тика (только заявка на получение ресурсов)
-            self.requested_resources = Resources[int]()
-            # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир, не забираются из хранилища)
-            self.returned_resources = Resources[int]()
 
             # соотносится с models.CreaturePositionHistory
             self.position_history: dict[int, tuple[float, float]] = {}
             # тик, на котором последний раз было движение/перемещение - для сохранения position.history
-            self.last_movement_age = -1
+            self.last_movement_age = None
 
-            # todo: добавить ген предельного возраста
-            # todo: переделать систему возраста - не должно быть прямой смерти из-за превышения лимита
-            #  (болезни, увеличение расхода ресурсов, появление шанса умереть...)
-            # максимальный возраст
-            self.max_age = 1000
+            if self.viable:
+                self._damage: Resources[int] | None = None
+                self._remaining_resources: Resources[int] | None = None
+
+                # инициализация физических характеристик
+                self.characteristics: CreatureCharacteristics | None = None
+                self.physics_body: pymunk.Body | None = None
+
+                # инициализация ресурсов, которые будут тратиться каждый тик
+                # все траты ресурсов из-за восстановительных процессов и метаболизма в течении тика добавлять сюда
+                # (забираются из хранилища, добавляются в returned_resources,
+                # а потом (через returned_resources) возвращаются в мир)
+                self.resources_loss_accumulated: Resources[float] = Resources[float]()
+                self.resources_loss: Resources[int] | None = None
+                # todo: привязать к генам
+                # отношение количества регенерируемых ресурсов и энергии
+                # (сколько энергии стоит регенерация единицы ресурса)
+                self.energy_regenerate_cost = 1
+                # ресурсы, запрашиваемые из мира, по окончании тика (только заявка на получение ресурсов)
+                self.requested_resources = Resources[int]()
+                # ресурсы, возвращаемые в мир по окончании тика (только возвращаются в мир, не забираются из хранилища)
+                self.returned_resources = Resources[int]()
+
+                # todo: добавить ген предельного возраста
+                # todo: переделать систему возраста - не должно быть прямой смерти из-за превышения лимита
+                #  (болезни, увеличение расхода ресурсов, появление шанса умереть...)
+                # максимальный возраст
+                self.max_age = 1000
         except Exception as error:
             error.init_creature = self
             raise error
@@ -220,32 +228,32 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         """Собирает тело и применяет эффекты частей тела на существо."""
 
         # собирается тело
-        self.body, self.storage = BodypartInterface.construct_creature(self)
-        self.bodyparts = self.body.all_dependent
-        self.bodyparts.add(self.body)
-        # увеличивается емкость хранилища в зависимости от ресурсов частей тела существа
-        self.storage.capacity += Resources[int].sum(x.extra_storage for x in self.bodyparts)
-
-        for bodypart in self.bodyparts:
-            bodypart.constructed = True
-
-        self.not_damaged_bodyparts = {bodypart for bodypart in self.bodyparts}
-        self.damaged_bodyparts = set()
-        self.destroyed_bodyparts = set()
-        self.present_bodyparts = {bodypart for bodypart in self.bodyparts}
+        BodypartInterface.construct_creature(self)
+        if self.viable:
+            self.not_damaged_bodyparts = set(self.bodyparts)
+            self.damaged_bodyparts = set()
+            self.destroyed_bodyparts = set()
+            self.present_bodyparts = set(self.bodyparts)
 
     def start(self) -> None:
-        self.__class__.birth_counter += 1
-        self.characteristics = CreatureCharacteristics(self)
         self.position_history[self.world.age] = self.position
         self.last_movement_age = self.world.age
-
-        self.prepare_physics()
         self.start_tick = self.world.age
-        # todo: изменить логику оплодотворения после введения полового размножения
-        self.fertilize()
-        self.world.add_creature(self)
-        self.action = ActionInterface.get_wait_action(self)
+
+        if self.viable:
+            self.alive = True
+            self.__class__.birth_counter += 1
+            self.characteristics = CreatureCharacteristics(self)
+
+            self.prepare_physics()
+            # todo: изменить логику оплодотворения после введения полового размножения
+            self.fertilize()
+            self.world.add_creature(self)
+            self.action = ActionInterface.get_wait_action(self)
+
+        else:
+            self.alive = False
+            self.__class__.non_viable_counter += 1
 
     def stop(self) -> None:
         self.stop_tick = self.world.age
@@ -253,14 +261,15 @@ class Creature(WorldObjectMixin, arcade.Sprite):
 
     # noinspection PyMethodOverriding
     def kill(self, death_cause: DeathCause) -> None:
-        self.__class__.death_counter += 1
-        self.returned_resources += self.body.destroy()
-
-        self.alive = False
         self.death_cause = death_cause
         self.death_tick = self.world.age
         self.stop()
-        self.world.remove_creature(self)
+
+        if self.viable:
+            self.__class__.death_counter += 1
+            self.returned_resources += self.body.destroy()
+            self.alive = False
+            self.world.remove_creature(self)
 
     def prepare_physics(self) -> None:
         self.scale = (self.characteristics.radius * 2) / (sum(self.image_size) / 2)
@@ -436,12 +445,18 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             # подготовка потомков
             for child, child_position, child_sharing_resources in \
                     zip(self.next_children, self.get_children_positions(), children_sharing_resources):
+                child: Creature
                 child.position = child_position
                 child.start()
-                # передача потомку части ресурсов родителя
-                child.storage.add_resources(child_sharing_resources)
-                # todo: сообщать потомку момент инерции
-                # todo: найти форму тела существа для более быстрых расчетов pymunk
+                if child.viable:
+                    # передача потомку части ресурсов родителя
+                    child.storage.add_resources(child_sharing_resources)
+                    # todo: сообщать потомку момент инерции (или скорость?)
+                    # todo: найти форму тела существа для более быстрых расчетов pymunk
+                else:
+                    self.returned_resources += child_sharing_resources
+                    self.returned_resources.isum(x.resources for x in child.bodyparts)
+                    child.kill(self.DeathCause.NON_VIABLE)
 
             # изымание ресурсов для всех потомков у родителя
             self.storage.remove_resources(Resources[int].sum(children_sharing_resources))
@@ -492,7 +507,12 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             sharing_resources_map = {}
             for resource in self.storage.capacity:
                 sharing_resources_map.update(
-                    {resource: sum(1 if resource in child.storage.capacity else 0 for child in self.next_children)}
+                    {
+                        resource: sum(
+                            1 if child.viable and resource in child.storage.capacity else 0
+                            for child in self.next_children
+                        )
+                    }
                 )
 
             sharing_resources = []
@@ -501,7 +521,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
                     Resources[int](
                         {
                             resource: amount // (sharing_resources_map[resource] + 1)
-                            if resource in child.storage.capacity else 0
+                            if child.viable and resource in child.storage.capacity else 0
                             for resource, amount in self.storage.current.items() if amount > 0
                         }
                     )
@@ -602,10 +622,10 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             chunk.remove_resources_requests[self] = self.requested_resources
             self.requested_resources = Resources[int]()
 
-        # запрос на возвращение ресурсов
-        extra = self.storage.extra
-        self.returned_resources += extra
-        self.storage.remove_resources(extra)
+            extra = self.storage.extra
+            self.storage.remove_resources(extra)
+            self.returned_resources += extra
+
         # энергия не может возвращаться в мир
         self.returned_resources[ENERGY] = 0
         chunk.add_resources_requests[self] = self.returned_resources

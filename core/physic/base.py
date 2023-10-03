@@ -53,9 +53,8 @@ class CreatureCharacteristics:
         self.elasticity = self.creature.genome.effects.elasticity
         self.size_coeff = self.creature.genome.effects.size_coeff
 
-        # объем == площадь
         self.volume = sum(bodypart.volume for bodypart in self.creature.bodyparts)
-        self.radius = math.sqrt(self.volume / math.pi)
+        self.radius = (3 / 4 * self.volume / math.pi)**(1 / 3)
         self._mass: float | None = None
 
     def __repr__(self) -> str:

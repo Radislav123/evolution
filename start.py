@@ -37,11 +37,16 @@ def log_creature(creature: Creature, file: TextIO):
     except Exception as error:
         log_error(error, file)
     log_attributes(creature, file)
-    log_genome_effects(creature, file)
+    log_genome(creature, file)
     log_action(creature, file)
 
 
-def log_genome_effects(creature: Creature, file: TextIO):
+def log_genome(creature: Creature, file: TextIO):
+    file.write("~~~~~~~~~~ Genome info ~~~~~~~~~~\n")
+    if hasattr(creature, "genome"):
+        for attribute in creature.genome.__dict__:
+            file.write(f"{attribute}: {creature.genome.__dict__[attribute]}\n")
+
     file.write("~~~~~~~~~~ Genome effects info ~~~~~~~~~~\n")
     if hasattr(creature, "genome"):
         for attribute in creature.genome.effects.__dict__:
