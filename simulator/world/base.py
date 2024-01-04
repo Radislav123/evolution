@@ -89,6 +89,8 @@ class World(WorldObjectMixin):
         self.chunk_drawing_primitives = arcade.shape_list.ShapeElementList()
         for primitive in (x for chunk in self.chunk_set for x in chunk.drawing_primitives):
             self.chunk_drawing_primitives.append(primitive)
+        self.chunk_sprites = arcade.SpriteList(True)
+        self.chunk_sprites.extend(chunk.sprite for chunk in self.chunk_set)
 
         # все объекты, которые должны сохраняться в БД, должны складываться сюда для ускорения записи в БД
         self.object_to_save_to_db: defaultdict[
@@ -259,12 +261,6 @@ class World(WorldObjectMixin):
             error.world = self
             raise error
 
-    def draw(self) -> None:
-        self.borders.draw()
-        # можно отрисовывать всех существ по отдельности, итерируясь по self.creatures,
-        # что позволит переопределить метод draw существа (иначе, переопределение этого метода не влияет на отрисовку)
-        self.creatures.draw()
-
     def position_to_chunk(self, position: Position) -> "WorldChunk":
         x = int((position[0] - self.chunks[0][0].left) / self.chunk_width)
         y = int((position[1] - self.chunks[0][0].bottom) / self.chunk_height)
@@ -282,8 +278,7 @@ class World(WorldObjectMixin):
         sharing_resources: list[tuple[WorldChunk, WorldChunk, Resources[int]]] = []
         for chunk in self.chunk_set:
             for neighbor in chunk.neighbors:
-                differance = chunk.resources - neighbor.resources
-                differance *= self.chunk_share_resources_coeff
+                differance = (chunk.resources - neighbor.resources) * self.chunk_share_resources_coeff
                 differance.iround()
                 sharing_resources.append((neighbor, chunk, differance))
 
@@ -296,8 +291,8 @@ class WorldChunk:
     def __init__(self, left_bottom: tuple[int, int], world: World) -> None:
         self.left = left_bottom[0]
         self.world = world
-        self.weight = self.world.chunk_width - 1
-        self.right = self.left + self.weight
+        self.width = self.world.chunk_width - 1
+        self.right = self.left + self.width
         self.bottom = left_bottom[1]
         self.height = self.world.chunk_height - 1
         self.top = self.bottom + self.height
@@ -313,6 +308,12 @@ class WorldChunk:
                 self.color,
                 1.1
             )
+        )
+        self.sprite = arcade.SpriteSolidColor(
+            self.width,
+            self.height,
+            self.left + self.width / 2,
+            self.bottom + self.height / 2
         )
 
         self.remove_resources_requests: dict[Creature, Resources[int]] = {}

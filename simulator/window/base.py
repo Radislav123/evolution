@@ -234,6 +234,9 @@ class Window(arcade.Window):
     creature_resources_tab: TextTab
     # отрисовка сетки мира
     draw_chunks_tab: TextTab
+    # режим ресурсов
+    resources_overlay_tab: TextTab
+    draw_creatures_tab: TextTab
 
     def __init__(self, width: int, height: int) -> None:
         super().__init__(width, height, center_window = True)
@@ -307,11 +310,20 @@ class Window(arcade.Window):
         )
 
         # левый нижний угол
+        # режим отображения ресурсов
+        self.resources_overlay_tab = self.tab_container.corners[0].add(
+            TextTab(lambda: "Отображать количество ресурсов", window_descriptor.overlay_update_period)
+        )
+        self.resources_overlay_tab.reset()
         # отрисовка сетки
         self.draw_chunks_tab = self.tab_container.corners[0].add(
             TextTab(lambda: "Показывать сетку мира", window_descriptor.overlay_update_period)
         )
         self.draw_chunks_tab.reset()
+        # показывать ли существ
+        self.draw_creatures_tab = self.tab_container.corners[0].add(
+            TextTab(lambda: "Показывать существ", window_descriptor.overlay_update_period)
+        )
 
         self.count_resources()
         self.count_tps()
@@ -348,15 +360,24 @@ class Window(arcade.Window):
 
     def on_draw(self) -> None:
         self.clear()
+        if self.resources_overlay_tab:
+            self.world.chunk_sprites.draw()
         if self.draw_chunks_tab:
             self.world.chunk_drawing_primitives.draw()
-        self.world.draw()
+        self.world.borders.draw()
+        if self.draw_creatures_tab:
+            # можно отрисовывать всех существ по отдельности, итерируясь по self.creatures,
+            # что позволит переопределить метод draw существа
+            # (иначе, переопределение этого метода не влияет на отрисовку)
+            self.world.creatures.draw()
         self.ui_manager.draw()
         self.tab_container.draw_all()
 
     def on_update(self, delta_time: float) -> None:
         try:
             self.world.on_update()
+            if self.resources_overlay_tab and self.world.age % window_descriptor.overlay_update_period == 0:
+                self.update_resources_overlay()
             self.tab_container.update_all()
         except Exception as error:
             error.window = self
@@ -364,6 +385,22 @@ class Window(arcade.Window):
         finally:
             self.count_resources()
             self.count_tps()
+
+    def update_resources_overlay(self) -> None:
+        resources = {}
+        maximum = 0
+        minimum = 1024**16
+        for chunk in self.world.chunk_set:
+            resources_sum = sum(chunk.resources.values())
+            resources[chunk] = resources_sum
+            if resources_sum > maximum:
+                maximum = resources_sum
+            if resources_sum < minimum:
+                minimum = resources_sum
+        for chunk in self.world.chunk_set:
+            # gradient = (1 - (resources[chunk] - minimum) / (maximum - minimum)) * 255
+            gradient = (1 - resources[chunk] / maximum) * 255
+            chunk.sprite.color = (gradient, gradient, gradient, 255)
 
     def set_tps(self, tps: int) -> None:
         self.desired_tps = tps
@@ -373,3 +410,4 @@ class Window(arcade.Window):
         """Выводит в консоль положение курсора."""
 
         print(f"x: {x}, y: {y}")
+        print(self.world.position_to_chunk((x, y)).resources)

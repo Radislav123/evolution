@@ -77,7 +77,7 @@ class GenomeEffects:
 
         # подготовка цвета к субтрактивному применению (так применяет arcade)
         if max(self.color) > 255:
-            temp_color = [max(self.color)] * 3
+            temp_color = [max(self.color) for _ in range(3)]
         else:
             temp_color = [255, 255, 255]
         for number in range(len(self.color)):
