@@ -349,8 +349,7 @@ class Window(arcade.Window):
     def on_draw(self) -> None:
         self.clear()
         if self.draw_chunks_tab:
-            for chunk in self.world.chunk_set:
-                chunk.draw()
+            self.world.chunk_drawing_primitives.draw()
         self.world.draw()
         self.ui_manager.draw()
         self.tab_container.draw_all()

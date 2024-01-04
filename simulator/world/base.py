@@ -86,6 +86,9 @@ class World(WorldObjectMixin):
         self.chunks = WorldChunk.cut_world(self)
         # список всех чанков мира
         self.chunk_set: set[WorldChunk] = {chunk for line in self.chunks for chunk in line}
+        self.chunk_drawing_primitives = arcade.shape_list.ShapeElementList()
+        for primitive in (x for chunk in self.chunk_set for x in chunk.drawing_primitives):
+            self.chunk_drawing_primitives.append(primitive)
 
         # все объекты, которые должны сохраняться в БД, должны складываться сюда для ускорения записи в БД
         self.object_to_save_to_db: defaultdict[
@@ -303,6 +306,14 @@ class WorldChunk:
             (self.right - self.left + 1) * (self.top - self.bottom + 1) * self.world.characteristics.resource_density
         )
         self.resources = Resources[int]({x: self.default_resource_amount for x in RESOURCE_LIST})
+        self.drawing_primitives = arcade.shape_list.ShapeElementList()
+        self.drawing_primitives.append(
+            arcade.shape_list.create_line_loop(
+                [(self.left, self.bottom), (self.left, self.top), (self.right, self.top), (self.right, self.bottom)],
+                self.color,
+                1.1
+            )
+        )
 
         self.remove_resources_requests: dict[Creature, Resources[int]] = {}
         self.add_resources_requests: dict[Creature, Resources[int]] = {}
@@ -343,15 +354,6 @@ class WorldChunk:
         for resource, amount in self.resources.items():
             if amount < 0:
                 raise ValueError(f"Resource amount can not be below zero, but there is {self.resources}.")
-
-    def draw(self) -> None:
-        arcade.draw_xywh_rectangle_outline(
-            self.left,
-            self.bottom,
-            self.right - self.left,
-            self.top - self.bottom,
-            self.color
-        )
 
     @classmethod
     def cut_world(cls, world: World) -> tuple[tuple["WorldChunk", ...], ...]:
