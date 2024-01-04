@@ -20,6 +20,7 @@ class WindowDescriptor:
     world_age_tab_update_period: int
     tps_tab_update_period: int
     resources_tab_update_period: int
+    overlay_update_period: int
 
 
 window_descriptor: WindowDescriptor = ObjectDescriptionReader[WindowDescriptor]().read_folder_to_list(
@@ -73,8 +74,6 @@ class TextTab(arcade.gui.UIFlatButton):
             self.anchor_x = anchor_x
             self.anchor_y = anchor_y
 
-    font_size = 12
-
     def __init__(
             self,
             text: Callable[..., str],
@@ -88,7 +87,6 @@ class TextTab(arcade.gui.UIFlatButton):
         self.state: TextTab.State | None = None
         self.set()
         self.corner: TextTabContainer.Corner | None = None
-        self.update_text()
         border = 10
         self.rect = self.rect.resize(round(self.ui_label.width) + border, round(self.ui_label.height) + border)
         self.tab_label = self.Label(self, text, self.update_period)
@@ -234,6 +232,8 @@ class Window(arcade.Window):
     map_resources_tab: TextTab
     # ресурсы у существ = ресурсы в хранилищах существ + ресурсы в телах существ
     creature_resources_tab: TextTab
+    # отрисовка сетки мира
+    draw_chunks_tab: TextTab
 
     def __init__(self, width: int, height: int) -> None:
         super().__init__(width, height, center_window = True)
@@ -306,6 +306,13 @@ class Window(arcade.Window):
             )
         )
 
+        # левый нижний угол
+        # отрисовка сетки
+        self.draw_chunks_tab = self.tab_container.corners[0].add(
+            TextTab(lambda: "Показывать сетку мира", window_descriptor.overlay_update_period)
+        )
+        self.draw_chunks_tab.reset()
+
         self.count_resources()
         self.count_tps()
         self.tab_container.update_all()
@@ -341,6 +348,9 @@ class Window(arcade.Window):
 
     def on_draw(self) -> None:
         self.clear()
+        if self.draw_chunks_tab:
+            for chunk in self.world.chunk_set:
+                chunk.draw()
         self.world.draw()
         self.ui_manager.draw()
         self.tab_container.draw_all()

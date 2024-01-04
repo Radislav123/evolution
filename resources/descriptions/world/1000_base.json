@@ -7,7 +7,7 @@
             "viscosity": 0.1,
             "boarders_friction": 0.0,
             "borders_thickness": 1000,
-            "resource_density": 2.0,
+            "resource_density": 1.5,
             "chunk_width": 50,
             "chunk_height": 50,
             "seed": null,

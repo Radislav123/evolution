@@ -5,7 +5,8 @@
             "tab_update_period": 10,
             "world_age_tab_update_period": 1,
             "tps_tab_update_period": 5,
-            "resources_tab_update_period": 100
+            "resources_tab_update_period": 100,
+            "overlay_update_period": 50
         }
     }
 }

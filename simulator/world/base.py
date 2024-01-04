@@ -262,11 +262,6 @@ class World(WorldObjectMixin):
         # что позволит переопределить метод draw существа (иначе, переопределение этого метода не влияет на отрисовку)
         self.creatures.draw()
 
-        draw_chunks = False
-        if draw_chunks:
-            for chunk in self.chunk_set:
-                chunk.draw()
-
     def position_to_chunk(self, position: Position) -> "WorldChunk":
         x = int((position[0] - self.chunks[0][0].left) / self.chunk_width)
         y = int((position[1] - self.chunks[0][0].bottom) / self.chunk_height)
