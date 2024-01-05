@@ -112,9 +112,9 @@ def simulate():
     try:
         window.start()
         arcade.run()
-        window.world.stop()
+        window.stop()
     except Exception as error:
-        window.world.stop()
+        window.stop()
         log_error_info(error)
         raise error
     finally:

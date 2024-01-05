@@ -1,10 +1,12 @@
 import dataclasses
 import enum
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Callable, Iterator
 
 import arcade
 import arcade.gui
+from matplotlib import pyplot
 
 from core.service import ObjectDescriptionReader
 from evolution import settings
@@ -237,6 +239,7 @@ class Window(arcade.Window):
     # режим ресурсов
     resources_overlay_tab: TextTab
     draw_creatures_tab: TextTab
+    creature_tps_statistics: [Creature, int] = defaultdict(list)
 
     def __init__(self, width: int, height: int) -> None:
         super().__init__(width, height, center_window = True)
@@ -266,6 +269,49 @@ class Window(arcade.Window):
         self.ui_manager.set_tab_label_positions(self.tab_container)
 
         self.ui_manager.enable()
+
+    def stop(self) -> None:
+        self.world.stop()
+
+        # подготовка статистики
+        creature_tps = {x: sum(self.creature_tps_statistics[x]) / len(self.creature_tps_statistics[x])
+                        for x in sorted(self.creature_tps_statistics)}
+
+        pyplot.plot(list(creature_tps.keys()), list(creature_tps.values()), color = "r")
+        max_creatures = list(creature_tps.keys())[-1]
+        max_tps = max(list(creature_tps.values()))
+        pyplot.xlim(xmin = 0, xmax = max_creatures)
+        pyplot.ylim(ymin = 0, ymax = max_tps)
+        points_amount = 5
+        step = max(max_creatures // points_amount, 1)
+        for creatures in range(step, max_creatures, step):
+            x = creatures
+            while x not in creature_tps and x > 0:
+                x -= 1
+            line_width = 0.8
+            color = "g"
+            pyplot.axhline(
+                y = creature_tps[x],
+                xmin = 0,
+                xmax = x / max_creatures,
+                linewidth = line_width,
+                color = color
+            )
+            pyplot.axvline(
+                x = x,
+                ymin = 0,
+                ymax = creature_tps[x] / max_tps,
+                linewidth = line_width,
+                color = color
+            )
+        pyplot.title("Зависимость tps от количества существ")
+        pyplot.xlabel("Существа")
+        pyplot.ylabel("tps")
+
+        # сохранение статистики
+        folder = f"statistics/creatures_tps"
+        Path(folder).mkdir(parents = True, exist_ok = True)
+        pyplot.savefig(f"{folder}/{self.world.id}.png")
 
     def construct_tabs(self) -> None:
         # правый верхний угол
@@ -355,8 +401,11 @@ class Window(arcade.Window):
             # за 100 последних тиков
             execution_time_100 = sum(sum(i) for i in timings.values())
             # добавляется небольшая константа, во избежание деления на 0
-            average_execution_time = execution_time_100 / 100 + 0.00000001
+            average_execution_time = execution_time_100 / 100 + 0.01
             self.tps = int(1 / average_execution_time)
+
+    def count_statistics(self) -> None:
+        self.creature_tps_statistics[len(self.world.creatures)].append(self.tps)
 
     def on_draw(self) -> None:
         self.clear()
@@ -385,6 +434,7 @@ class Window(arcade.Window):
         finally:
             self.count_resources()
             self.count_tps()
+            self.count_statistics()
 
     def update_resources_overlay(self) -> None:
         resources = {}

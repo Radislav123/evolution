@@ -19,6 +19,7 @@ logs/
 migrations/
 
 # generated
+statistics/
 CHANGELOG.md
 
 # other
