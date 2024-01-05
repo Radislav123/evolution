@@ -400,9 +400,8 @@ class Window(arcade.Window):
             timings = arcade.get_timings()
             # за 100 последних тиков
             execution_time_100 = sum(sum(i) for i in timings.values())
-            # добавляется небольшая константа, во избежание деления на 0
-            average_execution_time = execution_time_100 / 100 + 0.01
-            self.tps = int(1 / average_execution_time)
+            average_execution_time = execution_time_100 / 100
+            self.tps = self.desired_tps if average_execution_time == 0 else int(1 / average_execution_time)
 
     def count_statistics(self) -> None:
         self.creature_tps_statistics[len(self.world.creatures)].append(self.tps)
