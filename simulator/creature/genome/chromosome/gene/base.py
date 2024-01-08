@@ -201,8 +201,11 @@ class BodypartGeneInterface(StepGeneMixin, GeneInterface):
             self.active = True
         else:
             self.active = False
-            del genes[self.name][self.number]
-            dependent_genes[self.required_bodypart_gene][self.required_gene_number].remove(self)
+            if self.name in genes and self.number in genes[self.name]:
+                del genes[self.name][self.number]
+            if (self.required_bodypart_gene in dependent_genes and
+                    self.required_gene_number in dependent_genes[self.required_bodypart_gene]):
+                dependent_genes[self.required_bodypart_gene][self.required_gene_number].remove(self)
 
     def mutate(self, genome: "Genome") -> None:
         new_size_coeff = self.size_coeff + self.make_step()
