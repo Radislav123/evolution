@@ -235,7 +235,7 @@ class Window(arcade.Window):
     # ресурсы у существ = ресурсы в хранилищах существ + ресурсы в телах существ
     creature_resources_tab: TextTab
     # отрисовка сетки мира
-    draw_chunks_tab: TextTab
+    draw_chunk_borders_tab: TextTab
     # режим ресурсов
     resources_overlay_tab: TextTab
     draw_creatures_tab: TextTab
@@ -288,10 +288,11 @@ class Window(arcade.Window):
             x = creatures
             while x not in creature_tps and x > 0:
                 x -= 1
+            y = int(creature_tps[x])
             line_width = 0.8
             color = "g"
             pyplot.axhline(
-                y = creature_tps[x],
+                y = y,
                 xmin = 0,
                 xmax = x / max_creatures,
                 linewidth = line_width,
@@ -304,6 +305,7 @@ class Window(arcade.Window):
                 linewidth = line_width,
                 color = color
             )
+            pyplot.text(x, y, f"({x}; {y})")  # noqa
         pyplot.title("Зависимость tps от количества существ")
         pyplot.xlabel("Существа")
         pyplot.ylabel("tps")
@@ -362,10 +364,10 @@ class Window(arcade.Window):
         )
         self.resources_overlay_tab.reset()
         # отрисовка сетки
-        self.draw_chunks_tab = self.tab_container.corners[0].add(
+        self.draw_chunk_borders_tab = self.tab_container.corners[0].add(
             TextTab(lambda: "Показывать сетку мира", window_descriptor.overlay_update_period)
         )
-        self.draw_chunks_tab.reset()
+        self.draw_chunk_borders_tab.reset()
         # показывать ли существ
         self.draw_creatures_tab = self.tab_container.corners[0].add(
             TextTab(lambda: "Показывать существ", window_descriptor.overlay_update_period)
@@ -383,7 +385,7 @@ class Window(arcade.Window):
                 self.map_resources = Resources[int]()
                 # чтобы порядок ресурсов не менялся
                 self.map_resources.fill_all(0)
-                self.map_resources += Resources[int].sum(x.resources for x in self.world.chunk_set)
+                self.map_resources += Resources[int].sum(x.resources for x in self.world.chunks)
 
             if self.creature_resources_tab or self.world_resources_tab:
                 self.creature_resources = Resources[int]()
@@ -409,9 +411,9 @@ class Window(arcade.Window):
     def on_draw(self) -> None:
         self.clear()
         if self.resources_overlay_tab:
-            self.world.chunk_sprites.draw()
-        if self.draw_chunks_tab:
-            self.world.chunk_drawing_primitives.draw()
+            self.world.chunks.draw()
+        if self.draw_chunk_borders_tab:
+            self.world.chunk_borders.draw()
         self.world.borders.draw()
         if self.draw_creatures_tab:
             # можно отрисовывать всех существ по отдельности, итерируясь по self.creatures,
@@ -439,17 +441,17 @@ class Window(arcade.Window):
         resources = {}
         maximum = 0
         minimum = 1024**16
-        for chunk in self.world.chunk_set:
+        for chunk in self.world.chunks:
             resources_sum = sum(chunk.resources.values())
             resources[chunk] = resources_sum
             if resources_sum > maximum:
                 maximum = resources_sum
             if resources_sum < minimum:
                 minimum = resources_sum
-        for chunk in self.world.chunk_set:
+        for chunk in self.world.chunks:
             # gradient = (1 - (resources[chunk] - minimum) / (maximum - minimum)) * 255
             gradient = (1 - resources[chunk] / maximum) * 255
-            chunk.sprite.color = (gradient, gradient, gradient, 255)
+            chunk.color = (gradient, gradient, gradient, 255)
 
     def set_tps(self, tps: int) -> None:
         self.desired_tps = tps

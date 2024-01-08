@@ -1,5 +1,6 @@
 import copy
 import dataclasses
+import functools
 import random
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -82,15 +83,12 @@ class World(WorldObjectMixin):
         )
         self.prepare_borders()
         self.prepare_physics_engine()
-        # чанки мира по линиям
-        self.chunks = WorldChunk.cut_world(self)
         # список всех чанков мира
-        self.chunk_set: set[WorldChunk] = {chunk for line in self.chunks for chunk in line}
-        self.chunk_drawing_primitives = arcade.shape_list.ShapeElementList()
-        for primitive in (x for chunk in self.chunk_set for x in chunk.drawing_primitives):
-            self.chunk_drawing_primitives.append(primitive)
-        self.chunk_sprites = arcade.SpriteList(True)
-        self.chunk_sprites.extend(chunk.sprite for chunk in self.chunk_set)
+        self.chunks = arcade.SpriteList(True)
+        self.chunks.extend(chunk for line in WorldChunk.cut_world(self) for chunk in line)
+        self.chunk_borders = arcade.shape_list.ShapeElementList()
+        for borders in (x for chunk in self.chunks for x in chunk.borders):
+            self.chunk_borders.append(borders)
 
         # все объекты, которые должны сохраняться в БД, должны складываться сюда для ускорения записи в БД
         self.object_to_save_to_db: defaultdict[
@@ -239,7 +237,7 @@ class World(WorldObjectMixin):
             for creature in self.active_creatures:
                 creature.perform()
 
-            for chunk in self.chunk_set:
+            for chunk in self.chunks:
                 chunk.on_update()
 
             for creature in self.active_creatures:
@@ -261,22 +259,13 @@ class World(WorldObjectMixin):
             error.world = self
             raise error
 
+    @functools.cache
     def position_to_chunk(self, position: Position) -> "WorldChunk":
-        x = int((position[0] - self.chunks[0][0].left) / self.chunk_width)
-        y = int((position[1] - self.chunks[0][0].bottom) / self.chunk_height)
-        if x < 0:
-            x = 0
-        if x > len(self.chunks) - 1:
-            x = len(self.chunks) - 1
-        if y < 0:
-            y = 0
-        if y > len(self.chunks[0]) - 1:
-            y = len(self.chunks[0]) - 1
-        return self.chunks[x][y]
+        return arcade.get_sprites_at_point(position, self.chunks)[0]
 
     def share_chunk_resources(self) -> None:
         sharing_resources: list[tuple[WorldChunk, WorldChunk, Resources[int]]] = []
-        for chunk in self.chunk_set:
+        for chunk in self.chunks:
             for neighbor in chunk.neighbors:
                 differance = (chunk.resources - neighbor.resources) * self.chunk_share_resources_coeff
                 differance.iround()
@@ -287,33 +276,23 @@ class World(WorldObjectMixin):
             neighbor.resources += differance
 
 
-class WorldChunk:
+class WorldChunk(arcade.SpriteSolidColor):
     def __init__(self, left_bottom: tuple[int, int], world: World) -> None:
-        self.left = left_bottom[0]
         self.world = world
-        self.width = self.world.chunk_width - 1
-        self.right = self.left + self.width
+        super().__init__(self.world.chunk_width, self.world.chunk_height, color = (100, 100, 100, 255))
+        self.left = left_bottom[0]
         self.bottom = left_bottom[1]
-        self.height = self.world.chunk_height - 1
-        self.top = self.bottom + self.height
-        self.color = (100, 100, 100, 255)
         self.default_resource_amount = int(
             (self.right - self.left + 1) * (self.top - self.bottom + 1) * self.world.characteristics.resource_density
         )
         self.resources = Resources[int]({x: self.default_resource_amount for x in RESOURCE_LIST})
-        self.drawing_primitives = arcade.shape_list.ShapeElementList()
-        self.drawing_primitives.append(
+        self.borders = arcade.shape_list.ShapeElementList()
+        self.borders.append(
             arcade.shape_list.create_line_loop(
                 [(self.left, self.bottom), (self.left, self.top), (self.right, self.top), (self.right, self.bottom)],
                 self.color,
                 1.1
             )
-        )
-        self.sprite = arcade.SpriteSolidColor(
-            self.width,
-            self.height,
-            self.left + self.width / 2,
-            self.bottom + self.height / 2
         )
 
         self.remove_resources_requests: dict[Creature, Resources[int]] = {}
@@ -324,7 +303,7 @@ class WorldChunk:
     def __repr__(self) -> str:
         return f"{self.left, self.bottom, self.right, self.top}"
 
-    def on_update(self) -> None:
+    def on_update(self, delta_time: float = 1 / 60) -> None:
         # выдача ресурсов существам
         requested_resources = Resources[int].sum(self.remove_resources_requests.values())
         not_enough = set(
@@ -356,6 +335,9 @@ class WorldChunk:
             if amount < 0:
                 raise ValueError(f"Resource amount can not be below zero, but there is {self.resources}.")
 
+    # todo: перенести этот метод в World
+    # todo: резать мир на шестиугольники
+    # todo: сделать генерацию границ
     @classmethod
     def cut_world(cls, world: World) -> tuple[tuple["WorldChunk", ...], ...]:
         left, right, bottom, top = world.get_borders_coordinates()
