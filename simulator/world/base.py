@@ -1,6 +1,5 @@
 import copy
 import dataclasses
-import functools
 import random
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -69,6 +68,7 @@ class World(WorldObjectMixin):
         self.chunk_share_resources_period = world_descriptor.chunk_share_resources_period
         # коэффициент разницы ресурсов, которые будут перемещены
         self.chunk_share_resources_coeff = world_descriptor.chunk_share_resources_coeff
+        self.position_to_chunk_cache: dict[tuple[int, int], WorldChunk] = {}
 
         # copy.copy(self.creatures) может работать не правильно, так как SpriteList использует внутренний список
         # {creature.object_id: creature}
@@ -259,9 +259,11 @@ class World(WorldObjectMixin):
             error.world = self
             raise error
 
-    @functools.cache
     def position_to_chunk(self, position: Position) -> "WorldChunk":
-        return arcade.get_sprites_at_point(position, self.chunks)[0]
+        point = (int(position[0]), int(position[1]))
+        if point not in self.position_to_chunk_cache:
+            self.position_to_chunk_cache[point] = arcade.get_sprites_at_point(point, self.chunks)[0]
+        return self.position_to_chunk_cache[point]
 
     def share_chunk_resources(self) -> None:
         sharing_resources: list[tuple[WorldChunk, WorldChunk, Resources[int]]] = []
@@ -279,9 +281,12 @@ class World(WorldObjectMixin):
 class WorldChunk(arcade.SpriteSolidColor):
     def __init__(self, left_bottom: tuple[int, int], world: World) -> None:
         self.world = world
-        super().__init__(self.world.chunk_width, self.world.chunk_height, color = (100, 100, 100, 255))
-        self.left = left_bottom[0]
-        self.bottom = left_bottom[1]
+        # границы чанков должны задаваться с небольшим наслоением, так как границы не считаются их частью
+        # если граница проходит по 400 координате, то 300.(9) принадлежит чанку, а 400 уже - нет
+        super().__init__(self.world.chunk_width + 1, self.world.chunk_height + 1, color = (100, 100, 100, 255))
+        self.left = left_bottom[0] - 0.5
+        self.bottom = left_bottom[1] - 0.5
+        # todo: изменить формулу расчета
         self.default_resource_amount = int(
             (self.right - self.left + 1) * (self.top - self.bottom + 1) * self.world.characteristics.resource_density
         )
