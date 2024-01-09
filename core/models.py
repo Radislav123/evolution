@@ -55,6 +55,4 @@ class Creature(EvolutionModel):
 
 class CreaturePositionHistory(HistoryModel):
     creature = models.ForeignKey(Creature, models.PROTECT)
-    age = models.PositiveIntegerField()
-    position_x = models.FloatField()
-    position_y = models.FloatField()
+    history = models.JSONField()

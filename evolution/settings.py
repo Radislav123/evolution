@@ -98,6 +98,7 @@ WSGI_APPLICATION = "evolution.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
+# todo: перенести настройки БД в секреты
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",

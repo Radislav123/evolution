@@ -49,6 +49,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     db_model = models.Creature
     position_history_db_model = models.CreaturePositionHistory
     db_instance: db_model
+    position_history_db_instance: position_history_db_model
     counter = 0
     birth_counter = 0
     death_counter = 0
@@ -58,12 +59,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     genome: Genome
 
     # position - центр существа
-    def __init__(
-            self,
-            world: "World",
-            parents: list["Creature"] | None,
-            world_generation: bool = False
-    ) -> None:
+    def __init__(self, world: "World", parents: list["Creature"] | None, world_generation: bool = False) -> None:
         try:
             super().__init__(self.image_path)
             self.__class__.counter += 1
@@ -214,15 +210,11 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         )
         self.world.object_to_save_to_db[self.db_model].append(self.db_instance)
 
-        position_history = [
-            self.position_history_db_model(
-                creature = self.db_instance,
-                age = tick,
-                position_x = position[0],
-                position_y = position[1]
-            ) for tick, position in self.position_history.items()
-        ]
-        self.world.object_to_save_to_db[self.position_history_db_model].extend(position_history)
+        self.position_history_db_instance = self.position_history_db_model(
+            creature = self.db_instance,
+            history = self.position_history
+        )
+        self.world.object_to_save_to_db[self.position_history_db_model].append(self.position_history_db_instance)
 
     def apply_bodyparts(self) -> None:
         """Собирает тело и применяет эффекты частей тела на существо."""
@@ -329,9 +321,8 @@ class Creature(WorldObjectMixin, arcade.Sprite):
 
     def update_position_history(self) -> None:
         precision = 0.1
-        difference_x = abs(self.position_history[self.last_movement_age][0] - self.position[0])
-        difference_y = abs(self.position_history[self.last_movement_age][1] - self.position[1])
-        if difference_x > precision and difference_y > precision:
+        if (abs(self.position_history[self.last_movement_age][0] - self.position[0]) > precision or
+                abs(self.position_history[self.last_movement_age][1] - self.position[1]) > precision):
             self.position_history[self.world.age] = self.position
             self.last_movement_age = self.world.age
 

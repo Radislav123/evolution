@@ -2,10 +2,10 @@ import copy
 import dataclasses
 import random
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from typing import Type
 
 import arcade
+from django.db import connections
 
 from core import models
 from core.mixin import WorldObjectMixin
@@ -95,8 +95,6 @@ class World(WorldObjectMixin):
             Type[models.EvolutionModel],
             list[models.EvolutionModel]
         ] = defaultdict(list)
-        # todo: добавить количество потоков/ядер (max_workers) в настройки
-        self.parallel_saver = ThreadPoolExecutor()
 
     @property
     def id(self) -> int:
@@ -179,13 +177,8 @@ class World(WorldObjectMixin):
         # todo: разделить на создаваемые и обновляемые объекты
         # todo: точно прописать для каждой модели поля, какие должны обновляться, а какие - нет
         for model, objects in self.object_to_save_to_db.items():
-            self.parallel_saver.submit(
-                model.objects.bulk_create,
-                objects,
-                # update_conflicts = True,
-                # update_fields = model.get_update_fields(),
-                # unique_fields = model.unique_fields
-            )
+            model.objects.bulk_create(objects)
+
         self.object_to_save_to_db.clear()
 
     def start(self) -> None:
@@ -202,7 +195,6 @@ class World(WorldObjectMixin):
         for creature in self.creatures:
             creature.stop()
         self.save_objects_to_db()
-        self.parallel_saver.shutdown()
 
     def spawn_start_creature(self) -> None:
         creature = Creature(self, None, True)
