@@ -184,7 +184,7 @@ class World(WorldObjectMixin):
         """Выполняет подготовительные действия при начале симуляции."""
 
         self.save_to_db()
-        self.spawn_start_creature()
+        self.spawn_start_creature(self.center)
         self.save_objects_to_db()
 
     def stop(self) -> None:
@@ -195,9 +195,9 @@ class World(WorldObjectMixin):
             creature.stop()
         self.save_objects_to_db()
 
-    def spawn_start_creature(self) -> None:
+    def spawn_start_creature(self, position: Position) -> None:
         creature = Creature(self, None, True)
-        creature.position = self.center
+        creature.position = position
         creature.start()
         creature.storage.add_resources(CREATURE_START_RESOURCES)
         chunk_resources = self.position_to_chunk(creature.position).resources

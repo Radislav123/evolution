@@ -1,6 +1,7 @@
 import dataclasses
 import enum
-from collections import defaultdict
+import time
+from collections import defaultdict, deque
 from pathlib import Path
 from typing import Callable, Iterator
 
@@ -23,6 +24,7 @@ class WindowDescriptor:
     tps_tab_update_period: int
     resources_tab_update_period: int
     overlay_update_period: int
+    timings_length: int
 
 
 window_descriptor: WindowDescriptor = ObjectDescriptionReader[WindowDescriptor]().read_folder_to_list(
@@ -109,7 +111,7 @@ class TextTab(arcade.gui.UIFlatButton):
         self.text = str(self.state)
 
 
-class TPSTab(TextTab):
+class DrawGraphsTab(TextTab):
     def set(self) -> None:
         super().set()
         arcade.enable_timings()
@@ -210,6 +212,92 @@ class UIManager(arcade.gui.UIManager):
                 tab.tab_label.set_position()
 
 
+class PerformanceGraph(arcade.PerfGraph):
+    def __init__(self, window: "Window", *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.window = window
+
+    def update_graph(self, delta_time: float):
+        # Skip update if there is no SpriteList that can draw this graph
+        if self.sprite_lists is None or len(self.sprite_lists) == 0:
+            return
+
+        sprite_list = self.sprite_lists[0]
+
+        # Clear and return if timings are disabled
+        if not arcade.timings_enabled():
+            with sprite_list.atlas.render_into(self.minimap_texture, projection = self.proj) as fbo:
+                fbo.clear(color = (0, 0, 0, 255))
+            return
+
+        # Get FPS and add to our historical data
+        data_to_graph = self._data_to_graph
+        graph_data = self.graph_data
+        timings = self.window.timings
+        if graph_data in timings:
+            timing_list = timings[self.graph_data]
+            avg_timing = sum(timing_list) / len(timing_list)
+            if graph_data == "tps":
+                data_to_graph.append(avg_timing)
+            else:
+                data_to_graph.append(avg_timing * 1000)
+
+        # Skip update if there is no data to graph
+        if len(data_to_graph) == 0:
+            return
+
+        # Using locals for frequently used values is faster than
+        # looking up instance variables repeatedly.
+        bottom_y = self._bottom_y
+        left_x = self._left_x
+        view_y_scale_step = self._view_y_scale_step
+        vertical_axis_text_objects = self._vertical_axis_text_objects
+        view_height = self._view_height
+
+        # We have to render at the internal texture's original size to
+        # prevent distortion and bugs when the sprite is scaled.
+        texture_width, texture_height = self._texture.size  # type: ignore
+
+        # Toss old data by removing leftmost entries
+        while len(data_to_graph) > texture_width - left_x:
+            data_to_graph.pop(0)
+
+        # Calculate the value at the top of the chart
+        max_value = max(data_to_graph)
+        view_max_value = ((max_value + 1.5) // view_y_scale_step + 1) * view_y_scale_step
+
+        # Calculate draw positions of each pixel on the data line
+        point_list = []
+        x = left_x
+        for reading in data_to_graph:
+            y = (reading / view_max_value) * view_height + bottom_y
+            point_list.append((x, y))
+            x += 1
+
+        # Update the view scale & labels if needed
+        if view_max_value != self._view_max_value:
+            self._view_max_value = view_max_value
+            view_y_legend_increment = self._view_max_value // self._y_axis_num_lines
+            for index in range(1, len(vertical_axis_text_objects)):
+                text_object = vertical_axis_text_objects[index]
+                text_object.text = f"{int(index * view_y_legend_increment)}"
+
+        # Render to the internal texture
+        with sprite_list.atlas.render_into(self.minimap_texture, projection = self.proj) as fbo:
+
+            # Set the background color
+            fbo.clear(self.background_color)
+
+            # Draw lines & their labels
+            for text in self._all_text_objects:
+                text.draw()
+            self._pyglet_batch.draw()
+
+            # Draw the data line
+            arcade.draw_line_strip(point_list, self.line_color)
+
+
 class Window(arcade.Window):
     # desired_tps = int(1 / update_rate)
     # update_rate = 1 / tps
@@ -244,6 +332,8 @@ class Window(arcade.Window):
 
         background_color = (255, 255, 255, 255)
         arcade.set_background_color(background_color)
+
+        self.timings = defaultdict(lambda: deque(maxlen = window_descriptor.timings_length))
 
     def start(self) -> None:
         center = (self.width // 2, self.height // 2)
@@ -305,17 +395,25 @@ class Window(arcade.Window):
         pyplot.savefig(f"{folder}/{self.world.id}.png")
 
     def construct_graphs(self) -> None:
-        graph_statistics = ["FPS", "on_update", "on_draw"]
+        # ((graph_name, is_custom),..)
+        graph_statistics = (
+            ("FPS", False),
+            ("on_draw", False),
+            ("tps", True),
+            ("on_update", True),
+        )
 
-        print(self.tab_container.corners[1].bottom, self.tab_container.corners[0].top)
         left = 0
         top = self.height - 90
         width = 190
         height = (top - 90) // len(graph_statistics)
 
         counter = 0
-        for statistics in graph_statistics:
-            graph = arcade.PerfGraph(width, height, graph_data = statistics)
+        for graph_name, is_custom in graph_statistics:
+            if is_custom:
+                graph = PerformanceGraph(self, width, height, graph_name)
+            else:
+                graph = arcade.PerfGraph(width, height, graph_name)
             graph.left = left
             graph.top = top - height * counter
             self.graphs.append(graph)
@@ -329,14 +427,14 @@ class Window(arcade.Window):
         )
         # счетчик tps
         self.tab_container.corners[3].add(
-            TPSTab(
+            TextTab(
                 lambda: f"tps/желаемые tps: {self.tps} / {self.desired_tps}",
                 window_descriptor.tps_tab_update_period
             )
         )
         # отображение графиков
         self.draw_graphs_tab = self.tab_container.corners[3].add(
-            TextTab(lambda: "Отображать графики", window_descriptor.tps_tab_update_period)
+            DrawGraphsTab(lambda: "Отображать графики", window_descriptor.tps_tab_update_period)
         )
         self.draw_graphs_tab.reset()
 
@@ -385,7 +483,6 @@ class Window(arcade.Window):
         )
 
         self.count_resources()
-        self.count_tps()
         self.tab_container.update_all()
 
         self.ui_manager.add_tabs(self.tab_container)
@@ -407,14 +504,6 @@ class Window(arcade.Window):
 
             if self.world_resources_tab:
                 self.world_resources = self.map_resources + self.creature_resources
-
-    def count_tps(self) -> None:
-        if self.world.age % window_descriptor.tps_tab_update_period == 0:
-            timings = arcade.get_timings()
-            # за 100 последних тиков
-            execution_time_100 = sum(sum(i) for i in timings.values())
-            average_execution_time = execution_time_100 / 100
-            self.tps = self.desired_tps if average_execution_time == 0 else int(1 / average_execution_time)
 
     def count_statistics(self) -> None:
         self.creature_tps_statistics[len(self.world.creatures)].append(self.tps)
@@ -438,6 +527,7 @@ class Window(arcade.Window):
 
     def on_update(self, delta_time: float) -> None:
         try:
+            start = time.time()
             self.world.on_update()
             if self.resources_overlay_tab and self.world.age % window_descriptor.overlay_update_period == 0:
                 self.update_resources_overlay()
@@ -447,8 +537,14 @@ class Window(arcade.Window):
             raise error
         finally:
             self.count_resources()
-            self.count_tps()
             self.count_statistics()
+            finish = time.time()
+            # noinspection PyUnboundLocalVariable
+            self.timings["on_update"].append(finish - start)
+            if self.world.age % window_descriptor.tps_tab_update_period == 0:
+                timings = self.timings["on_update"]
+                self.tps = int(len(timings) / sum(timings))
+                self.timings["tps"].append(self.tps)
 
     def update_resources_overlay(self) -> None:
         resources = {}
@@ -474,3 +570,8 @@ class Window(arcade.Window):
         """Выводит в консоль положение курсора."""
 
         print(f"x: {x}, y: {y}")
+        import gc
+
+        gc.collect()
+        # print(arcade.get_timings()["on_update"])
+        print({key: len(value) for key, value in arcade.get_timings().items()})
