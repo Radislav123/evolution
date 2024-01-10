@@ -505,7 +505,12 @@ class Window(arcade.Window):
             if self.world_resources_tab:
                 self.world_resources = self.map_resources + self.creature_resources
 
-    def count_statistics(self) -> None:
+    def count_statistics(self, start: float, finish: float) -> None:
+        self.timings["on_update"].append(finish - start)
+        timings = self.timings["on_update"]
+        self.tps = int(len(timings) / sum(timings))
+        self.timings["tps"].append(self.tps)
+
         self.creature_tps_statistics[len(self.world.creatures)].append(self.tps)
 
     def on_draw(self) -> None:
@@ -537,14 +542,9 @@ class Window(arcade.Window):
             raise error
         finally:
             self.count_resources()
-            self.count_statistics()
             finish = time.time()
             # noinspection PyUnboundLocalVariable
-            self.timings["on_update"].append(finish - start)
-            if self.world.age % window_descriptor.tps_tab_update_period == 0:
-                timings = self.timings["on_update"]
-                self.tps = int(len(timings) / sum(timings))
-                self.timings["tps"].append(self.tps)
+            self.count_statistics(start, finish)
 
     def update_resources_overlay(self) -> None:
         resources = {}
@@ -570,8 +570,3 @@ class Window(arcade.Window):
         """Выводит в консоль положение курсора."""
 
         print(f"x: {x}, y: {y}")
-        import gc
-
-        gc.collect()
-        # print(arcade.get_timings()["on_update"])
-        print({key: len(value) for key, value in arcade.get_timings().items()})

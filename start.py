@@ -1,3 +1,4 @@
+import gc
 from typing import TextIO
 
 import arcade
@@ -105,6 +106,8 @@ def log_error_info(error: Exception):
 
 # https://www.b-list.org/weblog/2007/sep/22/standalone-django-scripts/
 def simulate():
+    gc.set_threshold(10000, 100, 100)
+
     window_width = 800
     window_height = 600
 
