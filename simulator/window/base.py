@@ -2,7 +2,7 @@ import dataclasses
 import enum
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Callable, Iterator
 
 import arcade
 import arcade.gui
@@ -76,13 +76,7 @@ class TextTab(arcade.gui.UIFlatButton):
             self.anchor_x = anchor_x
             self.anchor_y = anchor_y
 
-    def __init__(
-            self,
-            text: Callable[..., str],
-            update_period: int,
-            on_click: Callable[..., Any] | None = None,
-            on_click_args = None
-    ) -> None:
+    def __init__(self, text: Callable[..., str], update_period: int) -> None:
         super().__init__()
 
         self.update_period = update_period
@@ -92,13 +86,6 @@ class TextTab(arcade.gui.UIFlatButton):
         border = 10
         self.rect = self.rect.resize(round(self.ui_label.width) + border, round(self.ui_label.height) + border)
         self.tab_label = self.Label(self, text, self.update_period)
-        if on_click is None:
-            def on_click() -> None:
-                pass
-        if on_click_args is None:
-            on_click_args = []
-        self._on_click = on_click
-        self._on_click_args = on_click_args
 
     def __bool__(self) -> bool:
         return self.state == self.State.PRESSED
@@ -117,8 +104,6 @@ class TextTab(arcade.gui.UIFlatButton):
         else:
             self.set()
         self.update_text()
-        # noinspection PyArgumentList
-        self._on_click(*self._on_click_args)
 
     def update_text(self) -> None:
         self.text = str(self.state)
@@ -199,6 +184,7 @@ class TextTabContainer:
     def draw_all(self) -> None:
         for tab in self.tabs:
             if tab.state == tab.State.PRESSED:
+                # todo: переписать так, чтобы отрисовывать все активные плашки одним вызовом
                 tab.tab_label.draw()
 
     def update_all(self) -> None:
@@ -239,6 +225,7 @@ class Window(arcade.Window):
     # режим ресурсов
     resources_overlay_tab: TextTab
     draw_creatures_tab: TextTab
+    draw_graphs_tab: TextTab
     creature_tps_statistics: [Creature, int] = defaultdict(list)
 
     def __init__(self, width: int, height: int) -> None:
@@ -253,6 +240,7 @@ class Window(arcade.Window):
         self.world_resources = Resources[int]()
 
         self.ui_manager = UIManager(self)
+        self.graphs = arcade.SpriteList()
 
         background_color = (255, 255, 255, 255)
         arcade.set_background_color(background_color)
@@ -262,6 +250,7 @@ class Window(arcade.Window):
         self.world = World(center)
         self.world.start()
 
+        self.construct_graphs()
         self.construct_tabs()
 
         # необходимо, чтобы разместить плашки, так как элементы размещаются на экране только после первой отрисовки
@@ -315,6 +304,30 @@ class Window(arcade.Window):
         Path(folder).mkdir(parents = True, exist_ok = True)
         pyplot.savefig(f"{folder}/{self.world.id}.png")
 
+    def construct_graphs(self) -> None:
+        left = 0
+        top = self.height - 120
+        width = 190
+        height = 120
+
+        # Create the FPS performance graph
+        graph = arcade.PerfGraph(width, height, graph_data = "FPS")
+        graph.left = left
+        graph.top = top
+        self.graphs.append(graph)
+
+        # Create the on_update graph
+        graph = arcade.PerfGraph(width, height, graph_data = "on_update")
+        graph.left = left
+        graph.top = top - height
+        self.graphs.append(graph)
+
+        # Create the on_draw graph
+        graph = arcade.PerfGraph(width, height, graph_data = "on_draw")
+        graph.left = left
+        graph.top = top - height * 2
+        self.graphs.append(graph)
+
     def construct_tabs(self) -> None:
         # правый верхний угол
         # возраст мира
@@ -328,6 +341,11 @@ class Window(arcade.Window):
                 window_descriptor.tps_tab_update_period
             )
         )
+        # отображение графиков
+        self.draw_graphs_tab = self.tab_container.corners[3].add(
+            TextTab(lambda: "Отображать графики", window_descriptor.tps_tab_update_period)
+        )
+        self.draw_graphs_tab.reset()
 
         # правый нижний угол
         self.tab_container.corners[2].add(
@@ -422,6 +440,8 @@ class Window(arcade.Window):
             self.world.creatures.draw()
         self.ui_manager.draw()
         self.tab_container.draw_all()
+        if self.draw_graphs_tab:
+            self.graphs.draw()
 
     def on_update(self, delta_time: float) -> None:
         try:
@@ -461,4 +481,3 @@ class Window(arcade.Window):
         """Выводит в консоль положение курсора."""
 
         print(f"x: {x}, y: {y}")
-        print(self.world.position_to_chunk((x, y)).resources)

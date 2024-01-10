@@ -5,7 +5,6 @@ from collections import defaultdict
 from typing import Type
 
 import arcade
-from django.db import connections
 
 from core import models
 from core.mixin import WorldObjectMixin
@@ -159,7 +158,7 @@ class World(WorldObjectMixin):
         top_border.bottom = top
 
         # добавление в список
-        self.borders = arcade.SpriteList(use_spatial_hash = True)
+        self.borders = arcade.SpriteList(True)
         self.borders.append(left_border)
         self.borders.append(right_border)
         self.borders.append(bottom_border)
@@ -232,12 +231,12 @@ class World(WorldObjectMixin):
             for chunk in self.chunks:
                 chunk.on_update()
 
+            if self.age % self.chunk_share_resources_period == 0:
+                self.share_chunk_resources()
+
             for creature in self.active_creatures:
                 if creature.alive:
                     creature.action = ActionInterface.get_next_action(creature)
-
-            if self.age % self.chunk_share_resources_period == 0:
-                self.share_chunk_resources()
 
             del self.processing_creatures[self.age]
             self.active_creatures = None
