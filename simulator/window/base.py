@@ -250,8 +250,8 @@ class Window(arcade.Window):
         self.world = World(center)
         self.world.start()
 
-        self.construct_graphs()
         self.construct_tabs()
+        self.construct_graphs()
 
         # необходимо, чтобы разместить плашки, так как элементы размещаются на экране только после первой отрисовки
         self.on_draw()
@@ -305,28 +305,21 @@ class Window(arcade.Window):
         pyplot.savefig(f"{folder}/{self.world.id}.png")
 
     def construct_graphs(self) -> None:
+        graph_statistics = ["FPS", "on_update", "on_draw"]
+
+        print(self.tab_container.corners[1].bottom, self.tab_container.corners[0].top)
         left = 0
-        top = self.height - 120
+        top = self.height - 90
         width = 190
-        height = 120
+        height = (top - 90) // len(graph_statistics)
 
-        # Create the FPS performance graph
-        graph = arcade.PerfGraph(width, height, graph_data = "FPS")
-        graph.left = left
-        graph.top = top
-        self.graphs.append(graph)
-
-        # Create the on_update graph
-        graph = arcade.PerfGraph(width, height, graph_data = "on_update")
-        graph.left = left
-        graph.top = top - height
-        self.graphs.append(graph)
-
-        # Create the on_draw graph
-        graph = arcade.PerfGraph(width, height, graph_data = "on_draw")
-        graph.left = left
-        graph.top = top - height * 2
-        self.graphs.append(graph)
+        counter = 0
+        for statistics in graph_statistics:
+            graph = arcade.PerfGraph(width, height, graph_data = statistics)
+            graph.left = left
+            graph.top = top - height * counter
+            self.graphs.append(graph)
+            counter += 1
 
     def construct_tabs(self) -> None:
         # правый верхний угол
