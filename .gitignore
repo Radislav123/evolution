@@ -23,5 +23,6 @@ statistics/
 CHANGELOG.md
 
 # other
+secrets/
 exception_info*.txt
 temp*

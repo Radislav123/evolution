@@ -12,11 +12,19 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 
+from core.secret_keeper import SecretKeeper
+
 
 # Build paths inside the project like this: BASE_DIR / "subdir".
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Секреты
+Secrets = SecretKeeper()
+
+# Настройки логгера
 LOGS_PATH = Path(f"{BASE_DIR}/logs")
+LOG_FORMAT = "[%(asctime)s] - [%(levelname)s] - [%(parsing)s] - %(name)s -" \
+             " (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s"
 
 # изображения, звуки...
 RESOURCES_PATH = f"{BASE_DIR}/resources"
@@ -98,17 +106,7 @@ WSGI_APPLICATION = "evolution.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
-# todo: перенести настройки БД в секреты
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "evolution",
-        "USER": "postgres",
-        "PASSWORD": "password",
-        "HOST": "localhost",
-        "PORT": "5432",
-    }
-}
+DATABASES = {"default": Secrets.database.json}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
