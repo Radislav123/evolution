@@ -57,13 +57,14 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     image_path = settings.CREATURE_IMAGE_PATH
     image_size = imagesize.get(image_path)
     genome: Genome
+    default_texture = arcade.load_texture(image_path, hit_box_algorithm = arcade.hitbox.algo_detailed)
 
     # position - центр существа
     def __init__(self, world: "World", parents: list["Creature"] | None, world_generation: bool = False) -> None:
         try:
-            super().__init__(self.image_path)
+            super().__init__(self.default_texture)
             self.__class__.counter += 1
-            # такая ситуация подразумевается только при генерации мира
+            # ситуация без предков подразумевается только при генерации мира
             if parents is None and world_generation:
                 parents = []
             # такая ситуация подразумевается только при генерации мира

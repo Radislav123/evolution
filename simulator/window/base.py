@@ -493,7 +493,7 @@ class Window(arcade.Window):
                 self.map_resources = Resources[int]()
                 # чтобы порядок ресурсов не менялся
                 self.map_resources.fill_all(0)
-                self.map_resources += Resources[int].sum(x.resources for x in self.world.chunks)
+                self.map_resources += Resources[int].sum(x.resources for x in self.world.all_chunks)
 
             if self.creature_resources_tab or self.world_resources_tab:
                 self.creature_resources = Resources[int]()
@@ -508,25 +508,32 @@ class Window(arcade.Window):
     def count_statistics(self, start: float, finish: float) -> None:
         self.timings["on_update"].append(finish - start)
         timings = self.timings["on_update"]
-        self.tps = int(len(timings) / sum(timings))
+        try:
+            self.tps = int(len(timings) / sum(timings))
+        except ZeroDivisionError:
+            self.tps = self.desired_tps
         self.timings["tps"].append(self.tps)
 
         self.creature_tps_statistics[len(self.world.creatures)].append(self.tps)
 
     def on_draw(self) -> None:
         self.clear()
-        if self.resources_overlay_tab:
-            self.world.chunks.draw()
+
+        self.world.border_chunks.draw()
         if self.draw_chunk_borders_tab:
             self.world.chunk_borders.draw()
-        self.world.borders.draw()
+        if self.resources_overlay_tab:
+            self.world.chunks.draw()
+
         if self.draw_creatures_tab:
             # можно отрисовывать всех существ по отдельности, итерируясь по self.creatures,
             # что позволит переопределить метод draw существа
             # (иначе, переопределение этого метода не влияет на отрисовку)
             self.world.creatures.draw()
+
         self.ui_manager.draw()
         self.tab_container.draw_all()
+
         if self.draw_graphs_tab:
             self.graphs.draw()
 

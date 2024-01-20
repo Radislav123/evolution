@@ -16,28 +16,28 @@ class WorldCharacteristics:
     db_model = models.WorldCharacteristics
     db_instance: db_model
 
-    def __init__(self, viscosity: float, borders_friction: float, borders_thickness: int, resource_density: float):
+    def __init__(self, viscosity: float, border_friction: float, border_thickness: int, resource_density: float):
         # вязкость
         # 1 - объекты теряют всю скорость после каждого тика
         # 0 - не теряют скорости вообще
         if not 0 <= viscosity <= 1:
             raise ValueError(f"Viscosity must belong to [0, 1], but {viscosity} was given")
         self.viscosity = viscosity
-        self.borders_friction = borders_friction
-        self.borders_thickness = borders_thickness
+        self.border_friction = border_friction
+        self.border_thickness = border_thickness
         self.resource_density = resource_density
 
     def __repr__(self) -> str:
-        string = f"viscosity: {self.viscosity}, borders friction: {self.borders_friction}, "
-        string += f"borders thickness: {self.borders_thickness}, resources coef: {self.resource_density}"
+        string = f"viscosity: {self.viscosity}, border friction: {self.border_friction}, "
+        string += f"border thickness: {self.border_thickness}, resources coef: {self.resource_density}"
         return string
 
     def save_to_db(self, world: "World"):
         self.db_instance = self.db_model(
             world = world.db_instance,
             viscosity = self.viscosity,
-            borders_friction = self.borders_friction,
-            borders_thickness = self.borders_thickness,
+            border_friction = self.border_friction,
+            border_thickness = self.border_thickness,
             resource_coeff = self.resource_density
         )
         self.db_instance.save()

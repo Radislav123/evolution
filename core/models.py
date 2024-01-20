@@ -27,19 +27,17 @@ class HistoryModel(EvolutionModel):
 class World(EvolutionModel):
     # соотносится с world.age
     stop_tick = models.PositiveIntegerField()
-    width = models.PositiveIntegerField()
-    height = models.PositiveIntegerField()
+    radius = models.PositiveIntegerField()
     center_x = models.PositiveIntegerField()
     center_y = models.PositiveIntegerField()
-    chunk_width = models.PositiveIntegerField()
-    chunk_height = models.PositiveIntegerField()
+    chunk_radius = models.PositiveIntegerField()
 
 
 class WorldCharacteristics(EvolutionModel):
     world = models.ForeignKey(World, models.PROTECT, primary_key = True)
     viscosity = models.FloatField()
-    borders_friction = models.FloatField()
-    borders_thickness = models.PositiveIntegerField()
+    border_friction = models.FloatField()
+    border_thickness = models.PositiveIntegerField()
     resource_coeff = models.FloatField()
 
 
