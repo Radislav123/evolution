@@ -31,7 +31,7 @@ RESOURCES_PATH = f"{BASE_DIR}/resources"
 IMAGES_PATH = f"{RESOURCES_PATH}/images"
 
 CREATURE_IMAGE_PATH = f"{IMAGES_PATH}/BaseCreature.png"
-WORLD_CHUNK_IMAGE_PATH = f"{IMAGES_PATH}/HexagonalSprite.png"
+WORLD_TILE_IMAGE_PATH = f"{IMAGES_PATH}/HexagonalSprite.png"
 IMAGES_STORE_FORMAT = "RGBA"
 
 # файлы описаний

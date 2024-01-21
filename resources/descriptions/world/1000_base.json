@@ -7,10 +7,10 @@
             "border_friction": 0.0,
             "border_thickness": 1,
             "resource_density": 1.5,
-            "chunk_radius": 25,
+            "tile_radius": 25,
             "seed": null,
-            "chunk_share_resources_period": 100,
-            "chunk_share_resources_coeff": 0.01
+            "tile_share_resources_period": 100,
+            "tile_share_resources_coeff": 0.01
         }
     }
 }

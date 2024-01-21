@@ -23,7 +23,7 @@ from simulator.world_resource import ENERGY, Resources
 # https://adamj.eu/tech/2021/05/13/python-type-hints-how-to-fix-circular-imports/
 if TYPE_CHECKING:
     from simulator.world import World
-    from simulator.world import WorldChunk
+    from simulator.world import WorldTile
 
 
 @dataclasses.dataclass
@@ -77,7 +77,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
 
             # общая инициализация
             self.world = world
-            self.chunk: Union["WorldChunk", None] = None
+            self.tile: Union["WorldTile", None] = None
             # None == существо не стартовало (start()) в симуляции
             self.start_tick = None
             # None == существо не остановлено (stop()) в симуляции
@@ -291,7 +291,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         """Симулирует жизнедеятельность существа."""
 
         try:
-            self.chunk = self.world.position_to_chunk(self.position)
+            self.tile = self.world.position_to_tile(self.position)
             match self.action.type:
                 case ActionInterface.Type.WAIT:
                     pass
@@ -315,7 +315,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
             self.transfer_resources()
             if self.alive:
                 self.update_physics()
-            self.chunk = None
+            self.tile = None
         except Exception as error:
             error.creature = self
             error.next_children = self.next_children
@@ -609,11 +609,11 @@ class Creature(WorldObjectMixin, arcade.Sprite):
     def transfer_resources(self) -> None:
         """Обмениваем ресурсами с миром."""
 
-        chunk = self.world.position_to_chunk(self.position)
+        tile = self.world.position_to_tile(self.position)
 
         # запрос на получение ресурсов делается, только если существо живо
         if self.alive:
-            chunk.remove_resources_requests[self] = self.requested_resources
+            tile.remove_resources_requests[self] = self.requested_resources
             self.requested_resources = Resources[int]()
 
             extra = self.storage.extra
@@ -622,7 +622,7 @@ class Creature(WorldObjectMixin, arcade.Sprite):
 
         # энергия не может возвращаться в мир
         self.returned_resources[ENERGY] = 0
-        chunk.add_resources_requests[self] = self.returned_resources
+        tile.add_resources_requests[self] = self.returned_resources
         self.returned_resources = Resources[int]()
 
     def update_physics(self) -> None:

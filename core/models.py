@@ -30,11 +30,11 @@ class World(EvolutionModel):
     radius = models.PositiveIntegerField()
     center_x = models.PositiveIntegerField()
     center_y = models.PositiveIntegerField()
-    chunk_radius = models.PositiveIntegerField()
+    tile_radius = models.PositiveIntegerField()
 
 
 class WorldCharacteristics(EvolutionModel):
-    world = models.ForeignKey(World, models.PROTECT, primary_key = True)
+    world = models.ForeignKey(World, models.PROTECT, unique = True)
     viscosity = models.FloatField()
     border_friction = models.FloatField()
     border_thickness = models.PositiveIntegerField()

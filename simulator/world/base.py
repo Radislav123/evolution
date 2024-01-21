@@ -22,7 +22,7 @@ Position = tuple[float, float]
 CREATURE_START_RESOURCES = Resources({resource: 100 for resource in RESOURCE_LIST})
 
 
-class PositionToChunkError(Exception):
+class PositionToTileError(Exception):
     def __init__(self, position: tuple[float, float]):
         self.position = position
         super().__init__(f"There are no sprites at {self.position}.")
@@ -34,13 +34,13 @@ class WorldDescriptor:
     radius: int
     viscosity: float
     border_friction: float
-    # толщина границы в чанках
+    # толщина границы в плитках
     border_thickness: int
     resource_density: float
-    chunk_radius: int
+    tile_radius: int
     seed: int
-    chunk_share_resources_period: int
-    chunk_share_resources_coeff: float
+    tile_share_resources_period: int
+    tile_share_resources_coeff: float
 
 
 # todo: добавить выбор настроек мира
@@ -65,11 +65,11 @@ class World(WorldObjectMixin):
         self.radius = world_descriptor.radius
         # соотносится с центром окна
         self.center = window_center
-        self.chunk_radius = world_descriptor.chunk_radius
+        self.tile_radius = world_descriptor.tile_radius
         # количество тиков между перемещениями ресурсов
-        self.chunk_share_resources_period = world_descriptor.chunk_share_resources_period
+        self.tile_share_resources_period = world_descriptor.tile_share_resources_period
         # коэффициент разницы ресурсов, которые будут перемещены
-        self.chunk_share_resources_coeff = world_descriptor.chunk_share_resources_coeff
+        self.tile_share_resources_coeff = world_descriptor.tile_share_resources_coeff
 
         # copy.copy(self.creatures) может работать не правильно, так как SpriteList использует внутренний список
         # {creature.object_id: creature}
@@ -83,17 +83,17 @@ class World(WorldObjectMixin):
             world_descriptor.resource_density
         )
 
-        # список чанков мира
-        self.chunks = arcade.SpriteList[WorldChunk](True)
-        # список чанков границы мира
-        self.border_chunks = arcade.SpriteList[WorldBorderChunk](True)
-        # список всех чанков
-        self.all_chunks = arcade.SpriteList[WorldChunk | WorldBorderChunk](True)
-        self.position_to_chunk_cache: dict[tuple[int, int], WorldChunk] = {}
+        # список плиток мира
+        self.tiles = arcade.SpriteList[WorldTile](True)
+        # список плиток границы мира
+        self.border_tiles = arcade.SpriteList[WorldBorderTile](True)
+        # список всех плиток
+        self.all_tiles = arcade.SpriteList[WorldTile | WorldBorderTile](True)
+        self.position_to_tile_cache: dict[tuple[int, int], WorldTile] = {}
         self.cut()
-        self.chunk_borders = arcade.shape_list.ShapeElementList()
-        for borders in (x for chunk in self.chunks for x in chunk.borders):
-            self.chunk_borders.append(borders)
+        self.tile_borders = arcade.shape_list.ShapeElementList()
+        for borders in (x for tile in self.tiles for x in tile.borders):
+            self.tile_borders.append(borders)
 
         self.prepare_physics()
 
@@ -116,7 +116,7 @@ class World(WorldObjectMixin):
             radius = self.radius,
             center_x = self.center[0],
             center_y = self.center[1],
-            chunk_radius = self.chunk_radius
+            tile_radius = self.tile_radius
         )
         self.db_instance.save()
         self.characteristics.save_to_db(self)
@@ -124,7 +124,7 @@ class World(WorldObjectMixin):
     def prepare_physics(self) -> None:
         self.physics_engine = arcade.PymunkPhysicsEngine(damping = 1 - self.characteristics.viscosity)
         self.physics_engine.add_sprite_list(
-            self.border_chunks,
+            self.border_tiles,
             friction = self.characteristics.border_friction,
             body_type = arcade.PymunkPhysicsEngine.STATIC
         )
@@ -155,24 +155,24 @@ class World(WorldObjectMixin):
     def spawn_start_creature(self, position: Position) -> None:
         creature = Creature(self, None, True)
 
-        chunk_resources_differance = Resources()
-        chunk_resources_differance.fill_all(0)
-        chunk_resources_differance += creature.resources + CREATURE_START_RESOURCES
+        tile_resources_differance = Resources()
+        tile_resources_differance.fill_all(0)
+        tile_resources_differance += creature.resources + CREATURE_START_RESOURCES
 
         try:
-            chunk_resources = self.position_to_chunk(position).resources
-            for resource, amount in chunk_resources.items():
-                if amount < chunk_resources_differance[resource]:
+            tile_resources = self.position_to_tile(position).resources
+            for resource, amount in tile_resources.items():
+                if amount < tile_resources_differance[resource]:
                     print("Can not spawn creature due to resources lack.")
                     break
             else:
                 # ресурсы забираются безотлагательно
-                chunk_resources -= chunk_resources_differance
+                tile_resources -= tile_resources_differance
                 creature.position = position
                 creature.start()
                 creature.storage.add_resources(CREATURE_START_RESOURCES)
-        except PositionToChunkError:
-            print(f"Can not spawn creature due to chunk miss at {position}.")
+        except PositionToTileError:
+            print(f"Can not spawn creature due to tile miss at {position}.")
 
     def add_creature(self, creature: Creature) -> None:
         """Добавляет существо в мир."""
@@ -198,11 +198,11 @@ class World(WorldObjectMixin):
             for creature in self.active_creatures:
                 creature.perform()
 
-            for chunk in self.all_chunks:
-                chunk.on_update()
+            for tile in self.all_tiles:
+                tile.on_update()
 
-            if self.age % self.chunk_share_resources_period == 0:
-                self.share_chunk_resources()
+            if self.age % self.tile_share_resources_period == 0:
+                self.share_tile_resources()
 
             for creature in self.active_creatures:
                 if creature.alive:
@@ -220,32 +220,32 @@ class World(WorldObjectMixin):
             error.world = self
             raise error
 
-    def position_to_chunk(self, position: Position) -> "WorldChunk":
+    def position_to_tile(self, position: Position) -> "WorldTile":
         point = (int(position[0]), int(position[1]))
-        if point not in self.position_to_chunk_cache:
+        if point not in self.position_to_tile_cache:
             try:
-                self.position_to_chunk_cache[point] = arcade.get_sprites_at_point(point, self.all_chunks)[0]
+                self.position_to_tile_cache[point] = arcade.get_sprites_at_point(point, self.all_tiles)[0]
             except IndexError as error:
-                raise PositionToChunkError(position) from error
-        return self.position_to_chunk_cache[point]
+                raise PositionToTileError(position) from error
+        return self.position_to_tile_cache[point]
 
-    def share_chunk_resources(self) -> None:
-        sharing_resources: list[tuple[WorldChunk, WorldChunk, Resources[int]]] = []
-        for chunk in self.all_chunks:
-            for neighbor in chunk.neighbors:
-                differance = (chunk.resources - neighbor.resources) * self.chunk_share_resources_coeff
+    def share_tile_resources(self) -> None:
+        sharing_resources: list[tuple[WorldTile, WorldTile, Resources[int]]] = []
+        for tile in self.all_tiles:
+            for neighbor in tile.neighbors:
+                differance = (tile.resources - neighbor.resources) * self.tile_share_resources_coeff
                 differance.iround()
-                sharing_resources.append((neighbor, chunk, differance))
+                sharing_resources.append((neighbor, tile, differance))
 
-        for neighbor, chunk, differance in sharing_resources:
-            chunk.resources -= differance
+        for neighbor, tile, differance in sharing_resources:
+            tile.resources -= differance
             neighbor.resources += differance
 
     # мир делится на шестиугольники
     # https://www.redblobgames.com/grids/hexagons/
     def cut(self) -> None:
-        width = math.sqrt(3) * self.chunk_radius
-        height = 2 * self.chunk_radius
+        width = math.sqrt(3) * self.tile_radius
+        height = 2 * self.tile_radius
         offsets = (
             (width / 2, height * 3 / 4),
             (width, 0),
@@ -254,40 +254,40 @@ class World(WorldObjectMixin):
             (-width, 0),
             (-width / 2, height * 3 / 4)
         )
-        chunks_in_radius = self.radius // self.chunk_radius
+        tiles_in_radius = self.radius // self.tile_radius
 
-        chunk_center = list(self.center)
-        self.chunks.append(WorldChunk(chunk_center, self))
+        tile_center = list(self.center)
+        self.tiles.append(WorldTile(tile_center, self))
 
-        for edge_size in range(1, chunks_in_radius + self.characteristics.border_thickness):
-            if edge_size < chunks_in_radius:
-                chunks_list = self.chunks
-                chunk_class = WorldChunk
+        for edge_size in range(1, tiles_in_radius + self.characteristics.border_thickness):
+            if edge_size < tiles_in_radius:
+                tiles_list = self.tiles
+                tile_class = WorldTile
             else:
-                chunks_list = self.border_chunks
-                chunk_class = WorldBorderChunk
+                tiles_list = self.border_tiles
+                tile_class = WorldBorderTile
 
-            chunk_center[0] -= width
+            tile_center[0] -= width
 
             for offset_x, offset_y in offsets:
                 for _ in range(edge_size):
-                    chunk_center[0] += offset_x
-                    chunk_center[1] += offset_y
-                    chunks_list.append(chunk_class(chunk_center, self))
+                    tile_center[0] += offset_x
+                    tile_center[1] += offset_y
+                    tiles_list.append(tile_class(tile_center, self))
 
-        self.all_chunks.extend(self.chunks)
-        self.all_chunks.extend(self.border_chunks)
+        self.all_tiles.extend(self.tiles)
+        self.all_tiles.extend(self.border_tiles)
 
-        for chunk in self.all_chunks:
+        for tile in self.all_tiles:
             for offset_x, offset_y in offsets:
                 try:
-                    chunk.neighbors.add(self.position_to_chunk((chunk.center_x + offset_x, chunk.center_y + offset_y)))
-                except PositionToChunkError:
+                    tile.neighbors.add(self.position_to_tile((tile.center_x + offset_x, tile.center_y + offset_y)))
+                except PositionToTileError:
                     pass
 
 
-class WorldChunk(arcade.Sprite):
-    image_path = settings.WORLD_CHUNK_IMAGE_PATH
+class WorldTile(arcade.Sprite):
+    image_path = settings.WORLD_TILE_IMAGE_PATH
     image_size = imagesize.get(image_path)
     default_texture = arcade.load_texture(image_path, hit_box_algorithm = arcade.hitbox.algo_detailed)
 
@@ -295,7 +295,7 @@ class WorldChunk(arcade.Sprite):
     # если граница проходит по 400 координате, то 399.(9) принадлежит чанку, а 400 уже - нет
     def __init__(self, center: list[int, int], world: World) -> None:
         self.world = world
-        self.radius = self.world.chunk_radius
+        self.radius = self.world.tile_radius
         super().__init__(self.default_texture, center_x = center[0], center_y = center[1])
         self.overlap_distance = 1.5
         self.width = math.sqrt(3) * self.radius + self.overlap_distance
@@ -321,7 +321,7 @@ class WorldChunk(arcade.Sprite):
         self.remove_resources_requests: dict[Creature, Resources[int]] = {}
         self.add_resources_requests: dict[Creature, Resources[int]] = {}
 
-        self.neighbors: set[WorldChunk] = set()
+        self.neighbors: set[WorldTile] = set()
 
     def __repr__(self) -> str:
         return f"{self.center_x, self.center_y}"
@@ -358,7 +358,7 @@ class WorldChunk(arcade.Sprite):
                 raise ValueError(f"Resource amount can not be below zero, but there is {self.resources}.")
 
 
-class WorldBorderChunk(WorldChunk):
+class WorldBorderTile(WorldTile):
     default_color = (200, 200, 200, 255)
 
     def __init__(self, center: list[int, int], world: World) -> None:
