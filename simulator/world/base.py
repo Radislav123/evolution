@@ -249,10 +249,10 @@ class World(WorldObjectMixin):
         offsets = (
             (width / 2, height * 3 / 4),
             (width, 0),
-            (+width / 2, -height * 3 / 4),
+            (width / 2, -height * 3 / 4),
             (-width / 2, -height * 3 / 4),
             (-width, 0),
-            (-width / 2, height * 3 / 4),
+            (-width / 2, height * 3 / 4)
         )
         chunks_in_radius = self.radius // self.chunk_radius
 
@@ -297,14 +297,9 @@ class WorldChunk(arcade.Sprite):
         self.world = world
         self.radius = self.world.chunk_radius
         super().__init__(self.default_texture, center_x = center[0], center_y = center[1])
-        overlap_distance = 1.5
-        self.width = math.sqrt(3) * self.radius + overlap_distance
-        self.height = 2 * self.radius + overlap_distance
-        self.default_resource_amount = int(
-            self.radius**2 * 3 * math.sqrt(3) / 2 * self.world.characteristics.resource_density
-            )
-        self.resources = Resources[int]()
-        self.resources.fill_all(self.default_resource_amount)
+        self.overlap_distance = 1.5
+        self.width = math.sqrt(3) * self.radius + self.overlap_distance
+        self.height = 2 * self.radius + self.overlap_distance
         self.borders = arcade.shape_list.ShapeElementList()
         self.border_points = (
             (self.center_x - self.width / 2, self.center_y - self.height / 4),
@@ -314,8 +309,15 @@ class WorldChunk(arcade.Sprite):
             (self.center_x + self.width / 2, self.center_y - self.height / 4),
             (self.center_x, self.center_y - self.height / 2)
         )
-        self.borders.append(arcade.shape_list.create_line_loop(self.border_points, (100, 100, 100, 255), 1.1))
+        self.borders.append(
+            arcade.shape_list.create_line_loop(self.border_points, (100, 100, 100, 255), self.overlap_distance)
+        )
 
+        self.default_resource_amount = int(
+            self.radius**2 * 3 * math.sqrt(3) / 2 * self.world.characteristics.resource_density
+        )
+        self.resources = Resources[int]()
+        self.resources.fill_all(self.default_resource_amount)
         self.remove_resources_requests: dict[Creature, Resources[int]] = {}
         self.add_resources_requests: dict[Creature, Resources[int]] = {}
 
@@ -357,6 +359,8 @@ class WorldChunk(arcade.Sprite):
 
 
 class WorldBorderChunk(WorldChunk):
+    default_color = (200, 200, 200, 255)
+
     def __init__(self, center: list[int, int], world: World) -> None:
         super().__init__(center, world)
-        self.color = (200, 200, 200, 255)
+        self.color = self.default_color

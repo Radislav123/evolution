@@ -519,10 +519,10 @@ class Window(arcade.Window):
         self.clear()
 
         self.world.border_chunks.draw()
-        if self.draw_chunk_borders_tab:
-            self.world.chunk_borders.draw()
         if self.resources_overlay_tab:
             self.world.chunks.draw()
+        if self.draw_chunk_borders_tab:
+            self.world.chunk_borders.draw()
 
         if self.draw_creatures_tab:
             # можно отрисовывать всех существ по отдельности, итерируясь по self.creatures,
