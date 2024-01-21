@@ -2,10 +2,11 @@ import dataclasses
 import math
 import random
 from collections import defaultdict
-from typing import Type
+from typing import Any, Type
 
 import arcade
 import imagesize
+from PIL import Image
 
 from core import models
 from core.mixin import WorldObjectMixin
@@ -119,7 +120,6 @@ class World(WorldObjectMixin):
             tile_radius = self.tile_radius
         )
         self.db_instance.save()
-        self.characteristics.save_to_db(self)
 
     def prepare_physics(self) -> None:
         self.physics_engine = arcade.PymunkPhysicsEngine(damping = 1 - self.characteristics.viscosity)
@@ -141,6 +141,7 @@ class World(WorldObjectMixin):
         """Выполняет подготовительные действия при начале симуляции."""
 
         self.save_to_db()
+        self.characteristics.save_to_db(self)
         self.spawn_start_creature(self.center)
         self.save_objects_to_db()
 
@@ -285,21 +286,65 @@ class World(WorldObjectMixin):
                 except PositionToTileError:
                     pass
 
+        # todo: remove this
+        tiles = (
+            (0, 1),
+            (0, 1),
+            (0, 1),
+        )
+        self.temp = self.construct_map_object(self.center, tiles)
+
+    # todo: добавить расчет границ (hit_box) так как встроенные методы неточны, а детальный (detailed) иногда ошибается)
+    # для правильного физического взаимодействия объекты должны быть непрерывными
+    def construct_map_object(self, position: Position, tiles: tuple[tuple[Any, ...], ...]) -> arcade.Sprite:
+        # todo: изменить выбор класса при добавлении других типов объектов
+        tile_class = WorldBorderTile
+        default_image = tile_class.default_texture.image
+        width = default_image.width
+        height = default_image.height
+
+        width_coeff = len(tiles[0]) + 0.5
+        height_coeff = len(tiles) * 3 / 4 + 1 / 4
+        image = Image.new("RGBA", (int(width * width_coeff), int(height * height_coeff)))
+
+        for line_index, line in enumerate(tiles):
+            for tile_index, tile in enumerate(line):
+                if tile:
+                    x = int((tile_index + line_index % 2 / 2) * width)
+                    y = int((line_index * 3 / 4) * height)
+                    image.paste(default_image, (x, y), default_image)
+
+        texture = arcade.Texture(image, hit_box_algorithm = arcade.hitbox.algo_detailed)
+        tile = self.position_to_tile(position)
+        sprite = arcade.Sprite(texture)
+        sprite.width = (tile_class.default_width - tile_class.overlap_distance) * width_coeff
+        sprite.height = (tile_class.default_height - tile_class.overlap_distance) * height_coeff
+        sprite.left = tile.left
+        sprite.top = tile.top
+        sprite.color = tile_class.default_color
+        # todo: remove save
+        sprite.texture.image.save("temp.png")
+
+        return sprite
+
 
 class WorldTile(arcade.Sprite):
     image_path = settings.WORLD_TILE_IMAGE_PATH
     image_size = imagesize.get(image_path)
+    default_color = (255, 255, 255, 255)
     default_texture = arcade.load_texture(image_path, hit_box_algorithm = arcade.hitbox.algo_detailed)
+    overlap_distance = 1.5
+    radius = world_descriptor.tile_radius
+    default_width = math.sqrt(3) * radius + overlap_distance
+    default_height = 2 * radius + overlap_distance
 
-    # границы чанков должны задаваться с небольшим наслоением, так как границы не считаются их частью
-    # если граница проходит по 400 координате, то 399.(9) принадлежит чанку, а 400 уже - нет
+    # границы плиток должны задаваться с небольшим наслоением, так как границы не считаются их частью
+    # если граница проходит по 400 координате, то 399.(9) принадлежит плитке, а 400 уже - нет
     def __init__(self, center: list[int, int], world: World) -> None:
         self.world = world
-        self.radius = self.world.tile_radius
         super().__init__(self.default_texture, center_x = center[0], center_y = center[1])
-        self.overlap_distance = 1.5
-        self.width = math.sqrt(3) * self.radius + self.overlap_distance
-        self.height = 2 * self.radius + self.overlap_distance
+        self.width = self.default_width
+        self.height = self.default_height
         self.borders = arcade.shape_list.ShapeElementList()
         self.border_points = (
             (self.center_x - self.width / 2, self.center_y - self.height / 4),
