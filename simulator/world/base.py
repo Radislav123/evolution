@@ -154,13 +154,25 @@ class World(WorldObjectMixin):
 
     def spawn_start_creature(self, position: Position) -> None:
         creature = Creature(self, None, True)
-        creature.position = position
-        creature.start()
-        creature.storage.add_resources(CREATURE_START_RESOURCES)
-        # ресурсы забираются безотлагательно
-        chunk_resources = self.position_to_chunk(creature.position).resources
-        chunk_resources -= creature.remaining_resources
-        chunk_resources -= creature.storage.current
+
+        chunk_resources_differance = Resources()
+        chunk_resources_differance.fill_all(0)
+        chunk_resources_differance += creature.resources + CREATURE_START_RESOURCES
+
+        try:
+            chunk_resources = self.position_to_chunk(position).resources
+            for resource, amount in chunk_resources.items():
+                if amount < chunk_resources_differance[resource]:
+                    print("Can not spawn creature due to resources lack.")
+                    break
+            else:
+                # ресурсы забираются безотлагательно
+                chunk_resources -= chunk_resources_differance
+                creature.position = position
+                creature.start()
+                creature.storage.add_resources(CREATURE_START_RESOURCES)
+        except PositionToChunkError:
+            print(f"Can not spawn creature due to chunk miss at {position}.")
 
     def add_creature(self, creature: Creature) -> None:
         """Добавляет существо в мир."""
@@ -186,7 +198,7 @@ class World(WorldObjectMixin):
             for creature in self.active_creatures:
                 creature.perform()
 
-            for chunk in self.chunks:
+            for chunk in self.all_chunks:
                 chunk.on_update()
 
             if self.age % self.chunk_share_resources_period == 0:
@@ -219,7 +231,7 @@ class World(WorldObjectMixin):
 
     def share_chunk_resources(self) -> None:
         sharing_resources: list[tuple[WorldChunk, WorldChunk, Resources[int]]] = []
-        for chunk in self.chunks:
+        for chunk in self.all_chunks:
             for neighbor in chunk.neighbors:
                 differance = (chunk.resources - neighbor.resources) * self.chunk_share_resources_coeff
                 differance.iround()
@@ -279,19 +291,21 @@ class WorldChunk(arcade.Sprite):
     image_size = imagesize.get(image_path)
     default_texture = arcade.load_texture(image_path, hit_box_algorithm = arcade.hitbox.algo_detailed)
 
+    # границы чанков должны задаваться с небольшим наслоением, так как границы не считаются их частью
+    # если граница проходит по 400 координате, то 399.(9) принадлежит чанку, а 400 уже - нет
     def __init__(self, center: list[int, int], world: World) -> None:
         self.world = world
         self.radius = self.world.chunk_radius
         super().__init__(self.default_texture, center_x = center[0], center_y = center[1])
-        overlap_distance = 1
+        overlap_distance = 1.5
         self.width = math.sqrt(3) * self.radius + overlap_distance
         self.height = 2 * self.radius + overlap_distance
-        self.default_resource_amount = int(self.radius**2 * 3 * math.sqrt(3) / 2)
+        self.default_resource_amount = int(
+            self.radius**2 * 3 * math.sqrt(3) / 2 * self.world.characteristics.resource_density
+            )
         self.resources = Resources[int]()
         self.resources.fill_all(self.default_resource_amount)
         self.borders = arcade.shape_list.ShapeElementList()
-        # границы чанков должны задаваться с небольшим наслоением, так как границы не считаются их частью
-        # если граница проходит по 400 координате, то 399.(9) принадлежит чанку, а 400 уже - нет
         self.border_points = (
             (self.center_x - self.width / 2, self.center_y - self.height / 4),
             (self.center_x - self.width / 2, self.center_y + self.height / 4),
@@ -318,18 +332,17 @@ class WorldChunk(arcade.Sprite):
             if requested_amount > self.resources[resource]
         )
         for creature, creature_request in self.remove_resources_requests.items():
-            if creature.alive:
-                removed_resources = Resources[int](
-                    {
-                        resource: self.resources[resource] // requested_resources[resource] * amount
-                        if resource in not_enough else amount for resource, amount in creature_request.items()
-                    }
-                )
-                try:
-                    creature.storage.add_resources(removed_resources)
-                except AddToNonExistentStorageException as exception:
-                    removed_resources -= exception.resources
-                self.resources -= removed_resources
+            removed_resources = Resources[int](
+                {
+                    resource: self.resources[resource] // requested_resources[resource] * amount
+                    if resource in not_enough else amount for resource, amount in creature_request.items()
+                }
+            )
+            try:
+                creature.storage.add_resources(removed_resources)
+            except AddToNonExistentStorageException as exception:
+                removed_resources -= exception.resources
+            self.resources -= removed_resources
 
         # получение ресурсов от существ
         self.resources += Resources[int].sum(self.add_resources_requests.values())

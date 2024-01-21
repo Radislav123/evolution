@@ -488,22 +488,21 @@ class Window(arcade.Window):
         self.ui_manager.add_tabs(self.tab_container)
 
     def count_resources(self) -> None:
-        if self.world.age % window_descriptor.resources_tab_update_period == 0:
-            if self.map_resources_tab or self.world_resources_tab:
-                self.map_resources = Resources[int]()
-                # чтобы порядок ресурсов не менялся
-                self.map_resources.fill_all(0)
-                self.map_resources += Resources[int].sum(x.resources for x in self.world.all_chunks)
+        if self.map_resources_tab or self.world_resources_tab:
+            self.map_resources = Resources[int]()
+            # чтобы порядок ресурсов не менялся
+            self.map_resources.fill_all(0)
+            self.map_resources += Resources[int].sum(x.resources for x in self.world.all_chunks)
 
-            if self.creature_resources_tab or self.world_resources_tab:
-                self.creature_resources = Resources[int]()
-                # чтобы порядок ресурсов не менялся
-                self.creature_resources.fill_all(0)
-                self.creature_resources += Resources[int].sum(x.remaining_resources for x in self.world.creatures) + \
-                                           Resources[int].sum(x.storage.current for x in self.world.creatures)
+        if self.creature_resources_tab or self.world_resources_tab:
+            self.creature_resources = Resources[int]()
+            # чтобы порядок ресурсов не менялся
+            self.creature_resources.fill_all(0)
+            self.creature_resources += Resources[int].sum(x.remaining_resources for x in self.world.creatures) + \
+                                       Resources[int].sum(x.storage.current for x in self.world.creatures)
 
-            if self.world_resources_tab:
-                self.world_resources = self.map_resources + self.creature_resources
+        if self.world_resources_tab:
+            self.world_resources = self.map_resources + self.creature_resources
 
     def count_statistics(self, start: float, finish: float) -> None:
         self.timings["on_update"].append(finish - start)
@@ -548,7 +547,8 @@ class Window(arcade.Window):
             error.window = self
             raise error
         finally:
-            self.count_resources()
+            if self.world.age % window_descriptor.resources_tab_update_period == 0:
+                self.count_resources()
             finish = time.time()
             # noinspection PyUnboundLocalVariable
             self.count_statistics(start, finish)

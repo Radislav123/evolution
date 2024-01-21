@@ -45,6 +45,8 @@ class Creature(WorldObjectMixin, arcade.Sprite):
         AUTOPHAGE_BODY = 2
         MISSING_STORAGE = 3
         NON_VIABLE = 4
+        # убийство существа вручную
+        DEATH_FROM_ABOVE = 5
 
     db_model = models.Creature
     position_history_db_model = models.CreaturePositionHistory
