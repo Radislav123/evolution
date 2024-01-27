@@ -237,7 +237,7 @@ class World(WorldObjectMixin):
 
     # мир делится на шестиугольники
     # https://www.redblobgames.com/grids/hexagons/
-    # todo: rename method
+    # todo: переименовать метод
     def cut(self) -> None:
         width = math.sqrt(3) * self.tile_radius
         height = 2 * self.tile_radius
@@ -249,7 +249,7 @@ class World(WorldObjectMixin):
             (-width, 0),
             (-width / 2, height * 3 / 4)
         )
-        tiles_in_radius = self.radius // self.tile_radius
+        tiles_in_radius = self.radius // self.tile_radius or 1
 
         tile_center = list(self.center)
         SimpleWorldTile(tile_center, self).register(True)
