@@ -2,15 +2,17 @@ import dataclasses
 import math
 import random
 from collections import defaultdict
-from typing import Any, Type
+from typing import Any, Sequence, Type
 
 import arcade
 import imagesize
 from PIL import Image
 
 from core import models
+from core.hitbox import CustomHitBoxAlgorithm
 from core.mixin import WorldObjectMixin
-from core.physic import WorldCharacteristics
+from core.physic.engine import PhysicsEngine
+from core.physic.world import WorldCharacteristics
 from core.service import EvolutionSpriteList, ObjectDescriptionReader
 from evolution import settings
 from simulator.creature import Creature
@@ -54,10 +56,9 @@ world_descriptor: WorldDescriptor = ObjectDescriptionReader[WorldDescriptor]().r
 class World(WorldObjectMixin):
     db_model = models.World
     db_instance: db_model
-    physics_engine: arcade.PymunkPhysicsEngine
 
     # width - минимальное значение ширины экрана - 120
-    def __init__(self, window_center: tuple[int, int]) -> None:
+    def __init__(self, window_center: Position) -> None:
         self.seed = world_descriptor.seed
         random.seed(self.seed)
 
@@ -72,31 +73,31 @@ class World(WorldObjectMixin):
         # коэффициент разницы ресурсов, которые будут перемещены
         self.tile_share_resources_coeff = world_descriptor.tile_share_resources_coeff
 
-        # copy.copy(self.creatures) может работать не правильно, так как SpriteList использует внутренний список
-        # {creature.object_id: creature}
-        self.creatures = EvolutionSpriteList[Creature]()
-        self.processing_creatures: defaultdict[int, set[Creature]] = defaultdict(set)
-        self.active_creatures: dict[int, Creature] | None = None
         self.characteristics = WorldCharacteristics(
             world_descriptor.viscosity,
             world_descriptor.border_friction,
             world_descriptor.border_thickness,
             world_descriptor.resource_density
         )
+        self.physics_engine = PhysicsEngine(damping = 1 - self.characteristics.viscosity)
+        self.position_to_tile_cache: dict[tuple[int, int], WorldTile] = {}
+
+        # copy.copy(self.creatures) может работать не правильно, так как SpriteList использует внутренний список
+        # {creature.object_id: creature}
+        self.creatures = EvolutionSpriteList[Creature]()
+        self.processing_creatures: defaultdict[int, set[Creature]] = defaultdict(set)
+        self.active_creatures: dict[int, Creature] | None = None
 
         # список плиток мира
-        self.tiles = arcade.SpriteList[WorldTile](True)
+        self.map_tiles = arcade.SpriteList[WorldTile](True)
         # список плиток границы мира
-        self.border_tiles = arcade.SpriteList[WorldBorderTile](True)
+        self.border_tiles = arcade.SpriteList[BorderWorldTile](True)
         # список всех плиток
-        self.all_tiles = arcade.SpriteList[WorldTile | WorldBorderTile](True)
-        self.position_to_tile_cache: dict[tuple[int, int], WorldTile] = {}
+        self.all_tiles = arcade.SpriteList[WorldTile | BorderWorldTile](True)
+        self.map_tile_borders = arcade.shape_list.ShapeElementList()
         self.cut()
-        self.tile_borders = arcade.shape_list.ShapeElementList()
-        for borders in (x for tile in self.tiles for x in tile.borders):
-            self.tile_borders.append(borders)
-
-        self.prepare_physics()
+        for tile in self.map_tiles:
+            self.map_tile_borders.append(tile.border)
 
         # все объекты, которые должны сохраняться в БД, должны складываться сюда для ускорения записи в БД
         self.object_to_save_to_db: defaultdict[
@@ -120,14 +121,6 @@ class World(WorldObjectMixin):
             tile_radius = self.tile_radius
         )
         self.db_instance.save()
-
-    def prepare_physics(self) -> None:
-        self.physics_engine = arcade.PymunkPhysicsEngine(damping = 1 - self.characteristics.viscosity)
-        self.physics_engine.add_sprite_list(
-            self.border_tiles,
-            friction = self.characteristics.border_friction,
-            body_type = arcade.PymunkPhysicsEngine.STATIC
-        )
 
     def save_objects_to_db(self) -> None:
         # todo: разделить на создаваемые и обновляемые объекты
@@ -258,15 +251,13 @@ class World(WorldObjectMixin):
         tiles_in_radius = self.radius // self.tile_radius
 
         tile_center = list(self.center)
-        self.tiles.append(WorldTile(tile_center, self))
+        SimpleWorldTile(tile_center, self).register(True)
 
         for edge_size in range(1, tiles_in_radius + self.characteristics.border_thickness):
             if edge_size < tiles_in_radius:
-                tiles_list = self.tiles
-                tile_class = WorldTile
+                tile_class = SimpleWorldTile
             else:
-                tiles_list = self.border_tiles
-                tile_class = WorldBorderTile
+                tile_class = BorderWorldTile
 
             tile_center[0] -= width
 
@@ -274,10 +265,7 @@ class World(WorldObjectMixin):
                 for _ in range(edge_size):
                     tile_center[0] += offset_x
                     tile_center[1] += offset_y
-                    tiles_list.append(tile_class(tile_center, self))
-
-        self.all_tiles.extend(self.tiles)
-        self.all_tiles.extend(self.border_tiles)
+                    tile_class(tile_center, self).register(True)
 
         for tile in self.all_tiles:
             for offset_x, offset_y in offsets:
@@ -286,52 +274,62 @@ class World(WorldObjectMixin):
                 except PositionToTileError:
                     pass
 
-        # todo: remove this
-        tiles = (
-            (0, 1),
-            (0, 1),
-            (0, 1),
-        )
-        self.temp = self.construct_map_object(self.center, tiles)
-
-    # todo: добавить расчет границ (hit_box) так как встроенные методы неточны, а детальный (detailed) иногда ошибается)
     # для правильного физического взаимодействия объекты должны быть непрерывными
-    def construct_map_object(self, position: Position, tiles: tuple[tuple[Any, ...], ...]) -> arcade.Sprite:
+    @staticmethod
+    def map_object_from_matrix(matrix: tuple[tuple[Any, ...], ...]) -> arcade.Sprite:
         # todo: изменить выбор класса при добавлении других типов объектов
-        tile_class = WorldBorderTile
+        tile_class = BorderWorldTile
         default_image = tile_class.default_texture.image
         width = default_image.width
         height = default_image.height
 
-        width_coeff = len(tiles[0]) + 0.5
-        height_coeff = len(tiles) * 3 / 4 + 1 / 4
+        width_coeff = len(matrix[0]) + 0.5
+        height_coeff = len(matrix) * 3 / 4 + 1 / 4
         image = Image.new("RGBA", (int(width * width_coeff), int(height * height_coeff)))
 
-        for line_index, line in enumerate(tiles):
+        for line_index, line in enumerate(matrix):
             for tile_index, tile in enumerate(line):
                 if tile:
                     x = int((tile_index + line_index % 2 / 2) * width)
                     y = int((line_index * 3 / 4) * height)
                     image.paste(default_image, (x, y), default_image)
 
-        texture = arcade.Texture(image, hit_box_algorithm = arcade.hitbox.algo_detailed)
-        tile = self.position_to_tile(position)
+        texture = arcade.Texture(image, hit_box_algorithm = CustomHitBoxAlgorithm())
         sprite = arcade.Sprite(texture)
         sprite.width = (tile_class.default_width - tile_class.overlap_distance) * width_coeff
         sprite.height = (tile_class.default_height - tile_class.overlap_distance) * height_coeff
-        sprite.left = tile.left
-        sprite.top = tile.top
         sprite.color = tile_class.default_color
-        # todo: remove save
-        sprite.texture.image.save("temp.png")
 
         return sprite
+
+    def change_tiles_by_matrix(
+            self,
+            tile_class: type["WorldTile"],
+            reference_tile: "WorldTile",
+            matrix: tuple[tuple[Any, ...], ...]
+    ) -> None:
+        reference_position = reference_tile.position
+
+        for line_index, line in enumerate(matrix):
+            for tile_index, tile in enumerate(line):
+                if tile:
+                    x_offset = (tile_index + line_index % 2 / 2) * tile_class.default_width
+                    y_offset = (line_index * 3 / 4) * tile_class.default_height
+                    position = (reference_position[0] + x_offset, reference_position[1] + y_offset)
+
+                    old_tile = self.position_to_tile(position)
+                    position = old_tile.position
+                    old_tile.unregister(True)
+
+                    tile = tile_class(position, self)
+                    tile.register(True)
 
 
 class WorldTile(arcade.Sprite):
     image_path = settings.WORLD_TILE_IMAGE_PATH
     image_size = imagesize.get(image_path)
-    default_color = (255, 255, 255, 255)
+    default_color: tuple[int, int, int, int]
+    default_border_color = (100, 100, 100, 255)
     default_texture = arcade.load_texture(image_path, hit_box_algorithm = arcade.hitbox.algo_detailed)
     overlap_distance = 1.5
     radius = world_descriptor.tile_radius
@@ -340,12 +338,11 @@ class WorldTile(arcade.Sprite):
 
     # границы плиток должны задаваться с небольшим наслоением, так как границы не считаются их частью
     # если граница проходит по 400 координате, то 399.(9) принадлежит плитке, а 400 уже - нет
-    def __init__(self, center: list[int, int], world: World) -> None:
+    def __init__(self, center: Position | Sequence[float | int], world: World) -> None:
         self.world = world
         super().__init__(self.default_texture, center_x = center[0], center_y = center[1])
         self.width = self.default_width
         self.height = self.default_height
-        self.borders = arcade.shape_list.ShapeElementList()
         self.border_points = (
             (self.center_x - self.width / 2, self.center_y - self.height / 4),
             (self.center_x - self.width / 2, self.center_y + self.height / 4),
@@ -354,8 +351,10 @@ class WorldTile(arcade.Sprite):
             (self.center_x + self.width / 2, self.center_y - self.height / 4),
             (self.center_x, self.center_y - self.height / 2)
         )
-        self.borders.append(
-            arcade.shape_list.create_line_loop(self.border_points, (100, 100, 100, 255), self.overlap_distance)
+        self.border = arcade.shape_list.create_line_loop(
+            self.border_points,
+            self.default_border_color,
+            self.overlap_distance
         )
 
         self.default_resource_amount = int(
@@ -367,6 +366,7 @@ class WorldTile(arcade.Sprite):
         self.add_resources_requests: dict[Creature, Resources[int]] = {}
 
         self.neighbors: set[WorldTile] = set()
+        self.color = self.default_color
 
     def __repr__(self) -> str:
         return f"{self.center_x, self.center_y}"
@@ -402,10 +402,40 @@ class WorldTile(arcade.Sprite):
             if amount < 0:
                 raise ValueError(f"Resource amount can not be below zero, but there is {self.resources}.")
 
+    def register(self, map_creation: bool) -> None:
+        self.world.all_tiles.append(self)
 
-class WorldBorderTile(WorldTile):
+    def unregister(self, map_creation: bool) -> None:
+        self.remove_from_sprite_lists()
+
+
+class SimpleWorldTile(WorldTile):
+    default_color = (255, 255, 255, 255)
+
+    def register(self, map_creation: bool) -> None:
+        super().register(map_creation)
+        self.world.map_tiles.append(self)
+        if not map_creation:
+            self.world.map_tile_borders.append(self.border)
+
+    def unregister(self, map_creation: bool) -> None:
+        super().unregister(map_creation)
+        if not map_creation:
+            self.world.map_tile_borders.remove(self.border)
+
+
+class BorderWorldTile(WorldTile):
     default_color = (200, 200, 200, 255)
 
-    def __init__(self, center: list[int, int], world: World) -> None:
-        super().__init__(center, world)
-        self.color = self.default_color
+    def register(self, map_creation: bool) -> None:
+        super().register(map_creation)
+        self.world.border_tiles.append(self)
+        self.world.physics_engine.add_sprite(
+            self,
+            friction = self.world.characteristics.border_friction,
+            body_type = arcade.PymunkPhysicsEngine.STATIC
+        )
+
+    def unregister(self, map_creation: bool) -> None:
+        super().unregister(map_creation)
+        self.world.physics_engine.remove_sprite(self)

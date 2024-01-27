@@ -10,7 +10,7 @@ import pymunk
 
 from core import models
 from core.mixin import WorldObjectMixin
-from core.physic import CreatureCharacteristics
+from core.physic.creature import CreatureCharacteristics
 from core.service import ObjectDescriptionReader
 from evolution import settings
 from simulator.creature.action import ActionInterface

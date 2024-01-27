@@ -1,1 +1,1 @@
-from simulator.world.base import World, WorldBorderTile, WorldTile
+from simulator.world.base import World, BorderWorldTile, WorldTile

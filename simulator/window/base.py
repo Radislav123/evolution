@@ -520,9 +520,9 @@ class Window(arcade.Window):
 
         self.world.border_tiles.draw()
         if self.resources_overlay_tab:
-            self.world.tiles.draw()
+            self.world.map_tiles.draw()
         if self.draw_tile_borders_tab:
-            self.world.tile_borders.draw()
+            self.world.map_tile_borders.draw()
 
         if self.draw_creatures_tab:
             # можно отрисовывать всех существ по отдельности, итерируясь по self.creatures,
@@ -557,14 +557,14 @@ class Window(arcade.Window):
         resources = {}
         maximum = 0
         minimum = 1024**16
-        for tile in self.world.tiles:
+        for tile in self.world.map_tiles:
             resources_sum = sum(tile.resources.values())
             resources[tile] = resources_sum
             if resources_sum > maximum:
                 maximum = resources_sum
             if resources_sum < minimum:
                 minimum = resources_sum
-        for tile in self.world.tiles:
+        for tile in self.world.map_tiles:
             # gradient = (1 - (resources[tile] - minimum) / (maximum - minimum)) * 255
             gradient = (1 - resources[tile] / maximum) * 255
             tile.color = (gradient, gradient, gradient, 255)
