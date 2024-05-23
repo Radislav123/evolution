@@ -13,25 +13,25 @@ from simulator.world import World
 SECTION_DELIMITER = "\n"
 
 
-def log_attributes(obj: object, file: TextIO):
+def log_attributes(obj: object, file: TextIO) -> None:
     file.write("---------- Attributes info ----------\n")
     for attribute in obj.__dict__:
         file.write(f"{attribute}: {obj.__dict__[attribute]}\n")
 
 
-def log_error(error: Exception, file: TextIO):
+def log_error(error: Exception, file: TextIO) -> None:
     file.write(f"{error.__class__.__name__}: {error}\n")
 
 
-def log_window(window: Window, file: TextIO):
+def log_window(window: Window, file: TextIO) -> None:
     file.write(f"{window}\n")
 
 
-def log_world(world: World, file: TextIO):
+def log_world(world: World, file: TextIO) -> None:
     file.write(f"{world}\n")
 
 
-def log_creature(creature: Creature, file: TextIO):
+def log_creature(creature: Creature, file: TextIO) -> None:
     file.write(f"{creature}\n")
     try:
         file.write(f"bodyparts: {creature.bodyparts}\n")
@@ -42,7 +42,7 @@ def log_creature(creature: Creature, file: TextIO):
     log_action(creature, file)
 
 
-def log_genome(creature: Creature, file: TextIO):
+def log_genome(creature: Creature, file: TextIO) -> None:
     file.write("~~~~~~~~~~ Genome info ~~~~~~~~~~\n")
     if hasattr(creature, "genome"):
         for attribute in creature.genome.__dict__:
@@ -54,7 +54,7 @@ def log_genome(creature: Creature, file: TextIO):
             file.write(f"{attribute}: {creature.genome.effects.__dict__[attribute]}\n")
 
 
-def log_action(creature: Creature, file: TextIO):
+def log_action(creature: Creature, file: TextIO) -> None:
     file.write("~~~~~~~~~~ Action info ~~~~~~~~~~\n")
     if hasattr(creature, "action") and creature.action is not None:
         for attribute in creature.action.__dict__:
@@ -62,7 +62,7 @@ def log_action(creature: Creature, file: TextIO):
 
 
 # todo: сохранять в json-формате
-def log_error_info(error: Exception):
+def log_error_info(error: Exception) -> None:
     with open("exception_info.txt", 'w') as file:
         file.write("========== Error info ==========\n")
         log_error(error, file)
@@ -105,7 +105,7 @@ def log_error_info(error: Exception):
 
 
 # https://www.b-list.org/weblog/2007/sep/22/standalone-django-scripts/
-def simulate():
+def simulate() -> None:
     gc.set_threshold(10000, 100, 100)
 
     window_width = 800

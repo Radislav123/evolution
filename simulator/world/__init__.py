@@ -227,13 +227,13 @@ class World(WorldObjectMixin):
         sharing_resources: list[tuple[WorldTile, WorldTile, Resources[int]]] = []
         for tile in self.all_tiles:
             for neighbor in tile.neighbors:
-                differance = (tile.resources - neighbor.resources) * self.tile_share_resources_coeff
-                differance.iround()
-                sharing_resources.append((neighbor, tile, differance))
+                difference = (tile.resources - neighbor.resources) * self.tile_share_resources_coeff
+                difference.iround()
+                sharing_resources.append((neighbor, tile, difference))
 
-        for neighbor, tile, differance in sharing_resources:
-            tile.resources -= differance
-            neighbor.resources += differance
+        for neighbor, tile, difference in sharing_resources:
+            tile.resources -= difference
+            neighbor.resources += difference
 
     # мир делится на шестиугольники
     # https://www.redblobgames.com/grids/hexagons/

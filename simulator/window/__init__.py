@@ -537,8 +537,8 @@ class Window(arcade.Window):
             self.graphs.draw()
 
     def on_update(self, delta_time: float) -> None:
+        start = time.time()
         try:
-            start = time.time()
             self.world.on_update()
             if self.resources_overlay_tab and self.world.age % window_descriptor.overlay_update_period == 0:
                 self.update_resources_overlay()
@@ -550,7 +550,6 @@ class Window(arcade.Window):
             if self.world.age % window_descriptor.resources_tab_update_period == 0:
                 self.count_resources()
             finish = time.time()
-            # noinspection PyUnboundLocalVariable
             self.count_statistics(start, finish)
 
     def update_resources_overlay(self) -> None:
